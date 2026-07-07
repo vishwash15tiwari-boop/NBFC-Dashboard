@@ -1,17 +1,20 @@
 // ============================================================
-//  NBFC — Seller Document Collection Dashboard
+//  NBFC — Seller Document Collection Dashboard  (backend)
 //
-//  READ-ONLY: this script never edits your data. It only reads
-//  the existing master tab's headers and writes a single new tab
-//  called "NBFC Dashboard" containing live formulas that mirror
-//  the document-status columns already in the sheet.
+//  This single file powers everything. Only two files are needed
+//  in the Apps Script project: this Code.gs and Index.html.
 //
-//  SETUP:
-//  1. Open the Google Sheet
-//  2. Extensions -> Apps Script
-//  3. Paste this file, Save (Ctrl+S)
-//  4. Run  buildNbfcDashboard   (grant permissions when asked)
-//     -> or use the "NBFC" menu that appears after reopening
+//  READ-ONLY: it never edits your data. It reads the master tab's
+//  document columns and either (a) builds an in-sheet "NBFC
+//  Dashboard" tab, or (b) serves Index.html as a live web app.
+//
+//  IN-SHEET TAB:
+//    Extensions -> Apps Script -> paste Code.gs + Index.html ->
+//    run  buildNbfcDashboard  (grant permissions).
+//
+//  WEB APP:
+//    Deploy -> New deployment -> Web app -> Execute as: Me ->
+//    open the Web app URL. (getDashboardData() feeds Index.html.)
 // ============================================================
 
 // Target spreadsheet. Leave '' to use the bound sheet.
@@ -337,4 +340,113 @@ function onOpen() {
       .addItem('Rebuild Dashboard', 'buildNbfcDashboard')
       .addToUi();
   } catch (e) { /* no UI context */ }
+}
+
+// ============================================================
+//  WEB APP  —  serves Index.html and feeds it live data
+// ============================================================
+
+function doGet() {
+  return HtmlService.createTemplateFromFile('Index')
+    .evaluate()
+    .setTitle('NBFC Document Dashboard')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+/** Lets Index.html pull in extra HTML partials if ever split out. */
+function include(name) {
+  return HtmlService.createHtmlOutputFromFile(name).getContent();
+}
+
+/** Called from Index.html via google.script.run. */
+function getDashboardData() {
+  try {
+    return computeDashboard_();
+  } catch (err) {
+    return { error: String(err && err.message ? err.message : err) };
+  }
+}
+
+// Reads the sheet and returns computed values (not formulas), including
+// the per-seller × per-document status matrix used by the web app.
+function computeDashboard_() {
+  const ss  = book_();
+  const src = locateSource_(ss);
+  const sh  = src.sheet;
+
+  const recvSet = RECEIVED_VALUES.map(s => s.toLowerCase());
+  const naSet   = NA_VALUES.map(s => s.toLowerCase());
+  // 'Y' received, 'N' not applicable, 'X' missing (No / "-" / blank / other)
+  const classify = v => {
+    const t = String(v == null ? '' : v).trim().toLowerCase();
+    if (recvSet.indexOf(t) > -1) return 'Y';
+    if (naSet.indexOf(t) > -1)   return 'N';
+    return 'X';
+  };
+
+  const N       = src.numDocs;
+  const lastRow = sh.getLastRow();
+  const numRows = Math.max(lastRow - src.dataStart + 1, 0);
+
+  const base = {
+    sourceName: src.name,
+    generatedAt: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd-MMM-yyyy HH:mm'),
+    numDocs: N,
+    docLabels: src.docLabels,
+    sellers: [],
+    docs: src.docLabels.map(l => ({ label: l, recv: 0, na: 0, appl: 0, pend: 0, pct: 0 })),
+    totals: { sellers: 0, recv: 0, na: 0, appl: 0, pend: 0, pct: 0 },
+  };
+  if (numRows === 0) return base;
+
+  const names    = sh.getRange(src.dataStart, src.nameCol, numRows, 1).getValues();
+  const entities = src.entityCol
+    ? sh.getRange(src.dataStart, src.entityCol, numRows, 1).getValues()
+    : null;
+  const block = sh.getRange(src.dataStart, src.docStart, numRows, N).getValues();
+
+  let tRecv = 0, tNa = 0;
+
+  for (let i = 0; i < numRows; i++) {
+    const name = String(names[i][0] == null ? '' : names[i][0]).trim();
+    if (!name) continue; // skip blank / buyer-only rows
+
+    const cells = new Array(N);
+    let recv = 0, na = 0;
+    for (let j = 0; j < N; j++) {
+      const c = classify(block[i][j]);
+      cells[j] = c;
+      if (c === 'Y') { recv++; base.docs[j].recv++; }
+      else if (c === 'N') { na++; base.docs[j].na++; }
+    }
+    const appl = N - na;
+    const pend = appl - recv;
+    base.sellers.push({
+      name: name,
+      type: entities ? String(entities[i][0] || '').trim() : '',
+      recv: recv, na: na, appl: appl, pend: pend,
+      pct: appl ? Math.round((recv / appl) * 100) : 0,
+      cells: cells.join(''),           // e.g. "YXYXNY..." aligned to docLabels
+    });
+    tRecv += recv;
+    tNa   += na;
+  }
+
+  const S = base.sellers.length;
+  base.docs.forEach(d => {
+    d.appl = S - d.na;
+    d.pend = d.appl - d.recv;
+    d.pct  = d.appl ? Math.round((d.recv / d.appl) * 100) : 0;
+  });
+
+  const tAppl = N * S - tNa;
+  base.totals = {
+    sellers: S,
+    recv: tRecv,
+    na: tNa,
+    appl: tAppl,
+    pend: tAppl - tRecv,
+    pct: tAppl ? Math.round((tRecv / tAppl) * 1000) / 10 : 0,
+  };
+  return base;
 }

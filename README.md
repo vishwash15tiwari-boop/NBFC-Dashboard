@@ -64,17 +64,17 @@ HTML/CSS/JS frontend served by Apps Script that reads the sheet live. Nothing is
 made public: it runs inside your Google account, so your data is never exposed
 via API keys or "publish to web".
 
-Files:
+The whole thing is just **two files**:
 
 | File | Role |
 |------|------|
-| `WebApp.gs` | `doGet()` serves the page; `getDashboardData()` reads the sheet and returns JSON. |
-| `Index.html` | The frontend — KPI strip, seller-wise table, document-wise summary, live Refresh, light/dark aware, mobile responsive. |
+| `Code.gs` | Backend — locates the master tab, builds the in-sheet tab (`buildNbfcDashboard`), and serves the web app (`doGet` + `getDashboardData`, which returns the per-seller × per-document status matrix). |
+| `Index.html` | Frontend — KPI strip, **document status matrix** (received vs missing per checklist item), **missing-by-seller** cards, document-wise summary, systemic-gaps callout. Light/dark aware, mobile responsive, live Refresh. |
 
 **Deploy:**
 
-1. Make sure `Code.gs`, `WebApp.gs`, and `Index.html` are all in the Apps Script
-   project (paste each, or `clasp push`).
+1. In the Apps Script project keep exactly these two files: `Code.gs` and
+   `Index.html` (paste each, or `clasp push`).
 2. **Deploy → New deployment → Web app**.
 3. *Execute as* **Me**; *Who has access* — pick **Only myself** to start (widen to
    your Workspace domain or "Anyone with the link" if colleagues need it).
