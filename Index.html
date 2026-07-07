@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root{
+    --bg:#eef1f5; --card:#ffffff; --ink:#1a2330; --muted:#5b6b7f; --line:#e2e8f0;
+    --navy:#0d1b2a; --blue:#1565c0; --green:#2e7d32;
+    --recv-bg:#c8e6c9; --recv-ink:#1b5e20; --pend-bg:#ffcdd2; --pend-ink:#b71c1c;
+    --na-bg:#eeeeee; --na-ink:#616161; --appl-bg:#e3f2fd; --appl-ink:#0d47a1;
+    --track:#e6ebf1; --barblue:#1565c0; --bargreen:#2e7d32; --warn:#8a5b00; --warnbg:#fff3cd;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f151c; --card:#161e28; --ink:#e6edf5; --muted:#95a6ba; --line:#243244;
+      --navy:#08111c; --blue:#2f7fe0; --green:#3fa14a;
+      --recv-bg:#1c3a22; --recv-ink:#9fe6a6; --pend-bg:#3d1c22; --pend-ink:#f4a7ad;
+      --na-bg:#232b35; --na-ink:#9fb0c2; --appl-bg:#132a40; --appl-ink:#8dc2f7;
+      --track:#232e3c; --barblue:#3f8ae0; --bargreen:#49b154; --warn:#e9cd8a; --warnbg:#3a3416;
+    }
+  }
+  :root[data-theme="light"]{ --bg:#eef1f5; --card:#fff; --ink:#1a2330; --muted:#5b6b7f;
+    --line:#e2e8f0; --navy:#0d1b2a; --track:#e6ebf1; --recv-bg:#c8e6c9; --recv-ink:#1b5e20;
+    --pend-bg:#ffcdd2; --pend-ink:#b71c1c; --na-bg:#eeeeee; --na-ink:#616161;
+    --appl-bg:#e3f2fd; --appl-ink:#0d47a1; --warn:#8a5b00; --warnbg:#fff3cd; }
+  :root[data-theme="dark"]{ --bg:#0f151c; --card:#161e28; --ink:#e6edf5; --muted:#95a6ba;
+    --line:#243244; --navy:#08111c; --track:#232e3c; --recv-bg:#1c3a22; --recv-ink:#9fe6a6;
+    --pend-bg:#3d1c22; --pend-ink:#f4a7ad; --na-bg:#232b35; --na-ink:#9fb0c2;
+    --appl-bg:#132a40; --appl-ink:#8dc2f7; --warn:#e9cd8a; --warnbg:#3a3416; }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.45;padding:18px}
+  .wrap{max-width:1040px;margin:0 auto}
+
+  .banner{background:var(--navy);color:#fff;border-radius:12px 12px 0 0;padding:18px 22px;
+    display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .banner h1{margin:0;font-size:19px;font-weight:800}
+  .banner .sub{margin-top:3px;font-size:12px;color:#90caf9}
+  .btn{background:#1e3350;color:#fff;border:1px solid #33507a;border-radius:8px;
+    padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .btn:hover{background:#274067}
+  .btn:disabled{opacity:.55;cursor:default}
+
+  .status{padding:10px 22px;font-size:12.5px;background:var(--card);
+    border-left:1px solid var(--line);border-right:1px solid var(--line)}
+  .status.err{background:var(--warnbg);color:var(--warn)}
+
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;background:var(--card);
+    padding:16px;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+  .kpi{border-radius:10px;padding:12px 10px;text-align:center;border:1px solid var(--line)}
+  .kpi .v{font-size:21px;font-weight:800;line-height:1.1}
+  .kpi .l{font-size:10px;text-transform:uppercase;letter-spacing:.4px;margin-top:4px;opacity:.85}
+  .kpi.tot{background:transparent}
+  .kpi.recv{background:var(--recv-bg);color:var(--recv-ink)}
+  .kpi.pend{background:var(--pend-bg);color:var(--pend-ink)}
+  .kpi.na{background:var(--na-bg);color:var(--na-ink)}
+  .kpi.appl{background:var(--appl-bg);color:var(--appl-ink)}
+  .kpi.comp{background:var(--blue);color:#fff;border-color:transparent}
+
+  .legend{background:var(--card);border-left:1px solid var(--line);border-right:1px solid var(--line);
+    padding:0 16px 14px;font-size:11.5px;color:var(--muted);text-align:center}
+
+  .sec{color:#fff;padding:10px 16px;font-weight:700;font-size:13px;
+    border-left:1px solid var(--line);border-right:1px solid var(--line)}
+  .sec.blue{background:var(--blue)} .sec.green{background:var(--green)}
+
+  .tblwrap{overflow-x:auto;background:var(--card);
+    border-left:1px solid var(--line);border-right:1px solid var(--line)}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;min-width:660px}
+  th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+  th{background:#37474f;color:#fff;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+  td.name{text-align:left;font-weight:600;white-space:normal;min-width:170px}
+  td.doc{text-align:left;white-space:normal;min-width:210px}
+  td.type{text-align:left;color:var(--muted)}
+  tbody tr:nth-child(even) td{background:rgba(127,127,127,.05)}
+
+  .bar{display:flex;align-items:center;gap:8px}
+  .track{flex:1;height:9px;border-radius:6px;background:var(--track);overflow:hidden;min-width:90px}
+  .fill{height:100%;border-radius:6px}
+  .fill.b{background:var(--barblue)} .fill.g{background:var(--bargreen)}
+  .pctnum{font-variant-numeric:tabular-nums;font-weight:700;min-width:38px;text-align:right}
+
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+  .pill.ok{background:var(--recv-bg);color:var(--recv-ink)}
+  .pill.wait{background:var(--warnbg);color:var(--warn)}
+
+  .foot{background:var(--card);border:1px solid var(--line);border-top:none;
+    border-radius:0 0 12px 12px;padding:12px 16px;font-size:11.5px;color:var(--muted)}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--muted);
+    border-top-color:transparent;border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:-2px;margin-right:7px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media (max-width:640px){ .kpis{grid-template-columns:repeat(3,1fr)} .banner h1{font-size:16px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="banner">
+    <div>
+      <h1>NBFC — Seller Document Collection Dashboard</h1>
+      <div class="sub" id="sub">Loading…</div>
+    </div>
+    <button class="btn" id="refresh" onclick="load()" disabled>↻ Refresh</button>
+  </div>
+
+  <div class="status" id="status"><span class="spin"></span>Fetching live data from your sheet…</div>
+
+  <div id="content" style="display:none">
+    <div class="kpis" id="kpis"></div>
+    <div class="legend">Legend: <b>Yes</b> = received &nbsp;·&nbsp; <b>NA / N/A</b> = not applicable (excluded from %) &nbsp;·&nbsp; <b>No / “-” / blank</b> = pending</div>
+
+    <div class="sec blue">▶ SELLER-WISE DOCUMENT STATUS</div>
+    <div class="tblwrap">
+      <table>
+        <thead><tr>
+          <th style="text-align:left">Seller Business Name</th><th style="text-align:left">Entity Type</th>
+          <th>Recv</th><th>Pend</th><th>N/A</th><th>Req.</th><th>% Done</th><th>Status</th>
+          <th style="text-align:left">Progress</th>
+        </tr></thead>
+        <tbody id="sellerBody"></tbody>
+      </table>
+    </div>
+
+    <div class="sec green">▶ DOCUMENT-WISE SUMMARY (across all sellers)</div>
+    <div class="tblwrap">
+      <table>
+        <thead><tr>
+          <th style="text-align:left">Document</th>
+          <th>Received</th><th>Pending</th><th>N/A</th><th>% Collected</th>
+          <th style="text-align:left">Progress</th>
+        </tr></thead>
+        <tbody id="docBody"></tbody>
+      </table>
+    </div>
+
+    <div class="foot" id="foot"></div>
+  </div>
+</div>
+
+<script>
+  var elStatus = document.getElementById('status');
+  var elContent = document.getElementById('content');
+  var elRefresh = document.getElementById('refresh');
+
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  function bar(pct,cls){
+    return '<div class="bar"><span class="pctnum">'+pct+'%</span>'+
+      '<span class="track"><span class="fill '+cls+'" style="width:'+pct+'%"></span></span></div>';
+  }
+  function kpi(cls,v,l){ return '<div class="kpi '+cls+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>'; }
+
+  function render(d){
+    if(!d || d.error){
+      elStatus.className='status err';
+      elStatus.textContent='⚠ '+((d&&d.error)||'No data returned.');
+      elRefresh.disabled=false;
+      return;
+    }
+    document.getElementById('sub').textContent='Reflecting tab: '+d.sourceName+'  ·  '+d.numDocs+' documents tracked';
+
+    var t=d.totals;
+    document.getElementById('kpis').innerHTML =
+      kpi('tot',t.sellers,'Total Sellers') +
+      kpi('recv',t.recv,'Docs Received') +
+      kpi('pend',t.pend,'Docs Pending') +
+      kpi('na',t.na,'Not Applicable') +
+      kpi('appl',t.appl,'Applicable') +
+      kpi('comp',t.pct+'%','Completion');
+
+    document.getElementById('sellerBody').innerHTML = (d.sellers.length?d.sellers:[]).map(function(s){
+      var status = s.pend<=0
+        ? '<span class="pill ok">✅ Complete</span>'
+        : '<span class="pill wait">⏳ '+s.pend+' pending</span>';
+      return '<tr><td class="name">'+esc(s.name)+'</td><td class="type">'+esc(s.type||'')+'</td>'+
+        '<td>'+s.recv+'</td><td>'+s.pend+'</td><td>'+s.na+'</td><td>'+s.appl+'</td>'+
+        '<td><b>'+s.pct+'%</b></td><td>'+status+'</td><td>'+bar(s.pct,'b')+'</td></tr>';
+    }).join('') || '<tr><td colspan="9" style="padding:16px;color:var(--muted)">No sellers found.</td></tr>';
+
+    document.getElementById('docBody').innerHTML = d.docs.map(function(x){
+      return '<tr><td class="doc">'+esc(x.label)+'</td>'+
+        '<td>'+x.recv+'</td><td>'+x.pend+'</td><td>'+x.na+'</td>'+
+        '<td><b>'+x.pct+'%</b></td><td>'+bar(x.pct,'g')+'</td></tr>';
+    }).join('');
+
+    document.getElementById('foot').textContent =
+      'Generated '+d.generatedAt+' — read-only view; your sheet was not modified. Click Refresh to re-read the latest data.';
+
+    elStatus.style.display='none';
+    elContent.style.display='block';
+    elRefresh.disabled=false;
+  }
+
+  function load(){
+    elRefresh.disabled=true;
+    elStatus.style.display='block';
+    elStatus.className='status';
+    elStatus.innerHTML='<span class="spin"></span>Fetching live data from your sheet…';
+    if(typeof google==='undefined' || !google.script || !google.script.run){
+      elStatus.className='status err';
+      elStatus.innerHTML='⚠ Open this page via the deployed Web App URL (Deploy → Web app). '+
+        'The live data connection only works when served by Apps Script, not from a local file.';
+      return;
+    }
+    google.script.run.withSuccessHandler(render)
+      .withFailureHandler(function(e){
+        elStatus.className='status err';
+        elStatus.textContent='⚠ '+e.message; elRefresh.disabled=false;
+      })
+      .getDashboardData();
+  }
+
+  load();
+</script>
+</body>
+</html>

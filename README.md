@@ -57,6 +57,33 @@ clasp push
 `SHEET_ID` is already set to the target sheet, so a standalone deployment knows
 which spreadsheet to read.
 
+## Web app frontend (live HTML dashboard)
+
+As well as the in-sheet tab, this project ships a **web dashboard** — an
+HTML/CSS/JS frontend served by Apps Script that reads the sheet live. Nothing is
+made public: it runs inside your Google account, so your data is never exposed
+via API keys or "publish to web".
+
+Files:
+
+| File | Role |
+|------|------|
+| `WebApp.gs` | `doGet()` serves the page; `getDashboardData()` reads the sheet and returns JSON. |
+| `Index.html` | The frontend — KPI strip, seller-wise table, document-wise summary, live Refresh, light/dark aware, mobile responsive. |
+
+**Deploy:**
+
+1. Make sure `Code.gs`, `WebApp.gs`, and `Index.html` are all in the Apps Script
+   project (paste each, or `clasp push`).
+2. **Deploy → New deployment → Web app**.
+3. *Execute as* **Me**; *Who has access* — pick **Only myself** to start (widen to
+   your Workspace domain or "Anyone with the link" if colleagues need it).
+4. Authorize, then open the **Web app URL**. Bookmark it — that URL *is* the
+   dashboard. Hit **↻ Refresh** to re-read the latest sheet data.
+
+`Index.html` needs to be served by the deployed web app; opening the file
+directly won't have a live data connection (it will say so).
+
 ## Configuration (top of `Code.gs`)
 
 | Constant | Purpose |
