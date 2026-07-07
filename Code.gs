@@ -15,18 +15,18 @@
  *  column order and status vocabulary (Received / Pending / NA / free-text
  *  notes).
  *
- *  NOTE ON THE FILE ID BELOW: the file supplied is an uploaded Excel workbook
- *  (.xlsx). Apps Script cannot read or write .xlsx in place, so on first run
- *  this script converts it once into a native Google Sheet ("… (Live)") in the
- *  same Drive folder, stores the new ID in Script Properties, and uses that as
- *  the live backend from then on. If SOURCE_FILE_ID already points to a native
- *  Google Sheet, it is used directly and no copy is made.
+ *  SOURCE_FILE_ID points at the native Google Sheet "NBFC Document Tracker"
+ *  and is used directly. (Safety net: if the ID is ever swapped for an
+ *  uploaded .xlsx — which Apps Script cannot read or write in place — the
+ *  script converts it once into a native Google Sheet ("… (Live)") in the
+ *  same Drive folder, stores the new ID in Script Properties, and uses that
+ *  as the live backend from then on.)
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 var CONFIG = {
-  // Drive file ID of the workbook (xlsx upload or native Google Sheet).
-  SOURCE_FILE_ID: '1cCcBcFcoB0Dqj0_6uCQlIVOQomMd-Ayl',
+  // Drive file ID of the workbook (native Google Sheet, or xlsx upload).
+  SOURCE_FILE_ID: '1RoHWbZyHhNKlweWXD4AMSZfB5ONdktPcVayOkpPgjpo',
 
   // Tab discovery: matched by name first, then by header signature, then by
   // position (0-based index) as a last resort.

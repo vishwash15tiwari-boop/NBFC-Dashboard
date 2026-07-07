@@ -21,17 +21,18 @@ management-friendly platform:
 
 ## Data source
 
-`CONFIG.SOURCE_FILE_ID` in `Code.gs` points at the Drive file
-`1cCcBcFcoB0Dqj0_6uCQlIVOQomMd-Ayl` (*NBFC Document Tracker.xlsx*).
+`CONFIG.SOURCE_FILE_ID` in `Code.gs` points at the native Google Sheet
+`1RoHWbZyHhNKlweWXD4AMSZfB5ONdktPcVayOkpPgjpo` (*NBFC Document Tracker*),
+which is read and written directly — the **Sheet** button in the app's top
+bar opens it.
 
-That file is an **uploaded Excel workbook**, which Apps Script cannot read or
-write in place. On first run the script therefore converts it **once** into a
-native Google Sheet — *"NBFC Document Tracker (Live)"*, created in the same
-Drive folder with every tab and value intact — stores the new ID in Script
-Properties, and uses it as the live backend from then on. The **Sheet** button
-in the app's top bar always opens the live backend. If you later point
-`SOURCE_FILE_ID` at a native Google Sheet, it is used directly and no copy is
-made (clear the `BACKEND_SHEET_ID` script property after changing the ID).
+Safety net: if the ID is ever swapped for an **uploaded Excel workbook**
+(which Apps Script cannot read or write in place), the script converts it
+**once** into a native Google Sheet — *"… (Live)"*, created in the same Drive
+folder with every tab and value intact — stores the new ID in Script
+Properties, and uses that as the live backend from then on. After changing
+`SOURCE_FILE_ID`, clear the `BACKEND_SHEET_ID` script property
+(Project Settings → Script Properties) so the new ID takes effect.
 
 ## How statuses are interpreted
 
@@ -56,7 +57,7 @@ still pending).
    - *Execute as*: **Me**
    - *Who has access*: anyone you want using the tracker
 6. Open the web-app URL. On the very first load, grant the requested
-   permissions (Sheets + Drive — needed for the one-time xlsx conversion).
+   permissions (Sheets + Drive).
 
 Alternatively push with [clasp](https://github.com/google/clasp):
 `clasp create --type webapp && clasp push && clasp deploy`.
