@@ -4,206 +4,297 @@
 <base target="_top">
 <meta charset="utf-8">
 <style>
+  /* ---- Recykal brand tokens (swap --brand to your exact hex if needed) ---- */
   :root{
-    --bg:#eef1f5; --card:#fff; --ink:#1a2330; --muted:#5b6b7f; --line:#dfe5ec;
-    --navy:#0d1b2a; --blue:#1565c0; --green:#2e7d32;
-    --recv-bg:#2e9d4f; --recv-ink:#fff; --miss-bg:#e5484d; --miss-ink:#fff;
-    --na-bg:#d7dee6; --na-ink:#67788a;
-    --recv-soft:#e6f4ea; --recv-softink:#1b7a38; --miss-soft:#fde7e7; --miss-softink:#b3282c;
-    --appl-bg:#e3f2fd; --appl-ink:#0d47a1;
-    --track:#e6ebf1; --warnbg:#fff3cd; --warn:#8a5b00;
+    --brand:#12A05A; --brand-strong:#0B7D45; --brand-ink:#0B241A; --brand-50:#E8F6EE;
+    --bg:#F3F6F4; --surface:#FFFFFF; --surface-2:#FAFCFB;
+    --ink:#0E2A1E; --text:#2C3A33; --muted:#6C7B73; --line:#E4EAE6;
+    --good:#0E8F50; --good-ink:#0B7D45; --good-bg:#E7F5EC;
+    --bad:#D8453F; --bad-ink:#B02A26; --bad-bg:#FCECEB;
+    --na:#8C9A92; --na-bg:#EDF1EF;
+    --warn-ink:#8A5A16; --warn-bg:#FDF3E0; --warn-line:#F1DFB8;
+    --track:#E7ECE9; --shadow:0 1px 2px rgba(11,36,26,.05),0 6px 18px rgba(11,36,26,.06);
   }
   @media (prefers-color-scheme:dark){:root{
-    --bg:#0f151c; --card:#161e28; --ink:#e6edf5; --muted:#95a6ba; --line:#25313f;
-    --navy:#08111c; --blue:#2f7fe0; --green:#3fa14a;
-    --recv-bg:#2a8f49; --recv-ink:#eafff0; --miss-bg:#c93b40; --miss-ink:#fff;
-    --na-bg:#2a3441; --na-ink:#9fb0c2;
-    --recv-soft:#16301f; --recv-softink:#8fe3a3; --miss-soft:#361a1c; --miss-softink:#f4a7ad;
-    --appl-bg:#132a40; --appl-ink:#8dc2f7;
-    --track:#232e3c; --warnbg:#3a3416; --warn:#e9cd8a;
+    --brand:#2CC97E; --brand-strong:#38D98C; --brand-ink:#08130D; --brand-50:#12251B;
+    --bg:#0C120F; --surface:#141C17; --surface-2:#111813;
+    --ink:#E9F1EC; --text:#C7D3CC; --muted:#8A9992; --line:#233029;
+    --good:#2CC97E; --good-ink:#7DE3B0; --good-bg:#123024;
+    --bad:#F0736D; --bad-ink:#F4A6A2; --bad-bg:#341A19;
+    --na:#8697; --na:#7C8C84; --na-bg:#1E2822;
+    --warn-ink:#EAC98A; --warn-bg:#2C2412; --warn-line:#463913;
+    --track:#212C26; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.35);
   }}
-  :root[data-theme="light"]{--bg:#eef1f5;--card:#fff;--ink:#1a2330;--muted:#5b6b7f;--line:#dfe5ec;--navy:#0d1b2a;--blue:#1565c0;--green:#2e7d32;--recv-bg:#2e9d4f;--recv-ink:#fff;--miss-bg:#e5484d;--miss-ink:#fff;--na-bg:#d7dee6;--na-ink:#67788a;--recv-soft:#e6f4ea;--recv-softink:#1b7a38;--miss-soft:#fde7e7;--miss-softink:#b3282c;--appl-bg:#e3f2fd;--appl-ink:#0d47a1;--track:#e6ebf1;--warnbg:#fff3cd;--warn:#8a5b00}
-  :root[data-theme="dark"]{--bg:#0f151c;--card:#161e28;--ink:#e6edf5;--muted:#95a6ba;--line:#25313f;--navy:#08111c;--blue:#2f7fe0;--green:#3fa14a;--recv-bg:#2a8f49;--recv-ink:#eafff0;--miss-bg:#c93b40;--miss-ink:#fff;--na-bg:#2a3441;--na-ink:#9fb0c2;--recv-soft:#16301f;--recv-softink:#8fe3a3;--miss-soft:#361a1c;--miss-softink:#f4a7ad;--appl-bg:#132a40;--appl-ink:#8dc2f7;--track:#232e3c;--warnbg:#3a3416;--warn:#e9cd8a}
+  :root[data-theme="light"]{color-scheme:light;--brand:#12A05A;--brand-ink:#0B241A;--bg:#F3F6F4;--surface:#fff;--surface-2:#FAFCFB;--ink:#0E2A1E;--text:#2C3A33;--muted:#6C7B73;--line:#E4EAE6;--good:#0E8F50;--good-ink:#0B7D45;--good-bg:#E7F5EC;--bad:#D8453F;--bad-ink:#B02A26;--bad-bg:#FCECEB;--na:#8C9A92;--na-bg:#EDF1EF;--warn-ink:#8A5A16;--warn-bg:#FDF3E0;--warn-line:#F1DFB8;--track:#E7ECE9}
+  :root[data-theme="dark"]{color-scheme:dark;--brand:#2CC97E;--brand-ink:#08130D;--bg:#0C120F;--surface:#141C17;--surface-2:#111813;--ink:#E9F1EC;--text:#C7D3CC;--muted:#8A9992;--line:#233029;--good:#2CC97E;--good-ink:#7DE3B0;--good-bg:#123024;--bad:#F0736D;--bad-ink:#F4A6A2;--bad-bg:#341A19;--na:#7C8C84;--na-bg:#1E2822;--warn-ink:#EAC98A;--warn-bg:#2C2412;--warn-line:#463913;--track:#212C26}
 
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.45;padding:18px}
-  .wrap{max-width:1120px;margin:0 auto}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 16px 40px}
 
-  .banner{background:var(--navy);color:#fff;border-radius:12px 12px 0 0;padding:18px 22px;
-    display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-  .banner h1{margin:0;font-size:19px;font-weight:800}
-  .banner .sub{margin-top:3px;font-size:12px;color:#90caf9}
-  .btn{background:#1e3350;color:#fff;border:1px solid #33507a;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer}
-  .btn:hover{background:#274067}.btn:disabled{opacity:.55;cursor:default}
+  /* ---- top brand bar ---- */
+  .nav{background:var(--brand-ink);color:#fff;display:flex;align-items:center;gap:14px;
+    padding:14px 20px;border-radius:0 0 16px 16px;box-shadow:var(--shadow)}
+  .brand{display:flex;align-items:center;gap:10px}
+  .mark{width:34px;height:34px;border-radius:9px;background:var(--brand);display:grid;place-items:center;flex:none}
+  .mark svg{width:20px;height:20px}
+  .brand .wm{font-weight:800;font-size:17px;letter-spacing:-.2px}
+  .brand .wm span{color:var(--brand)}
+  .nav .divider{width:1px;height:26px;background:rgba(255,255,255,.18)}
+  .nav .title{font-size:13px;color:#cfe9db;font-weight:600}
+  .nav .title b{display:block;color:#fff;font-size:15px;font-weight:700}
+  .nav .sp{flex:1}
+  .btn{background:var(--brand);color:#04150D;border:0;border-radius:9px;padding:9px 15px;
+    font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  .btn:hover{filter:brightness(1.06)}.btn:disabled{opacity:.5;cursor:default;filter:none}
 
-  .status{padding:10px 22px;font-size:12.5px;background:var(--card);border-left:1px solid var(--line);border-right:1px solid var(--line)}
-  .status.err{background:var(--warnbg);color:var(--warn)}
-  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--muted);border-top-color:transparent;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:7px}
+  .meta{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;color:var(--muted);
+    font-size:12.5px;padding:14px 6px 4px}
+  .meta .legend{display:flex;gap:14px;flex-wrap:wrap;margin-left:auto}
+  .key{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:16px;height:16px;border-radius:5px;display:inline-grid;place-items:center;font-size:11px;font-weight:800}
+  .sw.g{background:var(--good);color:#fff}.sw.b{background:var(--bad);color:#fff}.sw.n{background:var(--na);color:#fff}
+
+  .status{padding:12px 16px;border-radius:12px;background:var(--surface);box-shadow:var(--shadow);
+    margin-top:12px;font-size:13px;color:var(--muted)}
+  .status.err{background:var(--bad-bg);color:var(--bad-ink)}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-top-color:transparent;
+    border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:8px;opacity:.6}
   @keyframes sp{to{transform:rotate(360deg)}}
 
-  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;background:var(--card);padding:16px;border-left:1px solid var(--line);border-right:1px solid var(--line)}
-  .kpi{border-radius:10px;padding:12px 10px;text-align:center;border:1px solid var(--line)}
-  .kpi .v{font-size:21px;font-weight:800;line-height:1.1}
-  .kpi .l{font-size:10px;text-transform:uppercase;letter-spacing:.4px;margin-top:4px;opacity:.85}
-  .kpi.tot{background:transparent}.kpi.recv{background:var(--recv-soft);color:var(--recv-softink)}
-  .kpi.pend{background:var(--miss-soft);color:var(--miss-softink)}.kpi.na{background:var(--na-bg);color:var(--na-ink)}
-  .kpi.appl{background:var(--appl-bg);color:var(--appl-ink)}.kpi.comp{background:var(--blue);color:#fff;border-color:transparent}
+  /* ---- hero ---- */
+  .hero{display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;
+    background:var(--surface);border-radius:16px;padding:20px 22px;box-shadow:var(--shadow);margin-top:14px}
+  .ring{position:relative;width:132px;height:132px;flex:none}
+  .ring .pct{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+  .ring .pct b{font-size:30px;font-weight:800;color:var(--ink);line-height:1}
+  .ring .pct span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .heroright h2{margin:0 0 3px;font-size:16px;color:var(--ink)}
+  .heroright p{margin:0 0 14px;color:var(--muted);font-size:13px}
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .tile{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+  .tile .v{font-size:22px;font-weight:800;color:var(--ink);line-height:1.05}
+  .tile .l{font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.4px}
+  .tile.good .v{color:var(--good-ink)}.tile.bad .v{color:var(--bad-ink)}
 
-  .legend{background:var(--card);border-left:1px solid var(--line);border-right:1px solid var(--line);padding:0 16px 12px;display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
-  .key{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
-  .sw{width:16px;height:16px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
-  .sw.r{background:var(--recv-bg);color:var(--recv-ink)}.sw.m{background:var(--miss-bg);color:var(--miss-ink)}.sw.n{background:var(--na-bg);color:var(--na-ink)}
+  h3.sec{font-size:15px;color:var(--ink);margin:26px 2px 12px;display:flex;align-items:baseline;gap:10px}
+  h3.sec small{font-weight:500;font-size:12.5px;color:var(--muted)}
 
-  .sec{color:#fff;padding:10px 16px;font-weight:700;font-size:13px;border-left:1px solid var(--line);border-right:1px solid var(--line)}
-  .sec.blue{background:var(--blue)}.sec.green{background:var(--green)}
+  .card{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
 
-  .mxwrap{overflow-x:auto;background:var(--card);border-left:1px solid var(--line);border-right:1px solid var(--line)}
-  table.mx{border-collapse:separate;border-spacing:0;font-size:12px}
-  table.mx th,table.mx td{border-bottom:1px solid var(--line);border-right:1px solid var(--line)}
-  table.mx thead th{background:var(--card);vertical-align:bottom;padding:6px 0 8px;height:160px}
-  table.mx thead th .vt{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;font-size:11px;font-weight:600;color:var(--muted);margin:0 auto;max-height:150px;overflow:hidden}
-  th.corner,td.name{position:sticky;left:0;z-index:2;background:var(--card);text-align:left;min-width:190px;max-width:190px;padding:8px 12px}
-  th.corner{z-index:3;vertical-align:bottom;font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted)}
-  td.name .nm{font-weight:700}td.name .ty{font-size:11px;color:var(--muted)}
-  td.cell{width:34px;min-width:34px;text-align:center;font-weight:800;font-size:13px}
-  td.cell.r{background:var(--recv-bg);color:var(--recv-ink)}
-  td.cell.m{background:var(--miss-bg);color:var(--miss-ink)}
-  td.cell.n{background:var(--na-bg);color:var(--na-ink)}
-  td.tail{min-width:118px;padding:6px 10px;text-align:left;background:var(--card);white-space:nowrap}
-  .minibar{height:7px;border-radius:5px;background:var(--track);overflow:hidden;margin-top:4px;width:104px}
-  .minibar>span{display:block;height:100%;background:var(--recv-bg)}
-  tr.totals td{background:var(--card);font-size:11px;color:var(--muted);font-weight:600;text-align:center;padding:8px 0}
-  tr.totals td.name{color:var(--ink);text-transform:uppercase;letter-spacing:.3px}
+  /* ---- matrix ---- */
+  .mxwrap{overflow-x:auto}
+  table.mx{border-collapse:separate;border-spacing:0;font-size:12.5px;width:100%}
+  table.mx th,table.mx td{border-bottom:1px solid var(--line)}
+  table.mx thead th{background:var(--surface);vertical-align:bottom;padding:8px 0 10px;height:150px}
+  table.mx thead th .vt{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;
+    font-size:11px;font-weight:600;color:var(--muted);margin:0 auto;max-height:132px;overflow:hidden}
+  th.corner,td.name{position:sticky;left:0;z-index:2;background:var(--surface);text-align:left;
+    min-width:210px;max-width:210px;padding:10px 14px}
+  th.corner{z-index:3;vertical-align:bottom;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+  td.name .nm{font-weight:700;color:var(--ink)}td.name .ty{font-size:11px;color:var(--muted)}
+  td.cell{width:32px;min-width:32px;text-align:center;font-weight:800;font-size:12px;border-left:1px solid var(--line)}
+  td.cell.g{background:var(--good);color:#fff}
+  td.cell.b{background:var(--bad-bg);color:var(--bad-ink)}
+  td.cell.n{background:var(--na-bg);color:var(--na)}
+  tbody tr:hover td{background:var(--surface-2)}
+  tbody tr:hover td.cell.g{background:var(--good-ink)}
+  td.tail{min-width:150px;padding:8px 14px;background:var(--surface)}
+  .tailrow{display:flex;align-items:center;gap:9px}
+  .tailrow b{color:var(--bad-ink);font-size:12.5px;white-space:nowrap}
+  .minibar{flex:1;height:7px;border-radius:5px;background:var(--track);overflow:hidden;min-width:70px}
+  .minibar>span{display:block;height:100%;background:var(--good);border-radius:5px}
+  .tailrow small{color:var(--muted);white-space:nowrap}
+  tr.totrow td{background:var(--surface-2);font-size:11px;color:var(--muted);font-weight:600;text-align:center;padding:9px 0;border-left:1px solid var(--line)}
+  tr.totrow td.name{color:var(--ink);text-transform:uppercase;letter-spacing:.4px;text-align:left}
+  tr.totrow td.tail{text-align:left}
 
-  .cards{background:var(--card);border-left:1px solid var(--line);border-right:1px solid var(--line);padding:6px 16px 16px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .scard{border:1px solid var(--line);border-radius:10px;padding:12px 14px}
-  .scard h3{margin:0 0 2px;font-size:14px}.scard .meta{font-size:11.5px;color:var(--muted);margin-bottom:6px}
-  .lab{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin:8px 0 5px}
-  .lab.m{color:var(--miss-softink)}.lab.n{color:var(--na-ink)}
-  .chips{display:flex;flex-wrap:wrap;gap:5px}
-  .chip{font-size:11px;padding:3px 8px;border-radius:20px;line-height:1.3}
-  .chip.m{background:var(--miss-soft);color:var(--miss-softink)}.chip.n{background:var(--na-bg);color:var(--na-ink)}
-  .allok{font-size:12px;color:var(--recv-softink);font-weight:600}
+  /* ---- missing cards ---- */
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .scard{background:var(--surface);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px;border-top:3px solid var(--bad)}
+  .scard.done{border-top-color:var(--good)}
+  .scard .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .scard h4{margin:0;font-size:14.5px;color:var(--ink)}
+  .scard .ty{font-size:11.5px;color:var(--muted);margin-top:1px}
+  .badge{flex:none;font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;background:var(--bad-bg);color:var(--bad-ink)}
+  .badge.done{background:var(--good-bg);color:var(--good-ink)}
+  .prog{display:flex;align-items:center;gap:9px;margin:10px 0 4px}
+  .prog .minibar{min-width:120px}.prog small{color:var(--muted);white-space:nowrap;font-size:11.5px}
+  .lab{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:11px 0 6px;color:var(--bad-ink)}
+  .lab.n{color:var(--muted)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-size:11.5px;padding:4px 9px;border-radius:8px;line-height:1.25}
+  .chip.b{background:var(--bad-bg);color:var(--bad-ink)}
+  .chip.n{background:var(--na-bg);color:var(--muted)}
+  .allok{font-size:12.5px;color:var(--good-ink);font-weight:600;margin-top:8px}
 
-  .tblwrap{overflow-x:auto;background:var(--card);border-left:1px solid var(--line);border-right:1px solid var(--line)}
-  table.sum{border-collapse:collapse;width:100%;font-size:12.5px;min-width:520px}
-  table.sum th,table.sum td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
-  table.sum th{background:#37474f;color:#fff;font-weight:600;font-size:11px;text-transform:uppercase}
-  table.sum td.doc{text-align:left;white-space:normal;min-width:210px}
-  table.sum tbody tr:nth-child(even) td{background:rgba(127,127,127,.05)}
-  .bar{display:flex;align-items:center;gap:8px}.trk{flex:1;height:9px;border-radius:6px;background:var(--track);overflow:hidden;min-width:90px}
-  .fl{height:100%;border-radius:6px;background:var(--green)}.pn{font-variant-numeric:tabular-nums;font-weight:700;min-width:38px;text-align:right}
+  /* ---- priority callout ---- */
+  .callout{background:var(--warn-bg);border:1px solid var(--warn-line);color:var(--warn-ink);
+    border-radius:14px;padding:14px 16px;margin-top:14px}
+  .callout .h{font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:8px}
+  .callout .chips{margin-top:9px}.callout .chip{background:rgba(0,0,0,.05);color:var(--warn-ink)}
 
-  .gaps{background:var(--warnbg);color:var(--warn);border-left:1px solid var(--line);border-right:1px solid var(--line);padding:12px 16px;font-size:12.5px}
-  .gaps .chips{margin-top:6px}.gaps .chip{background:rgba(0,0,0,.06)}
-  .foot{background:var(--card);border:1px solid var(--line);border-top:none;border-radius:0 0 12px 12px;padding:12px 16px;font-size:11.5px;color:var(--muted)}
-  @media (max-width:720px){.kpis{grid-template-columns:repeat(3,1fr)}.cards{grid-template-columns:1fr}.banner h1{font-size:16px}}
+  /* ---- doc overview ---- */
+  .doclist{padding:6px 8px}
+  .docrow{display:grid;grid-template-columns:230px 1fr auto;gap:14px;align-items:center;padding:8px 10px;border-radius:10px}
+  .docrow:hover{background:var(--surface-2)}
+  .docrow .dn{font-size:13px;color:var(--ink)}
+  .docrow .dn small{display:block;color:var(--muted);font-size:11px}
+  .docbar{height:10px;border-radius:6px;background:var(--track);overflow:hidden}
+  .docbar>span{display:block;height:100%;border-radius:6px;background:var(--good)}
+  .docbar>span.low{background:var(--bad)}.docbar>span.mid{background:#E0A64B}
+  .docrow .dp{font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink);min-width:82px;text-align:right;font-size:12.5px}
+  .docrow .dp small{color:var(--muted);font-weight:500}
+
+  .foot{color:var(--muted);font-size:12px;margin-top:22px;padding:0 4px;text-align:center}
+  @media (max-width:760px){
+    .hero{grid-template-columns:1fr;justify-items:center;text-align:center}
+    .tiles{grid-template-columns:repeat(2,1fr)}
+    .cards{grid-template-columns:1fr}
+    .docrow{grid-template-columns:1fr auto}.docrow .docbar{grid-column:1/-1;order:3}
+    .nav .title{display:none}
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="banner">
-    <div><h1>NBFC — Seller Document Checklist</h1><div class="sub" id="sub">Loading…</div></div>
+  <div class="nav">
+    <div class="brand">
+      <div class="mark" title="Replace with your official Recykal logo">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 3C8 6.5 7 12 9 16" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M12 3l3 1.6M12 3l-1.6 3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 14c-.5 5-4.5 8-9 7.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M20 14l-3-1M20 14l-1 3.2" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15C1.5 11 2.5 6 6.5 4" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M4 15l3.2.4M4 15l1.8-2.8" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="wm">recykal</div>
+    </div>
+    <div class="divider"></div>
+    <div class="title">Supply-chain finance<b>NBFC Document Tracker</b></div>
+    <div class="sp"></div>
     <button class="btn" id="refresh" onclick="load()" disabled>↻ Refresh</button>
   </div>
-  <div class="status" id="status"><span class="spin"></span>Fetching live data from your sheet…</div>
 
-  <div id="content" style="display:none">
-    <div class="kpis" id="kpis"></div>
-    <div class="legend">
-      <span class="key"><span class="sw r">✓</span> Received</span>
-      <span class="key"><span class="sw m">✗</span> Missing (applicable, not yet received)</span>
-      <span class="key"><span class="sw n">–</span> Not applicable (per checklist)</span>
+  <div class="wrap">
+    <div class="meta">
+      <span id="src">Loading…</span>
+      <div class="legend">
+        <span class="key"><span class="sw g">✓</span> Received</span>
+        <span class="key"><span class="sw b">✗</span> Missing</span>
+        <span class="key"><span class="sw n">–</span> Not applicable</span>
+      </div>
     </div>
 
-    <div class="sec blue">▦ DOCUMENT STATUS MATRIX &nbsp;—&nbsp; sellers (rows) × checklist documents (columns)</div>
-    <div class="mxwrap"><table class="mx"><thead><tr id="mxHead"></tr></thead><tbody id="mxBody"></tbody></table></div>
+    <div class="status" id="status"><span class="spin"></span>Fetching live data from your sheet…</div>
 
-    <div class="sec blue">🗂 MISSING DOCUMENTS BY SELLER</div>
-    <div class="cards" id="cards"></div>
+    <div id="content" style="display:none">
+      <div class="hero">
+        <div class="ring" id="ring"></div>
+        <div class="heroright">
+          <h2 id="heroTitle"></h2>
+          <p id="heroSub"></p>
+          <div class="tiles" id="tiles"></div>
+        </div>
+      </div>
 
-    <div class="gaps" id="gaps"></div>
+      <h3 class="sec">Document status by seller <small>every checklist item, at a glance</small></h3>
+      <div class="card"><div class="mxwrap"><table class="mx"><thead><tr id="mxHead"></tr></thead><tbody id="mxBody"></tbody></table></div></div>
 
-    <div class="sec green">▶ DOCUMENT-WISE SUMMARY (collection across all sellers)</div>
-    <div class="tblwrap"><table class="sum">
-      <thead><tr><th style="text-align:left">Document</th><th>Received</th><th>Missing</th><th>N/A</th><th>% Collected</th><th style="text-align:left">Progress</th></tr></thead>
-      <tbody id="docBody"></tbody></table></div>
+      <div class="callout" id="gaps"></div>
 
-    <div class="foot" id="foot"></div>
+      <h3 class="sec">What’s missing, by seller <small>sorted by most outstanding first</small></h3>
+      <div class="cards" id="cards"></div>
+
+      <h3 class="sec">Where the collection gaps are <small>each document across all sellers, lowest first</small></h3>
+      <div class="card"><div class="doclist" id="docList"></div></div>
+
+      <div class="foot" id="foot"></div>
+    </div>
   </div>
-</div>
 
 <script>
-  var elStatus=document.getElementById('status'), elContent=document.getElementById('content'), elRefresh=document.getElementById('refresh');
+  var elStatus=document.getElementById('status'),elContent=document.getElementById('content'),elRefresh=document.getElementById('refresh');
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
-  var SYM={Y:'✓',X:'✗',N:'–'}, CLS={Y:'r',X:'m',N:'n'};
+  var SYM={Y:'✓',X:'✗',N:'–'},CLS={Y:'g',X:'b',N:'n'};
+
+  function ring(pct){
+    var r=54,c=2*Math.PI*r,off=c*(1-pct/100);
+    return '<svg viewBox="0 0 132 132" width="132" height="132">'+
+      '<circle cx="66" cy="66" r="'+r+'" fill="none" stroke="var(--track)" stroke-width="12"/>'+
+      '<circle cx="66" cy="66" r="'+r+'" fill="none" stroke="var(--brand)" stroke-width="12" stroke-linecap="round" '+
+      'stroke-dasharray="'+c.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+'" transform="rotate(-90 66 66)"/></svg>'+
+      '<div class="pct"><b>'+pct+'%</b><span>Complete</span></div>';
+  }
+  function tile(cls,v,l){return '<div class="tile '+cls+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';}
 
   function render(d){
-    if(!d||d.error){ elStatus.className='status err'; elStatus.textContent='⚠ '+((d&&d.error)||'No data returned.'); elRefresh.disabled=false; return; }
-    var docs=d.docLabels, N=docs.length, t=d.totals;
-    document.getElementById('sub').textContent='Reflecting tab: '+d.sourceName+'  ·  '+N+' documents tracked';
+    if(!d||d.error){elStatus.className='status err';elStatus.textContent='⚠ '+((d&&d.error)||'No data returned.');elRefresh.disabled=false;return;}
+    var docs=d.docLabels,N=docs.length,t=d.totals;
+    document.getElementById('src').innerHTML='Source: <b style="color:var(--ink)">'+esc(d.sourceName)+'</b> · '+N+' documents tracked · updated '+esc(d.generatedAt);
 
-    document.getElementById('kpis').innerHTML=
-      kpi('tot',t.sellers,'Sellers')+kpi('recv',t.recv,'Received')+kpi('pend',t.pend,'Missing')+
-      kpi('na',t.na,'Not Applicable')+kpi('appl',t.appl,'Applicable')+kpi('comp',t.pct+'%','Completion');
+    // hero
+    document.getElementById('ring').innerHTML=ring(Math.round(t.pct));
+    var inProg=d.sellers.filter(function(s){return s.recv>0&&s.pend>0;}).length;
+    var notStarted=d.sellers.filter(function(s){return s.recv===0;}).length;
+    document.getElementById('heroTitle').textContent=t.recv+' of '+t.appl+' required documents received';
+    document.getElementById('heroSub').textContent=
+      t.sellers+' sellers · '+inProg+' in progress'+(notStarted?' · '+notStarted+' not started':'')+' · '+t.pend+' documents still to collect';
+    document.getElementById('tiles').innerHTML=
+      tile('',t.sellers,'Sellers')+tile('good',t.recv,'Received')+tile('bad',t.pend,'Missing')+tile('',t.na,'Not applicable');
 
-    // matrix header
+    // matrix
     var head='<th class="corner">Seller \\ Document</th>';
-    for(var j=0;j<N;j++) head+='<th><div class="vt">'+esc(docs[j])+'</div></th>';
-    head+='<th class="corner" style="min-width:126px;max-width:126px;left:auto;position:static">Missing / %</th>';
+    for(var j=0;j<N;j++)head+='<th><div class="vt">'+esc(docs[j])+'</div></th>';
+    head+='<th class="corner" style="min-width:150px;max-width:150px;left:auto;position:static">Outstanding</th>';
     document.getElementById('mxHead').innerHTML=head;
-
-    // matrix body
     var body='';
     d.sellers.forEach(function(s){
-      var row='<td class="name"><span class="nm">'+esc(s.name)+'</span><br><span class="ty">'+esc(s.type||'')+'</span></td>';
-      for(var j=0;j<N;j++){ var c=s.cells.charAt(j)||'X'; row+='<td class="cell '+CLS[c]+'">'+SYM[c]+'</td>'; }
-      row+='<td class="tail"><b style="color:var(--miss-softink)">'+s.pend+' missing</b>'+
-           '<div style="font-size:11px;color:var(--muted)">'+s.recv+'/'+s.appl+' · '+s.pct+'%'+
-           '<div class="minibar"><span style="width:'+s.pct+'%"></span></div></div></td>';
+      var row='<td class="name"><span class="nm">'+esc(s.name)+'</span><br><span class="ty">'+esc(s.type||'—')+'</span></td>';
+      for(var j=0;j<N;j++){var c=s.cells.charAt(j)||'X';row+='<td class="cell '+CLS[c]+'">'+SYM[c]+'</td>';}
+      row+='<td class="tail"><div class="tailrow"><b>'+s.pend+' left</b><span class="minibar"><span style="width:'+s.pct+'%"></span></span>'+
+           '<small>'+s.pct+'%</small></div></td>';
       body+='<tr>'+row+'</tr>';
     });
-    // totals row (received / applicable per document)
-    var trow='<td class="name">RECEIVED / APPLICABLE</td>';
-    for(var j=0;j<N;j++){ var x=d.docs[j]; var col=x.recv===0?'var(--miss-softink)':(x.recv===x.appl&&x.appl>0?'var(--recv-softink)':'inherit');
-      trow+='<td style="color:'+col+'">'+x.recv+'/'+x.appl+'</td>'; }
-    trow+='<td class="tail">'+t.recv+' recv · '+t.pend+' miss</td>';
-    document.getElementById('mxBody').innerHTML=body+'<tr class="totals">'+trow+'</tr>';
+    var trow='<td class="name">Received / applicable</td>';
+    for(var j=0;j<N;j++){var x=d.docs[j];var col=x.recv===0?'var(--bad-ink)':(x.recv===x.appl&&x.appl>0?'var(--good-ink)':'inherit');
+      trow+='<td style="color:'+col+'">'+x.recv+'/'+x.appl+'</td>';}
+    trow+='<td class="tail">'+t.recv+' received · '+t.pend+' missing</td>';
+    document.getElementById('mxBody').innerHTML=body+'<tr class="totrow">'+trow+'</tr>';
 
-    // missing-by-seller cards
-    var cards='';
-    d.sellers.forEach(function(s){
-      var miss=[],na=[];
-      for(var j=0;j<N;j++){ var c=s.cells.charAt(j); if(c==='X')miss.push(docs[j]); else if(c==='N')na.push(docs[j]); }
-      var missHtml=miss.length
-        ? '<div class="lab m">✗ Missing ('+miss.length+')</div><div class="chips">'+miss.map(function(x){return '<span class="chip m">'+esc(x)+'</span>';}).join('')+'</div>'
-        : '<div class="allok">✅ All applicable documents received</div>';
-      var naHtml=na.length ? '<div class="lab n">– Not applicable ('+na.length+')</div><div class="chips">'+na.map(function(x){return '<span class="chip n">'+esc(x)+'</span>';}).join('')+'</div>' : '';
-      cards+='<div class="scard"><h3>'+esc(s.name)+'</h3><div class="meta">'+esc(s.type||'')+' · '+s.recv+'/'+s.appl+' received · '+s.pct+'% complete'+
-        '<div class="minibar" style="width:100%"><span style="width:'+s.pct+'%"></span></div></div>'+missHtml+naHtml+'</div>';
-    });
-    document.getElementById('cards').innerHTML=cards;
-
-    // systemic gaps
+    // priority callout (systemic gaps)
     var gaps=d.docs.filter(function(x){return x.recv===0&&x.appl>0;}).map(function(x){return x.label;});
     document.getElementById('gaps').innerHTML= gaps.length
-      ? '<b>⚠ Systemic gaps — not received from a single seller yet ('+gaps.length+'):</b><div class="chips">'+gaps.map(function(x){return '<span class="chip">'+esc(x)+'</span>';}).join('')+'</div>'
-      : '<b>No systemic gaps — every document has been received from at least one seller.</b>';
+      ? '<div class="h">⚑ Priority — not received from a single seller yet ('+gaps.length+')</div>'+
+        '<div class="chips">'+gaps.map(function(x){return '<span class="chip">'+esc(x)+'</span>';}).join('')+'</div>'
+      : '<div class="h">✓ No systemic gaps — every document is in from at least one seller.</div>';
 
-    // document-wise summary
-    document.getElementById('docBody').innerHTML=d.docs.map(function(x){
-      return '<tr><td class="doc">'+esc(x.label)+'</td><td>'+x.recv+'</td><td>'+x.pend+'</td><td>'+x.na+'</td>'+
-        '<td><b>'+x.pct+'%</b></td><td><div class="bar"><span class="pn">'+x.pct+'%</span><span class="trk"><span class="fl" style="width:'+x.pct+'%"></span></span></div></td></tr>';
+    // missing-by-seller cards, most outstanding first
+    var cards=d.sellers.slice().sort(function(a,b){return b.pend-a.pend||a.pct-b.pct;}).map(function(s){
+      var miss=[],na=[];
+      for(var j=0;j<N;j++){var c=s.cells.charAt(j);if(c==='X')miss.push(docs[j]);else if(c==='N')na.push(docs[j]);}
+      var done=miss.length===0;
+      var body= done? '<div class="allok">✅ All applicable documents received</div>'
+        : '<div class="lab">Missing ('+miss.length+')</div><div class="chips">'+miss.map(function(x){return '<span class="chip b">'+esc(x)+'</span>';}).join('')+'</div>';
+      var naH= na.length? '<div class="lab n">Not applicable ('+na.length+')</div><div class="chips">'+na.map(function(x){return '<span class="chip n">'+esc(x)+'</span>';}).join('')+'</div>':'';
+      return '<div class="scard'+(done?' done':'')+'"><div class="top"><div><h4>'+esc(s.name)+'</h4><div class="ty">'+esc(s.type||'—')+'</div></div>'+
+        '<span class="badge'+(done?' done':'')+'">'+(done?'Complete':s.pend+' left')+'</span></div>'+
+        '<div class="prog"><span class="minibar"><span style="width:'+s.pct+'%"></span></span><small>'+s.recv+'/'+s.appl+' · '+s.pct+'%</small></div>'+
+        body+naH+'</div>';
     }).join('');
+    document.getElementById('cards').innerHTML=cards;
 
-    document.getElementById('foot').textContent='Generated '+d.generatedAt+' — read-only; your sheet was not modified. “Missing” counts only applicable documents. Click Refresh to re-read the latest data.';
-    elStatus.style.display='none'; elContent.style.display='block'; elRefresh.disabled=false;
+    // document overview, lowest collection first
+    var dl=d.docs.slice().sort(function(a,b){return a.pct-b.pct||b.pend-a.pend;}).map(function(x){
+      var cls=x.pct===0?'low':(x.pct<60?'mid':'');
+      return '<div class="docrow"><div class="dn">'+esc(x.label)+'<small>'+x.recv+' received · '+x.pend+' missing'+(x.na?' · '+x.na+' N/A':'')+'</small></div>'+
+        '<div class="docbar"><span class="'+cls+'" style="width:'+Math.max(x.pct,2)+'%"></span></div>'+
+        '<div class="dp">'+x.pct+'%<small> of '+x.appl+'</small></div></div>';
+    }).join('');
+    document.getElementById('docList').innerHTML=dl;
+
+    document.getElementById('foot').textContent='Read-only — your sheet is never modified. “Missing” counts only applicable documents. Generated '+d.generatedAt+'.';
+    elStatus.style.display='none';elContent.style.display='block';elRefresh.disabled=false;
   }
-  function kpi(cls,v,l){return '<div class="kpi '+cls+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';}
 
   function load(){
-    elRefresh.disabled=true; elStatus.style.display='block'; elStatus.className='status';
+    elRefresh.disabled=true;elStatus.style.display='block';elStatus.className='status';
     elStatus.innerHTML='<span class="spin"></span>Fetching live data from your sheet…';
     if(typeof google==='undefined'||!google.script||!google.script.run){
       elStatus.className='status err';
@@ -211,7 +302,7 @@
       return;
     }
     google.script.run.withSuccessHandler(render)
-      .withFailureHandler(function(e){ elStatus.className='status err'; elStatus.textContent='⚠ '+e.message; elRefresh.disabled=false; })
+      .withFailureHandler(function(e){elStatus.className='status err';elStatus.textContent='⚠ '+e.message;elRefresh.disabled=false;})
       .getDashboardData();
   }
   load();
