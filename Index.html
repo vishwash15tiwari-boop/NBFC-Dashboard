@@ -1,311 +1,1138 @@
-<!DOCTYPE html>
-<html>
-<head>
-<base target="_top">
-<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  /* ---- Recykal brand tokens (swap --brand to your exact hex if needed) ---- */
+  /* ─── Recykal design tokens ─────────────────────────────────────────── */
   :root{
-    --brand:#12A05A; --brand-strong:#0B7D45; --brand-ink:#0B241A; --brand-50:#E8F6EE;
-    --bg:#F3F6F4; --surface:#FFFFFF; --surface-2:#FAFCFB;
-    --ink:#0E2A1E; --text:#2C3A33; --muted:#6C7B73; --line:#E4EAE6;
-    --good:#0E8F50; --good-ink:#0B7D45; --good-bg:#E7F5EC;
-    --bad:#D8453F; --bad-ink:#B02A26; --bad-bg:#FCECEB;
-    --na:#8C9A92; --na-bg:#EDF1EF;
-    --warn-ink:#8A5A16; --warn-bg:#FDF3E0; --warn-line:#F1DFB8;
-    --track:#E7ECE9; --shadow:0 1px 2px rgba(11,36,26,.05),0 6px 18px rgba(11,36,26,.06);
+    --rk-green:#00A651;          /* Recykal signature green */
+    --rk-green-deep:#008C44;
+    --rk-green-ink:#046C38;
+    --rk-green-tint:#E7F7EF;
+    --rk-green-tint-2:#F3FBF6;
+    --amber:#D97706;             /* pending */
+    --amber-tint:#FDF3E3;
+    --gray-dot:#98A2B3;          /* not applicable */
+    --ink:#101828;
+    --ink-2:#475467;
+    --ink-3:#667085;
+    --line:#E7ECE9;
+    --line-2:#EEF2F0;
+    --surface:#F7F9F8;
+    --card:#FFFFFF;
+    --shadow-sm:0 1px 2px rgba(16,24,40,.05);
+    --shadow-md:0 4px 12px -2px rgba(16,24,40,.08),0 2px 4px -2px rgba(16,24,40,.04);
+    --shadow-lg:0 20px 48px -12px rgba(16,24,40,.22);
+    --radius:14px;
+    --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
-  @media (prefers-color-scheme:dark){:root{
-    --brand:#2CC97E; --brand-strong:#38D98C; --brand-ink:#08130D; --brand-50:#12251B;
-    --bg:#0C120F; --surface:#141C17; --surface-2:#111813;
-    --ink:#E9F1EC; --text:#C7D3CC; --muted:#8A9992; --line:#233029;
-    --good:#2CC97E; --good-ink:#7DE3B0; --good-bg:#123024;
-    --bad:#F0736D; --bad-ink:#F4A6A2; --bad-bg:#341A19;
-    --na:#8697; --na:#7C8C84; --na-bg:#1E2822;
-    --warn-ink:#EAC98A; --warn-bg:#2C2412; --warn-line:#463913;
-    --track:#212C26; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.35);
-  }}
-  :root[data-theme="light"]{color-scheme:light;--brand:#12A05A;--brand-ink:#0B241A;--bg:#F3F6F4;--surface:#fff;--surface-2:#FAFCFB;--ink:#0E2A1E;--text:#2C3A33;--muted:#6C7B73;--line:#E4EAE6;--good:#0E8F50;--good-ink:#0B7D45;--good-bg:#E7F5EC;--bad:#D8453F;--bad-ink:#B02A26;--bad-bg:#FCECEB;--na:#8C9A92;--na-bg:#EDF1EF;--warn-ink:#8A5A16;--warn-bg:#FDF3E0;--warn-line:#F1DFB8;--track:#E7ECE9}
-  :root[data-theme="dark"]{color-scheme:dark;--brand:#2CC97E;--brand-ink:#08130D;--bg:#0C120F;--surface:#141C17;--surface-2:#111813;--ink:#E9F1EC;--text:#C7D3CC;--muted:#8A9992;--line:#233029;--good:#2CC97E;--good-ink:#7DE3B0;--good-bg:#123024;--bad:#F0736D;--bad-ink:#F4A6A2;--bad-bg:#341A19;--na:#7C8C84;--na-bg:#1E2822;--warn-ink:#EAC98A;--warn-bg:#2C2412;--warn-line:#463913;--track:#212C26}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:var(--font);background:var(--surface);color:var(--ink);
+    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+    font-feature-settings:'cv05' 1,'tnum' 1;
+  }
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+  ::selection{background:var(--rk-green-tint);color:var(--rk-green-ink)}
 
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);
-    font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:1140px;margin:0 auto;padding:0 16px 40px}
+  /* ─── Top bar ───────────────────────────────────────────────────────── */
+  .topbar{
+    position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:14px;
+    padding:14px 28px;background:rgba(255,255,255,.86);backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex;align-items:center;gap:11px;min-width:0}
+  .brand-mark{width:34px;height:34px;flex:none}
+  .brand-name{font-size:16px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+  .brand-name em{font-style:normal;color:var(--rk-green)}
+  .brand-sub{font-size:11.5px;color:var(--ink-3);font-weight:500;margin-top:-2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar-spacer{flex:1}
+  .sync{font-size:11.5px;color:var(--ink-3);white-space:nowrap}
+  .sync b{color:var(--ink-2);font-weight:600}
+  .icon-btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:7px;height:36px;
+    padding:0 13px;border-radius:10px;border:1px solid var(--line);background:var(--card);
+    font-size:13px;font-weight:600;color:var(--ink-2);box-shadow:var(--shadow-sm);
+    transition:all .15s ease;text-decoration:none;white-space:nowrap;
+  }
+  .icon-btn:hover{border-color:#D5DDD8;background:#FBFCFB;color:var(--ink)}
+  .icon-btn svg{width:15px;height:15px}
+  .btn-primary{
+    display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 16px;
+    border-radius:10px;background:var(--rk-green);color:#fff;font-size:13px;font-weight:600;
+    box-shadow:0 1px 2px rgba(0,140,68,.35),inset 0 1px 0 rgba(255,255,255,.18);
+    transition:all .15s ease;white-space:nowrap;
+  }
+  .btn-primary:hover{background:var(--rk-green-deep);transform:translateY(-1px)}
+  .btn-primary:active{transform:translateY(0)}
+  .btn-primary svg{width:15px;height:15px}
+  .btn-primary[disabled]{opacity:.6;cursor:default;transform:none}
 
-  /* ---- top brand bar ---- */
-  .nav{background:var(--brand-ink);color:#fff;display:flex;align-items:center;gap:14px;
-    padding:14px 20px;border-radius:0 0 16px 16px;box-shadow:var(--shadow)}
-  .brand{display:flex;align-items:center;gap:10px}
-  .mark{width:34px;height:34px;border-radius:9px;background:var(--brand);display:grid;place-items:center;flex:none}
-  .mark svg{width:20px;height:20px}
-  .brand .wm{font-weight:800;font-size:17px;letter-spacing:-.2px}
-  .brand .wm span{color:var(--brand)}
-  .nav .divider{width:1px;height:26px;background:rgba(255,255,255,.18)}
-  .nav .title{font-size:13px;color:#cfe9db;font-weight:600}
-  .nav .title b{display:block;color:#fff;font-size:15px;font-weight:700}
-  .nav .sp{flex:1}
-  .btn{background:var(--brand);color:#04150D;border:0;border-radius:9px;padding:9px 15px;
-    font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
-  .btn:hover{filter:brightness(1.06)}.btn:disabled{opacity:.5;cursor:default;filter:none}
+  /* ─── Layout & nav ──────────────────────────────────────────────────── */
+  .shell{max-width:1240px;margin:0 auto;padding:24px 28px 64px}
+  .seg-nav{display:inline-flex;background:#EDF1EF;border-radius:11px;padding:3px;margin-bottom:22px}
+  .seg-nav button{
+    padding:7px 18px;border-radius:8px;font-size:13px;font-weight:600;color:var(--ink-3);
+    transition:all .18s ease;
+  }
+  .seg-nav button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-sm)}
+  .view{display:none;animation:fadeUp .25s ease}
+  .view.on{display:block}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
-  .meta{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;color:var(--muted);
-    font-size:12.5px;padding:14px 6px 4px}
-  .meta .legend{display:flex;gap:14px;flex-wrap:wrap;margin-left:auto}
-  .key{display:inline-flex;align-items:center;gap:6px}
-  .sw{width:16px;height:16px;border-radius:5px;display:inline-grid;place-items:center;font-size:11px;font-weight:800}
-  .sw.g{background:var(--good);color:#fff}.sw.b{background:var(--bad);color:#fff}.sw.n{background:var(--na);color:#fff}
+  /* ─── Cards & KPIs ──────────────────────────────────────────────────── */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .card-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:18px 20px 0}
+  .card-h h3{font-size:14px;font-weight:700;letter-spacing:-.01em}
+  .card-h .hint{font-size:11.5px;color:var(--ink-3);font-weight:500}
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:14px}
+  .kpi{padding:16px 18px 15px;display:flex;flex-direction:column;gap:2px;position:relative;overflow:hidden}
+  .kpi .lbl{font-size:11.5px;font-weight:600;color:var(--ink-3);letter-spacing:.02em;text-transform:uppercase}
+  .kpi .val{font-size:27px;font-weight:800;letter-spacing:-.03em;line-height:1.15}
+  .kpi .sub{font-size:11.5px;color:var(--ink-3)}
+  .kpi.hero{background:linear-gradient(135deg,#04331C 0%,#065F32 58%,#0B7A41 100%);border-color:transparent;color:#fff;padding-right:88px}
+  .kpi.hero .lbl{color:rgba(255,255,255,.72)}
+  .kpi.hero .sub{color:rgba(255,255,255,.66)}
+  .kpi.hero .val{color:#fff}
+  .kpi-ring{position:absolute;right:12px;top:50%;transform:translateY(-50%)}
+  .kpi-accent{width:26px;height:3px;border-radius:2px;margin-bottom:8px}
 
-  .status{padding:12px 16px;border-radius:12px;background:var(--surface);box-shadow:var(--shadow);
-    margin-top:12px;font-size:13px;color:var(--muted)}
-  .status.err{background:var(--bad-bg);color:var(--bad-ink)}
-  .spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-top-color:transparent;
-    border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:8px;opacity:.6}
-  @keyframes sp{to{transform:rotate(360deg)}}
+  .grid-2{display:grid;grid-template-columns:1.55fr 1fr;gap:14px;align-items:start}
+  .stack{display:grid;gap:14px}
 
-  /* ---- hero ---- */
-  .hero{display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;
-    background:var(--surface);border-radius:16px;padding:20px 22px;box-shadow:var(--shadow);margin-top:14px}
-  .ring{position:relative;width:132px;height:132px;flex:none}
-  .ring .pct{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
-  .ring .pct b{font-size:30px;font-weight:800;color:var(--ink);line-height:1}
-  .ring .pct span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-  .heroright h2{margin:0 0 3px;font-size:16px;color:var(--ink)}
-  .heroright p{margin:0 0 14px;color:var(--muted);font-size:13px}
-  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-  .tile{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
-  .tile .v{font-size:22px;font-weight:800;color:var(--ink);line-height:1.05}
-  .tile .l{font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.4px}
-  .tile.good .v{color:var(--good-ink)}.tile.bad .v{color:var(--bad-ink)}
+  /* ─── Document bars ─────────────────────────────────────────────────── */
+  .docbars{padding:8px 20px 18px}
+  .docbar{display:grid;grid-template-columns:minmax(150px,1.15fr) 2fr auto;gap:12px;align-items:center;padding:8px 0;border-radius:8px}
+  .docbar:hover{background:var(--rk-green-tint-2)}
+  .docbar .name{font-size:12.5px;font-weight:500;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .track{height:8px;background:var(--line-2);border-radius:4px;overflow:hidden;position:relative}
+  .fill{height:100%;background:var(--rk-green);border-radius:4px;transition:width .5s cubic-bezier(.22,1,.36,1)}
+  .docbar .stat{font-size:12px;font-weight:600;color:var(--ink-2);min-width:76px;text-align:right;white-space:nowrap}
+  .docbar .stat .pend{color:var(--amber);font-weight:700}
+  .legend{display:flex;gap:16px;align-items:center;padding:0 20px 6px;font-size:11.5px;color:var(--ink-3);font-weight:500}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 
-  h3.sec{font-size:15px;color:var(--ink);margin:26px 2px 12px;display:flex;align-items:baseline;gap:10px}
-  h3.sec small{font-weight:500;font-size:12.5px;color:var(--muted)}
+  /* ─── Attention list ────────────────────────────────────────────────── */
+  .attn{padding:6px 12px 12px}
+  .attn-row{display:flex;align-items:center;gap:12px;padding:10px 8px;border-radius:10px;cursor:pointer;transition:background .12s}
+  .attn-row:hover{background:var(--rk-green-tint-2)}
+  .attn-row + .attn-row{border-top:1px solid var(--line-2)}
+  .avatar{
+    width:34px;height:34px;border-radius:10px;background:var(--rk-green-tint);color:var(--rk-green-ink);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12.5px;flex:none;
+  }
+  .attn-main{flex:1;min-width:0}
+  .attn-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .attn-sub{font-size:11.5px;color:var(--ink-3)}
+  .attn-right{text-align:right;flex:none}
+  .chip{
+    display:inline-flex;align-items:center;gap:5px;padding:2.5px 9px;border-radius:999px;
+    font-size:11px;font-weight:700;white-space:nowrap;
+  }
+  .chip.warn{background:var(--amber-tint);color:#92400E}
+  .chip.ok{background:var(--rk-green-tint);color:var(--rk-green-ink)}
+  .chip.mut{background:#F2F4F3;color:var(--ink-3)}
+  .mini-track{width:88px;height:5px;background:var(--line-2);border-radius:3px;overflow:hidden;margin-top:5px;margin-left:auto}
 
-  .card{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+  /* ─── Breakdown chips ───────────────────────────────────────────────── */
+  .facets{padding:6px 20px 18px;display:grid;gap:14px}
+  .facet h4{font-size:11.5px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px}
+  .facet-row{display:flex;flex-wrap:wrap;gap:8px}
+  .facet-chip{background:#F5F7F6;border:1px solid var(--line);border-radius:10px;padding:7px 12px;font-size:12px;color:var(--ink-2)}
+  .facet-chip b{color:var(--ink);font-weight:700;margin-right:2px}
 
-  /* ---- matrix ---- */
-  .mxwrap{overflow-x:auto}
-  table.mx{border-collapse:separate;border-spacing:0;font-size:12.5px;width:100%}
-  table.mx th,table.mx td{border-bottom:1px solid var(--line)}
-  table.mx thead th{background:var(--surface);vertical-align:bottom;padding:8px 0 10px;height:150px}
-  table.mx thead th .vt{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;
-    font-size:11px;font-weight:600;color:var(--muted);margin:0 auto;max-height:132px;overflow:hidden}
-  th.corner,td.name{position:sticky;left:0;z-index:2;background:var(--surface);text-align:left;
-    min-width:210px;max-width:210px;padding:10px 14px}
-  th.corner{z-index:3;vertical-align:bottom;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
-  td.name .nm{font-weight:700;color:var(--ink)}td.name .ty{font-size:11px;color:var(--muted)}
-  td.cell{width:32px;min-width:32px;text-align:center;font-weight:800;font-size:12px;border-left:1px solid var(--line)}
-  td.cell.g{background:var(--good);color:#fff}
-  td.cell.b{background:var(--bad-bg);color:var(--bad-ink)}
-  td.cell.n{background:var(--na-bg);color:var(--na)}
-  tbody tr:hover td{background:var(--surface-2)}
-  tbody tr:hover td.cell.g{background:var(--good-ink)}
-  td.tail{min-width:150px;padding:8px 14px;background:var(--surface)}
-  .tailrow{display:flex;align-items:center;gap:9px}
-  .tailrow b{color:var(--bad-ink);font-size:12.5px;white-space:nowrap}
-  .minibar{flex:1;height:7px;border-radius:5px;background:var(--track);overflow:hidden;min-width:70px}
-  .minibar>span{display:block;height:100%;background:var(--good);border-radius:5px}
-  .tailrow small{color:var(--muted);white-space:nowrap}
-  tr.totrow td{background:var(--surface-2);font-size:11px;color:var(--muted);font-weight:600;text-align:center;padding:9px 0;border-left:1px solid var(--line)}
-  tr.totrow td.name{color:var(--ink);text-transform:uppercase;letter-spacing:.4px;text-align:left}
-  tr.totrow td.tail{text-align:left}
+  /* ─── Toolbar / filters ─────────────────────────────────────────────── */
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .search{position:relative;flex:1;min-width:220px;max-width:340px}
+  .search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--ink-3)}
+  .search input{
+    width:100%;height:38px;border:1px solid var(--line);border-radius:11px;background:var(--card);
+    padding:0 12px 0 36px;font-size:13px;box-shadow:var(--shadow-sm);transition:border .15s,box-shadow .15s;
+  }
+  .search input:focus,select.flt:focus{outline:none;border-color:var(--rk-green);box-shadow:0 0 0 3px rgba(0,166,81,.13)}
+  select.flt{
+    height:38px;border:1px solid var(--line);border-radius:11px;background:var(--card);padding:0 30px 0 12px;
+    font-size:13px;font-weight:500;color:var(--ink-2);box-shadow:var(--shadow-sm);appearance:none;
+    background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23667085' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 12px center;cursor:pointer;
+  }
 
-  /* ---- missing cards ---- */
-  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .scard{background:var(--surface);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px;border-top:3px solid var(--bad)}
-  .scard.done{border-top-color:var(--good)}
-  .scard .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-  .scard h4{margin:0;font-size:14.5px;color:var(--ink)}
-  .scard .ty{font-size:11.5px;color:var(--muted);margin-top:1px}
-  .badge{flex:none;font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;background:var(--bad-bg);color:var(--bad-ink)}
-  .badge.done{background:var(--good-bg);color:var(--good-ink)}
-  .prog{display:flex;align-items:center;gap:9px;margin:10px 0 4px}
-  .prog .minibar{min-width:120px}.prog small{color:var(--muted);white-space:nowrap;font-size:11.5px}
-  .lab{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:11px 0 6px;color:var(--bad-ink)}
-  .lab.n{color:var(--muted)}
-  .chips{display:flex;flex-wrap:wrap;gap:6px}
-  .chip{font-size:11.5px;padding:4px 9px;border-radius:8px;line-height:1.25}
-  .chip.b{background:var(--bad-bg);color:var(--bad-ink)}
-  .chip.n{background:var(--na-bg);color:var(--muted)}
-  .allok{font-size:12.5px;color:var(--good-ink);font-weight:600;margin-top:8px}
+  /* ─── Sellers table ─────────────────────────────────────────────────── */
+  .tbl-wrap{overflow-x:auto;border-radius:var(--radius)}
+  table.tbl{width:100%;border-collapse:collapse;min-width:820px}
+  .tbl th{
+    text-align:left;font-size:11px;font-weight:700;color:var(--ink-3);text-transform:uppercase;
+    letter-spacing:.04em;padding:12px 16px;border-bottom:1px solid var(--line);background:#FBFCFB;
+    position:sticky;top:0;
+  }
+  .tbl td{padding:13px 16px;border-bottom:1px solid var(--line-2);font-size:13px;vertical-align:middle}
+  .tbl tbody tr{cursor:pointer;transition:background .12s}
+  .tbl tbody tr:hover{background:var(--rk-green-tint-2)}
+  .tbl tbody tr:last-child td{border-bottom:none}
+  .cell-name{font-weight:600}
+  .cell-sub{font-size:11.5px;color:var(--ink-3);margin-top:1px}
+  .gst{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+  .prog-cell{display:flex;align-items:center;gap:10px;min-width:150px}
+  .prog-cell .track{flex:1}
+  .prog-cell span{font-size:12px;font-weight:700;min-width:40px;text-align:right;color:var(--ink-2)}
+  .row-edit{
+    opacity:0;width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;
+    color:var(--ink-3);transition:all .12s;border:1px solid transparent;
+  }
+  tr:hover .row-edit{opacity:1}
+  .row-edit:hover{background:var(--card);border-color:var(--line);color:var(--rk-green-ink)}
+  .row-edit svg{width:14px;height:14px}
 
-  /* ---- priority callout ---- */
-  .callout{background:var(--warn-bg);border:1px solid var(--warn-line);color:var(--warn-ink);
-    border-radius:14px;padding:14px 16px;margin-top:14px}
-  .callout .h{font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:8px}
-  .callout .chips{margin-top:9px}.callout .chip{background:rgba(0,0,0,.05);color:var(--warn-ink)}
+  /* ─── Matrix ────────────────────────────────────────────────────────── */
+  .matrix-wrap{overflow:auto;max-height:560px;border-radius:var(--radius)}
+  table.matrix{border-collapse:separate;border-spacing:0;min-width:100%}
+  .matrix th,.matrix td{border-bottom:1px solid var(--line-2);white-space:nowrap}
+  .matrix thead th{
+    position:sticky;top:0;z-index:3;background:#FBFCFB;font-size:10.5px;font-weight:700;color:var(--ink-3);
+    text-transform:uppercase;letter-spacing:.03em;padding:10px 8px;text-align:center;
+    max-width:96px;white-space:normal;vertical-align:bottom;line-height:1.25;border-bottom:1px solid var(--line);
+  }
+  .matrix thead th:first-child{left:0;z-index:4;text-align:left;padding-left:16px;min-width:190px}
+  .matrix tbody th{
+    position:sticky;left:0;z-index:2;background:var(--card);text-align:left;font-size:12.5px;font-weight:600;
+    padding:10px 16px;max-width:230px;overflow:hidden;text-overflow:ellipsis;
+  }
+  .matrix td{text-align:center;padding:8px}
+  .matrix tbody tr:hover th,.matrix tbody tr:hover td{background:var(--rk-green-tint-2)}
+  .dot{display:inline-block;width:11px;height:11px;border-radius:4px}
+  .dot.rec{background:var(--rk-green)}
+  .dot.pen{background:var(--amber)}
+  .dot.na{background:transparent;border:1.5px solid var(--gray-dot)}
+  .dot.note{box-shadow:0 0 0 2px #fff,0 0 0 3.5px rgba(217,119,6,.4)}
 
-  /* ---- doc overview ---- */
-  .doclist{padding:6px 8px}
-  .docrow{display:grid;grid-template-columns:230px 1fr auto;gap:14px;align-items:center;padding:8px 10px;border-radius:10px}
-  .docrow:hover{background:var(--surface-2)}
-  .docrow .dn{font-size:13px;color:var(--ink)}
-  .docrow .dn small{display:block;color:var(--muted);font-size:11px}
-  .docbar{height:10px;border-radius:6px;background:var(--track);overflow:hidden}
-  .docbar>span{display:block;height:100%;border-radius:6px;background:var(--good)}
-  .docbar>span.low{background:var(--bad)}.docbar>span.mid{background:#E0A64B}
-  .docrow .dp{font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink);min-width:82px;text-align:right;font-size:12.5px}
-  .docrow .dp small{color:var(--muted);font-weight:500}
+  /* ─── Drawers ───────────────────────────────────────────────────────── */
+  .scrim{position:fixed;inset:0;background:rgba(12,22,17,.4);opacity:0;pointer-events:none;transition:opacity .22s;z-index:60}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .drawer{
+    position:fixed;top:0;right:0;bottom:0;width:min(560px,100vw);background:var(--card);z-index:70;
+    transform:translateX(102%);transition:transform .28s cubic-bezier(.32,.72,.35,1);
+    box-shadow:var(--shadow-lg);display:flex;flex-direction:column;
+  }
+  .drawer.on{transform:none}
+  .drawer-h{display:flex;align-items:flex-start;gap:12px;padding:20px 22px 16px;border-bottom:1px solid var(--line)}
+  .drawer-h h2{font-size:17px;font-weight:800;letter-spacing:-.02em;line-height:1.3}
+  .drawer-h .meta-line{font-size:12px;color:var(--ink-3);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .drawer-body{flex:1;overflow-y:auto;padding:18px 22px 26px}
+  .drawer-f{
+    padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;
+    background:rgba(255,255,255,.94);
+  }
+  .x-btn{
+    margin-left:auto;width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    color:var(--ink-3);flex:none;transition:all .12s;
+  }
+  .x-btn:hover{background:#F2F4F3;color:var(--ink)}
 
-  .foot{color:var(--muted);font-size:12px;margin-top:22px;padding:0 4px;text-align:center}
-  @media (max-width:760px){
-    .hero{grid-template-columns:1fr;justify-items:center;text-align:center}
-    .tiles{grid-template-columns:repeat(2,1fr)}
-    .cards{grid-template-columns:1fr}
-    .docrow{grid-template-columns:1fr auto}.docrow .docbar{grid-column:1/-1;order:3}
-    .nav .title{display:none}
+  /* seller detail */
+  .detail-hero{display:flex;align-items:center;gap:16px;padding:4px 0 16px}
+  .detail-hero .nums{display:flex;gap:22px}
+  .dh-num .v{font-size:21px;font-weight:800;letter-spacing:-.02em}
+  .dh-num .k{font-size:11px;color:var(--ink-3);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+  .doc-group{margin-top:14px}
+  .doc-group > h4{
+    font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);
+    padding-bottom:8px;display:flex;align-items:center;gap:7px;
+  }
+  .doc-item{display:flex;gap:11px;align-items:flex-start;padding:9px 10px;border-radius:10px}
+  .doc-item:hover{background:var(--rk-green-tint-2)}
+  .doc-item .di-ico{width:20px;height:20px;flex:none;display:flex;align-items:center;justify-content:center;margin-top:1px}
+  .doc-item .di-name{font-size:13px;font-weight:500;color:var(--ink)}
+  .doc-item .di-note{font-size:12px;color:var(--ink-3);margin-top:2px;line-height:1.45}
+
+  /* ─── Form ──────────────────────────────────────────────────────────── */
+  .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field.full{grid-column:1/-1}
+  .field label{font-size:12px;font-weight:600;color:var(--ink-2)}
+  .field label .req{color:var(--amber)}
+  .field input,.field select{
+    height:40px;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:var(--card);
+    font-size:13.5px;transition:border .15s,box-shadow .15s;width:100%;
+  }
+  .field select{appearance:none;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23667085' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;cursor:pointer}
+  .field input:focus,.field select:focus{outline:none;border-color:var(--rk-green);box-shadow:0 0 0 3px rgba(0,166,81,.13)}
+  .field .err{font-size:11.5px;color:#B42318;display:none}
+  .field.invalid input{border-color:#F04438;box-shadow:0 0 0 3px rgba(240,68,56,.1)}
+  .field.invalid .err{display:block}
+  .fsec{
+    margin:22px 0 10px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--ink-3);display:flex;align-items:center;gap:10px;
+  }
+  .fsec::after{content:'';flex:1;height:1px;background:var(--line)}
+  .fsec .cnt{font-weight:600;text-transform:none;letter-spacing:0}
+  .doc-field{border:1px solid var(--line-2);border-radius:12px;padding:12px 14px;margin-bottom:10px;transition:all .2s}
+  .doc-field.is-na{background:#FAFBFA}
+  .doc-field-top{display:flex;align-items:center;gap:12px}
+  .doc-field .dname{flex:1;font-size:13px;font-weight:550;min-width:0}
+  .doc-field.is-na .dname{color:var(--ink-3)}
+  .doc-field .na-tag{font-size:11px;color:var(--ink-3);background:#F2F4F3;border-radius:999px;padding:3px 10px;font-weight:600;white-space:nowrap}
+  .seg{display:inline-flex;background:#EDF1EF;border-radius:9px;padding:2.5px;flex:none}
+  .seg button{padding:5px 12px;border-radius:7px;font-size:12px;font-weight:600;color:var(--ink-3);transition:all .15s}
+  .seg button.on-rec{background:var(--rk-green);color:#fff;box-shadow:0 1px 2px rgba(0,140,68,.4)}
+  .seg button.on-pen{background:#fff;color:#92400E;box-shadow:var(--shadow-sm)}
+  .seg button.on-na{background:#fff;color:var(--ink-2);box-shadow:var(--shadow-sm)}
+  .note-in{margin-top:9px}
+  .note-in input{
+    width:100%;height:34px;border:1px solid var(--line-2);border-radius:8px;padding:0 10px;
+    font-size:12.5px;background:#FCFDFC;
+  }
+  .note-in input:focus{outline:none;border-color:var(--rk-green);box-shadow:0 0 0 3px rgba(0,166,81,.1)}
+  .note-toggle{font-size:11.5px;font-weight:600;color:var(--ink-3);margin-top:8px;padding:2px 4px;border-radius:6px}
+  .note-toggle:hover{color:var(--rk-green-ink)}
+  .btn-ghost{
+    height:38px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);
+    font-size:13px;font-weight:600;color:var(--ink-2);transition:all .15s;
+  }
+  .btn-ghost:hover{background:#FBFCFB;color:var(--ink)}
+  .form-alert{
+    display:none;background:#FEF3F2;border:1px solid #FECDCA;color:#B42318;border-radius:10px;
+    padding:10px 14px;font-size:12.5px;font-weight:500;margin-bottom:14px;
+  }
+  .form-alert.on{display:block}
+
+  /* ─── Toast / spinner / states ──────────────────────────────────────── */
+  .toast{
+    position:fixed;bottom:26px;left:50%;transform:translate(-50%,16px);opacity:0;z-index:90;
+    background:var(--ink);color:#fff;border-radius:12px;padding:11px 18px;font-size:13px;font-weight:550;
+    display:flex;align-items:center;gap:9px;box-shadow:var(--shadow-lg);pointer-events:none;
+    transition:all .28s cubic-bezier(.32,.72,.35,1);max-width:min(520px,90vw);
+  }
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+  .toast svg{width:16px;height:16px;flex:none}
+  .toast.ok svg{color:#3DDC84}
+  .toast.err{background:#7A271A}
+  .spin{width:15px;height:15px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:rot .7s linear infinite}
+  .spin.dark{border-color:rgba(16,24,40,.15);border-top-color:var(--rk-green)}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  .skeleton{border-radius:var(--radius);background:linear-gradient(100deg,#EEF1EF 40%,#F6F8F7 50%,#EEF1EF 60%);background-size:200% 100%;animation:shim 1.3s infinite}
+  @keyframes shim{to{background-position:-200% 0}}
+  .state-box{padding:64px 20px;text-align:center;color:var(--ink-3)}
+  .state-box h3{color:var(--ink);font-size:15px;margin-bottom:6px}
+  .state-box p{font-size:13px;max-width:420px;margin:0 auto 16px}
+  .empty-cell{padding:40px;text-align:center;color:var(--ink-3);font-size:13px}
+
+  /* ─── Tooltip ───────────────────────────────────────────────────────── */
+  .tip{
+    position:fixed;z-index:100;background:var(--ink);color:#fff;font-size:12px;border-radius:9px;
+    padding:8px 11px;max-width:280px;pointer-events:none;opacity:0;transition:opacity .12s;line-height:1.45;
+    box-shadow:var(--shadow-lg);
+  }
+  .tip.on{opacity:1}
+  .tip b{font-weight:700}
+  .tip .t-sub{color:rgba(255,255,255,.72)}
+
+  /* ─── Responsive ────────────────────────────────────────────────────── */
+  @media (max-width:1020px){
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .kpi.hero{grid-column:1/-1}
+    .grid-2{grid-template-columns:1fr}
+  }
+  @media (max-width:640px){
+    .shell{padding:16px 14px 56px}
+    .topbar{padding:12px 14px;flex-wrap:wrap}
+    .brand-sub{display:none}
+    .sync{display:none}
+    .kpis{grid-template-columns:1fr 1fr;gap:10px}
+    .fgrid{grid-template-columns:1fr}
+    .drawer{width:100vw}
+    .doc-field-top{flex-wrap:wrap}
   }
 </style>
-</head>
-<body>
-  <div class="nav">
-    <div class="brand">
-      <div class="mark" title="Replace with your official Recykal logo">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M12 3C8 6.5 7 12 9 16" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M12 3l3 1.6M12 3l-1.6 3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 14c-.5 5-4.5 8-9 7.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M20 14l-3-1M20 14l-1 3.2" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15C1.5 11 2.5 6 6.5 4" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M4 15l3.2.4M4 15l1.8-2.8" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-      <div class="wm">recykal</div>
+
+<!-- ─── Top bar ─────────────────────────────────────────────────────────── -->
+<header class="topbar">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+      <rect width="40" height="40" rx="11" fill="#00A651"/>
+      <path d="M20 9.5c-5.8 0-10.5 4.7-10.5 10.5 0 2.9 1.2 5.6 3.1 7.5l2.2-2.2A7.4 7.4 0 0 1 12.6 20 7.4 7.4 0 0 1 20 12.6c1.6 0 3.2.5 4.4 1.5l-2.5 2.5h8.4V8.2l-3.7 3.6A10.4 10.4 0 0 0 20 9.5Z" fill="#fff"/>
+      <path d="M27.4 14.9l-2.2 2.3A7.4 7.4 0 0 1 27.4 20 7.4 7.4 0 0 1 20 27.4c-1.6 0-3.1-.5-4.4-1.4l2.5-2.6H9.7v8.4l3.6-3.6a10.4 10.4 0 0 0 6.7 2.3c5.8 0 10.5-4.7 10.5-10.5 0-2.9-1.2-5.6-3.1-7.6Z" fill="#fff" opacity=".68"/>
+    </svg>
+    <div style="min-width:0">
+      <div class="brand-name">recykal<em>.</em> <span style="font-weight:600;color:var(--ink-2)">Seller Onboarding</span></div>
+      <div class="brand-sub">NBFC Document Tracker · Executive View</div>
     </div>
-    <div class="divider"></div>
-    <div class="title">Supply-chain finance<b>NBFC Document Tracker</b></div>
-    <div class="sp"></div>
-    <button class="btn" id="refresh" onclick="load()" disabled>↻ Refresh</button>
+  </div>
+  <div class="topbar-spacer"></div>
+  <span class="sync" id="syncLabel"></span>
+  <button class="icon-btn" id="refreshBtn" title="Refresh from Google Sheet">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+    <span>Refresh</span>
+  </button>
+  <a class="icon-btn" id="sheetLink" target="_blank" rel="noopener" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+    Sheet
+  </a>
+  <button class="btn-primary" id="addSellerBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    Add Seller
+  </button>
+</header>
+
+<div class="shell">
+  <!-- loading skeleton -->
+  <div id="loading">
+    <div class="skeleton" style="height:38px;width:280px;margin-bottom:22px"></div>
+    <div class="kpis">
+      <div class="skeleton" style="height:96px"></div><div class="skeleton" style="height:96px"></div>
+      <div class="skeleton" style="height:96px"></div><div class="skeleton" style="height:96px"></div>
+      <div class="skeleton" style="height:96px"></div>
+    </div>
+    <div class="grid-2">
+      <div class="skeleton" style="height:420px"></div>
+      <div class="skeleton" style="height:420px"></div>
+    </div>
   </div>
 
-  <div class="wrap">
-    <div class="meta">
-      <span id="src">Loading…</span>
-      <div class="legend">
-        <span class="key"><span class="sw g">✓</span> Received</span>
-        <span class="key"><span class="sw b">✗</span> Missing</span>
-        <span class="key"><span class="sw n">–</span> Not applicable</span>
-      </div>
-    </div>
+  <!-- fatal error -->
+  <div id="fatal" class="card state-box" style="display:none">
+    <h3>Couldn't load the tracker</h3>
+    <p id="fatalMsg"></p>
+    <button class="btn-primary" onclick="boot()" style="margin:0 auto">Try again</button>
+  </div>
 
-    <div class="status" id="status"><span class="spin"></span>Fetching live data from your sheet…</div>
+  <div id="app" style="display:none">
+    <nav class="seg-nav" id="segNav">
+      <button data-view="overview" class="on">Overview</button>
+      <button data-view="sellers">Sellers</button>
+      <button data-view="matrix">Document Matrix</button>
+    </nav>
 
-    <div id="content" style="display:none">
-      <div class="hero">
-        <div class="ring" id="ring"></div>
-        <div class="heroright">
-          <h2 id="heroTitle"></h2>
-          <p id="heroSub"></p>
-          <div class="tiles" id="tiles"></div>
+    <!-- ─── Overview ─────────────────────────────────────────────────── -->
+    <section class="view on" id="view-overview">
+      <div class="kpis" id="kpis"></div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-h">
+            <h3>Document collection status</h3>
+            <span class="hint">sorted by most pending</span>
+          </div>
+          <div class="legend">
+            <span><i style="background:var(--rk-green)"></i>Received</span>
+            <span><i style="background:var(--amber)"></i>Pending</span>
+            <span><i style="border:1.5px solid var(--gray-dot);background:transparent"></i>Not applicable</span>
+          </div>
+          <div class="docbars" id="docBars"></div>
+        </div>
+        <div class="stack">
+          <div class="card">
+            <div class="card-h"><h3>Needs attention</h3><span class="hint">highest pending first</span></div>
+            <div class="attn" id="attnList"></div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>Portfolio breakdown</h3></div>
+            <div class="facets" id="facets"></div>
+          </div>
         </div>
       </div>
+    </section>
 
-      <h3 class="sec">Document status by seller <small>every checklist item, at a glance</small></h3>
-      <div class="card"><div class="mxwrap"><table class="mx"><thead><tr id="mxHead"></tr></thead><tbody id="mxBody"></tbody></table></div></div>
+    <!-- ─── Sellers ──────────────────────────────────────────────────── -->
+    <section class="view" id="view-sellers">
+      <div class="toolbar">
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="q" type="search" placeholder="Search seller, GST, region…" autocomplete="off">
+        </div>
+        <select class="flt" id="fltEntity"><option value="">All entity types</option></select>
+        <select class="flt" id="fltRegion"><option value="">All regions</option></select>
+        <select class="flt" id="fltStatus">
+          <option value="">All statuses</option>
+          <option value="complete">Complete</option>
+          <option value="pending">Has pending docs</option>
+        </select>
+      </div>
+      <div class="card tbl-wrap">
+        <table class="tbl">
+          <thead id="sellersHead"></thead>
+          <tbody id="sellersBody"></tbody>
+        </table>
+      </div>
+    </section>
 
-      <div class="callout" id="gaps"></div>
-
-      <h3 class="sec">What’s missing, by seller <small>sorted by most outstanding first</small></h3>
-      <div class="cards" id="cards"></div>
-
-      <h3 class="sec">Where the collection gaps are <small>each document across all sellers, lowest first</small></h3>
-      <div class="card"><div class="doclist" id="docList"></div></div>
-
-      <div class="foot" id="foot"></div>
-    </div>
+    <!-- ─── Matrix ───────────────────────────────────────────────────── -->
+    <section class="view" id="view-matrix">
+      <div class="card">
+        <div class="card-h" style="padding-bottom:12px">
+          <h3>Seller × document matrix</h3>
+          <div class="legend" style="padding:0">
+            <span><i style="background:var(--rk-green)"></i>Received</span>
+            <span><i style="background:var(--amber)"></i>Pending</span>
+            <span><i style="border:1.5px solid var(--gray-dot);background:transparent"></i>NA</span>
+          </div>
+        </div>
+        <div class="matrix-wrap"><table class="matrix" id="matrixTable"></table></div>
+      </div>
+    </section>
   </div>
+</div>
+
+<!-- ─── Seller detail drawer ────────────────────────────────────────────── -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="detailDrawer" aria-hidden="true">
+  <div class="drawer-h">
+    <div style="min-width:0;flex:1">
+      <h2 id="dName"></h2>
+      <div class="meta-line" id="dMeta"></div>
+    </div>
+    <button class="x-btn" data-close aria-label="Close">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body" id="dBody"></div>
+  <div class="drawer-f">
+    <button class="btn-ghost" data-close>Close</button>
+    <button class="btn-primary" id="dEditBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+      Edit seller
+    </button>
+  </div>
+</aside>
+
+<!-- ─── Form drawer ─────────────────────────────────────────────────────── -->
+<aside class="drawer" id="formDrawer" aria-hidden="true">
+  <div class="drawer-h">
+    <div style="flex:1">
+      <h2 id="fTitle">Add seller</h2>
+      <div class="meta-line" id="fSub">Writes directly to the Seller_NBFC Tracker sheet</div>
+    </div>
+    <button class="x-btn" data-close aria-label="Close">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body">
+    <div class="form-alert" id="formAlert"></div>
+    <div class="fgrid" id="metaFields"></div>
+    <div class="fsec">Document checklist <span class="cnt" id="docCount"></span></div>
+    <div id="docFields"></div>
+  </div>
+  <div class="drawer-f">
+    <button class="btn-ghost" data-close>Cancel</button>
+    <button class="btn-primary" id="saveBtn">
+      <span id="saveSpin" class="spin" style="display:none"></span>
+      <span id="saveLbl">Save to sheet</span>
+    </button>
+  </div>
+</aside>
+
+<div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span id="toastMsg"></span></div>
+<div class="tip" id="tip"></div>
 
 <script>
-  var elStatus=document.getElementById('status'),elContent=document.getElementById('content'),elRefresh=document.getElementById('refresh');
-  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
-  var SYM={Y:'✓',X:'✗',N:'–'},CLS={Y:'g',X:'b',N:'n'};
+'use strict';
 
-  function ring(pct){
-    var r=54,c=2*Math.PI*r,off=c*(1-pct/100);
-    return '<svg viewBox="0 0 132 132" width="132" height="132">'+
-      '<circle cx="66" cy="66" r="'+r+'" fill="none" stroke="var(--track)" stroke-width="12"/>'+
-      '<circle cx="66" cy="66" r="'+r+'" fill="none" stroke="var(--brand)" stroke-width="12" stroke-linecap="round" '+
-      'stroke-dasharray="'+c.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+'" transform="rotate(-90 66 66)"/></svg>'+
-      '<div class="pct"><b>'+pct+'%</b><span>Complete</span></div>';
+/* ═══════════════════════════ State & helpers ═══════════════════════════ */
+
+var D = null;                 // latest payload from getInitialData()
+var fieldByType = {};         // gst / date / entity → header name
+var nameHeader = null;
+var editingSeller = null;     // seller object while form is open, else null
+var lastFocusRefresh = 0;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function initials(name){
+  var p = String(name||'').replace(/[^A-Za-z0-9 ]/g,' ').trim().split(/\s+/);
+  return ((p[0]||'')[0]||'•').toUpperCase() + ((p[1]||'')[0]||'').toUpperCase();
+}
+function pct(n){ return (Math.round(n*10)/10) + '%'; }
+function run(fn){
+  var args = Array.prototype.slice.call(arguments, 1);
+  return new Promise(function(res, rej){
+    var r = google.script.run.withSuccessHandler(res).withFailureHandler(rej);
+    r[fn].apply(r, args);
+  });
+}
+function toast(msg, kind){
+  var t = $('toast');
+  t.className = 'toast on ' + (kind === 'err' ? 'err' : 'ok');
+  $('toastMsg').textContent = msg;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ t.classList.remove('on'); }, 3600);
+}
+
+/* GSTIN: 2-digit state · 5 letters · 4 digits · letter · alnum · 'Z' · alnum */
+var GST_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/;
+
+var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function sheetDateToIso(s){
+  var m = String(s||'').trim().match(/^(\d{1,2})[-\/ ]([A-Za-z]{3,})[-\/ ](\d{4})$/);
+  if (m){
+    var mi = MONTHS.findIndex(function(x){ return m[2].toLowerCase().indexOf(x.toLowerCase()) === 0; });
+    if (mi > -1) return m[3] + '-' + String(mi+1).padStart(2,'0') + '-' + String(m[1]).padStart(2,'0');
   }
-  function tile(cls,v,l){return '<div class="tile '+cls+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';}
+  var d = new Date(s);
+  if (!isNaN(d) && /\d{4}/.test(String(s))) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  return '';
+}
 
-  function render(d){
-    if(!d||d.error){elStatus.className='status err';elStatus.textContent='⚠ '+((d&&d.error)||'No data returned.');elRefresh.disabled=false;return;}
-    var docs=d.docLabels,N=docs.length,t=d.totals;
-    document.getElementById('src').innerHTML='Source: <b style="color:var(--ink)">'+esc(d.sourceName)+'</b> · '+N+' documents tracked · updated '+esc(d.generatedAt);
+/* Short display name for a document column header. */
+function docShort(key){
+  var s = String(key);
+  return s.length > 44 ? s.slice(0, 42).replace(/[ ,;–-]+$/,'') + '…' : s;
+}
 
-    // hero
-    document.getElementById('ring').innerHTML=ring(Math.round(t.pct));
-    var inProg=d.sellers.filter(function(s){return s.recv>0&&s.pend>0;}).length;
-    var notStarted=d.sellers.filter(function(s){return s.recv===0;}).length;
-    document.getElementById('heroTitle').textContent=t.recv+' of '+t.appl+' required documents received';
-    document.getElementById('heroSub').textContent=
-      t.sellers+' sellers · '+inProg+' in progress'+(notStarted?' · '+notStarted+' not started':'')+' · '+t.pend+' documents still to collect';
-    document.getElementById('tiles').innerHTML=
-      tile('',t.sellers,'Sellers')+tile('good',t.recv,'Received')+tile('bad',t.pend,'Missing')+tile('',t.na,'Not applicable');
+/* Is this document applicable for the given entity type? (mirrors backend) */
+function normKey(s){ return String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]+/g,''); }
+function entityColumnFor(entityType){
+  var e = normKey(entityType); if (!e) return null;
+  var best = null, len = 0;
+  D.entityColumns.forEach(function(label){
+    var n = normKey(label);
+    if ((e.indexOf(n) !== -1 || n.indexOf(e) !== -1) && n.length > len){ best = label; len = n.length; }
+  });
+  return best;
+}
+function isApplicable(doc, entityType){
+  var col = entityColumnFor(entityType);
+  if (!col) return true;
+  return !!doc.requiredBy[col];
+}
 
-    // matrix
-    var head='<th class="corner">Seller \\ Document</th>';
-    for(var j=0;j<N;j++)head+='<th><div class="vt">'+esc(docs[j])+'</div></th>';
-    head+='<th class="corner" style="min-width:150px;max-width:150px;left:auto;position:static">Outstanding</th>';
-    document.getElementById('mxHead').innerHTML=head;
-    var body='';
-    d.sellers.forEach(function(s){
-      var row='<td class="name"><span class="nm">'+esc(s.name)+'</span><br><span class="ty">'+esc(s.type||'—')+'</span></td>';
-      for(var j=0;j<N;j++){var c=s.cells.charAt(j)||'X';row+='<td class="cell '+CLS[c]+'">'+SYM[c]+'</td>';}
-      row+='<td class="tail"><div class="tailrow"><b>'+s.pend+' left</b><span class="minibar"><span style="width:'+s.pct+'%"></span></span>'+
-           '<small>'+s.pct+'%</small></div></td>';
-      body+='<tr>'+row+'</tr>';
+/* ═══════════════════════════════ Boot ══════════════════════════════════ */
+
+function boot(){
+  $('fatal').style.display = 'none';
+  $('app').style.display = 'none';
+  $('loading').style.display = 'block';
+  run('getInitialData').then(onData).catch(function(err){
+    $('loading').style.display = 'none';
+    $('fatalMsg').textContent = (err && err.message) ? err.message : String(err);
+    $('fatal').style.display = 'block';
+  });
+}
+
+function onData(data){
+  D = data;
+  fieldByType = {}; nameHeader = null;
+  D.metaFields.forEach(function(f){
+    if (f.type !== 'text' && !fieldByType[f.type]) fieldByType[f.type] = f.key;
+    if (!nameHeader && normKey(f.key).indexOf('name') !== -1) nameHeader = f.key;
+  });
+  $('loading').style.display = 'none';
+  $('fatal').style.display = 'none';
+  $('app').style.display = 'block';
+  $('sheetLink').href = D.sheetUrl; $('sheetLink').style.display = 'inline-flex';
+  var t = new Date(D.generatedAt);
+  $('syncLabel').innerHTML = 'Synced <b>' + t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + '</b> · ' + esc(D.trackerName);
+  renderOverview();
+  renderFilters();
+  renderSellers();
+  renderMatrix();
+}
+
+function refresh(quiet){
+  var btn = $('refreshBtn');
+  btn.disabled = true; btn.style.opacity = .55;
+  return run('getInitialData').then(function(d){
+    onData(d);
+    if (!quiet) toast('Refreshed from Google Sheet');
+  }).catch(function(err){
+    if (!quiet) toast((err && err.message) || 'Refresh failed', 'err');
+  }).finally(function(){ btn.disabled = false; btn.style.opacity = 1; });
+}
+
+/* ═══════════════════════════ Overview view ═════════════════════════════ */
+
+function totals(){
+  var t = {sellers:0, received:0, pending:0, na:0, applicable:0, complete:0};
+  D.sellers.forEach(function(s){
+    t.sellers++; t.received += s.received; t.pending += s.pending; t.na += s.na;
+    t.applicable += s.applicable;
+    if (s.pending === 0 && s.applicable > 0) t.complete++;
+  });
+  t.completion = t.applicable ? (t.received / t.applicable) * 100 : 0;
+  return t;
+}
+
+function ringSvg(p, size, stroke, trackColor, fillColor){
+  var r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  var off = c * (1 - Math.min(Math.max(p,0),100)/100);
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" style="transform:rotate(-90deg)">' +
+    '<circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" fill="none" stroke="'+trackColor+'" stroke-width="'+stroke+'"/>' +
+    '<circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" fill="none" stroke="'+fillColor+'" stroke-width="'+stroke+'" stroke-linecap="round" stroke-dasharray="'+c+'" stroke-dashoffset="'+off+'" style="transition:stroke-dashoffset .8s cubic-bezier(.22,1,.36,1)"/></svg>';
+}
+
+function renderOverview(){
+  var t = totals();
+  $('kpis').innerHTML =
+    '<div class="card kpi hero">' +
+      '<span class="lbl">Portfolio completion</span>' +
+      '<span class="val">' + pct(t.completion) + '</span>' +
+      '<span class="sub">' + t.received + ' of ' + t.applicable + ' required documents in</span>' +
+      '<span class="kpi-ring">' + ringSvg(t.completion, 62, 7, 'rgba(255,255,255,.22)', '#3DDC84') + '</span>' +
+    '</div>' +
+    kpiTile('Sellers onboarding', t.sellers, t.complete + ' fully complete', 'var(--rk-green)') +
+    kpiTile('Documents received', t.received, 'across all sellers', 'var(--rk-green)') +
+    kpiTile('Documents pending', t.pending, t.pending ? 'need follow-up' : 'nothing outstanding', 'var(--amber)') +
+    kpiTile('Not applicable', t.na, 'per entity-type checklist', 'var(--gray-dot)');
+
+  /* document-wise bars */
+  var rows = D.docs.map(function(doc){
+    var rec = 0, pen = 0, na = 0;
+    D.sellers.forEach(function(s){
+      var st = (s.docs[doc.key] || {}).status;
+      if (st === 'received') rec++; else if (st === 'na') na++; else pen++;
     });
-    var trow='<td class="name">Received / applicable</td>';
-    for(var j=0;j<N;j++){var x=d.docs[j];var col=x.recv===0?'var(--bad-ink)':(x.recv===x.appl&&x.appl>0?'var(--good-ink)':'inherit');
-      trow+='<td style="color:'+col+'">'+x.recv+'/'+x.appl+'</td>';}
-    trow+='<td class="tail">'+t.recv+' received · '+t.pend+' missing</td>';
-    document.getElementById('mxBody').innerHTML=body+'<tr class="totrow">'+trow+'</tr>';
+    var app = rec + pen;
+    return {key: doc.key, rec: rec, pen: pen, na: na, app: app, p: app ? rec/app*100 : 0};
+  }).sort(function(a,b){ return b.pen - a.pen || a.p - b.p; });
 
-    // priority callout (systemic gaps)
-    var gaps=d.docs.filter(function(x){return x.recv===0&&x.appl>0;}).map(function(x){return x.label;});
-    document.getElementById('gaps').innerHTML= gaps.length
-      ? '<div class="h">⚑ Priority — not received from a single seller yet ('+gaps.length+')</div>'+
-        '<div class="chips">'+gaps.map(function(x){return '<span class="chip">'+esc(x)+'</span>';}).join('')+'</div>'
-      : '<div class="h">✓ No systemic gaps — every document is in from at least one seller.</div>';
+  $('docBars').innerHTML = rows.map(function(r){
+    var tipTxt = '<b>' + esc(r.key) + '</b><br><span class="t-sub">' +
+      r.rec + ' received · ' + r.pen + ' pending · ' + r.na + ' not applicable</span>';
+    var stat = r.app === 0
+      ? '<span style="color:var(--ink-3)">NA for all</span>'
+      : r.rec + '/' + r.app + (r.pen ? ' · <span class="pend">' + r.pen + ' pending</span>' : '');
+    return '<div class="docbar" data-tip="' + esc(tipTxt) + '">' +
+      '<span class="name" title="' + esc(r.key) + '">' + esc(docShort(r.key)) + '</span>' +
+      '<div class="track"><div class="fill" style="width:' + r.p + '%"></div></div>' +
+      '<span class="stat">' + stat + '</span>' +
+    '</div>';
+  }).join('') || '<div class="empty-cell">No document columns found.</div>';
 
-    // missing-by-seller cards, most outstanding first
-    var cards=d.sellers.slice().sort(function(a,b){return b.pend-a.pend||a.pct-b.pct;}).map(function(s){
-      var miss=[],na=[];
-      for(var j=0;j<N;j++){var c=s.cells.charAt(j);if(c==='X')miss.push(docs[j]);else if(c==='N')na.push(docs[j]);}
-      var done=miss.length===0;
-      var body= done? '<div class="allok">✅ All applicable documents received</div>'
-        : '<div class="lab">Missing ('+miss.length+')</div><div class="chips">'+miss.map(function(x){return '<span class="chip b">'+esc(x)+'</span>';}).join('')+'</div>';
-      var naH= na.length? '<div class="lab n">Not applicable ('+na.length+')</div><div class="chips">'+na.map(function(x){return '<span class="chip n">'+esc(x)+'</span>';}).join('')+'</div>':'';
-      return '<div class="scard'+(done?' done':'')+'"><div class="top"><div><h4>'+esc(s.name)+'</h4><div class="ty">'+esc(s.type||'—')+'</div></div>'+
-        '<span class="badge'+(done?' done':'')+'">'+(done?'Complete':s.pend+' left')+'</span></div>'+
-        '<div class="prog"><span class="minibar"><span style="width:'+s.pct+'%"></span></span><small>'+s.recv+'/'+s.appl+' · '+s.pct+'%</small></div>'+
-        body+naH+'</div>';
+  /* needs attention */
+  var attn = D.sellers.slice().sort(function(a,b){ return b.pending - a.pending || a.completion - b.completion; });
+  var withPending = attn.filter(function(s){ return s.pending > 0; });
+  $('attnList').innerHTML = withPending.length
+    ? withPending.slice(0, 6).map(function(s){
+        var nm = nameHeader ? s.meta[nameHeader] : ('Row ' + s.row);
+        return '<div class="attn-row" onclick="openDetail(' + s.row + ')">' +
+          '<div class="avatar">' + esc(initials(nm)) + '</div>' +
+          '<div class="attn-main"><div class="attn-name">' + esc(nm) + '</div>' +
+            '<div class="attn-sub">' + esc(s.meta[fieldByType.entity] || '') + '</div></div>' +
+          '<div class="attn-right"><span class="chip warn">' + s.pending + ' pending</span>' +
+            '<div class="mini-track"><div class="fill" style="width:' + s.completion + '%"></div></div></div>' +
+        '</div>';
+      }).join('')
+    : '<div class="empty-cell">🎉 Every seller\'s checklist is complete.</div>';
+
+  /* facets */
+  $('facets').innerHTML = ['Region','Entity'].map(function(kind){
+    var header = kind === 'Region'
+      ? (D.metaFields.filter(function(f){ return normKey(f.key) === 'region'; })[0] || {}).key
+      : fieldByType.entity;
+    if (!header) return '';
+    var counts = {};
+    D.sellers.forEach(function(s){
+      var v = s.meta[header] || '—';
+      counts[v] = (counts[v] || 0) + 1;
+    });
+    var chips = Object.keys(counts).sort().map(function(k){
+      return '<span class="facet-chip"><b>' + counts[k] + '</b> ' + esc(k) + '</span>';
     }).join('');
-    document.getElementById('cards').innerHTML=cards;
+    return '<div class="facet"><h4>By ' + esc(header) + '</h4><div class="facet-row">' + chips + '</div></div>';
+  }).join('');
+}
 
-    // document overview, lowest collection first
-    var dl=d.docs.slice().sort(function(a,b){return a.pct-b.pct||b.pend-a.pend;}).map(function(x){
-      var cls=x.pct===0?'low':(x.pct<60?'mid':'');
-      return '<div class="docrow"><div class="dn">'+esc(x.label)+'<small>'+x.recv+' received · '+x.pend+' missing'+(x.na?' · '+x.na+' N/A':'')+'</small></div>'+
-        '<div class="docbar"><span class="'+cls+'" style="width:'+Math.max(x.pct,2)+'%"></span></div>'+
-        '<div class="dp">'+x.pct+'%<small> of '+x.appl+'</small></div></div>';
-    }).join('');
-    document.getElementById('docList').innerHTML=dl;
+function kpiTile(lbl, val, sub, accent){
+  return '<div class="card kpi"><div class="kpi-accent" style="background:' + accent + '"></div>' +
+    '<span class="lbl">' + esc(lbl) + '</span><span class="val">' + esc(val) + '</span>' +
+    '<span class="sub">' + esc(sub) + '</span></div>';
+}
 
-    document.getElementById('foot').textContent='Read-only — your sheet is never modified. “Missing” counts only applicable documents. Generated '+d.generatedAt+'.';
-    elStatus.style.display='none';elContent.style.display='block';elRefresh.disabled=false;
-  }
+/* ═══════════════════════════ Sellers view ══════════════════════════════ */
 
-  function load(){
-    elRefresh.disabled=true;elStatus.style.display='block';elStatus.className='status';
-    elStatus.innerHTML='<span class="spin"></span>Fetching live data from your sheet…';
-    if(typeof google==='undefined'||!google.script||!google.script.run){
-      elStatus.className='status err';
-      elStatus.innerHTML='⚠ Open this page via the deployed Web App URL (Deploy → Web app). The live data connection only works when served by Apps Script, not from a local file.';
-      return;
+function renderFilters(){
+  var ent = {}, reg = {};
+  var regionHeader = (D.metaFields.filter(function(f){ return normKey(f.key) === 'region'; })[0] || {}).key;
+  D.sellers.forEach(function(s){
+    if (fieldByType.entity && s.meta[fieldByType.entity]) ent[s.meta[fieldByType.entity]] = 1;
+    if (regionHeader && s.meta[regionHeader]) reg[s.meta[regionHeader]] = 1;
+  });
+  fillSelect($('fltEntity'), Object.keys(ent).sort(), 'All entity types');
+  fillSelect($('fltRegion'), Object.keys(reg).sort(), 'All regions');
+  $('fltRegion').dataset.header = regionHeader || '';
+}
+function fillSelect(sel, opts, first){
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">' + esc(first) + '</option>' +
+    opts.map(function(o){ return '<option>' + esc(o) + '</option>'; }).join('');
+  sel.value = opts.indexOf(cur) > -1 ? cur : '';
+}
+
+function renderSellers(){
+  var q = $('q').value.trim().toLowerCase();
+  var fe = $('fltEntity').value, fr = $('fltRegion').value, fs = $('fltStatus').value;
+  var regionHeader = $('fltRegion').dataset.header;
+
+  $('sellersHead').innerHTML = '<tr><th>#</th><th>Seller</th><th>GST</th><th>Entity type</th>' +
+    '<th>Completion</th><th>Pending</th><th></th></tr>';
+
+  var rows = D.sellers.filter(function(s){
+    if (fe && (s.meta[fieldByType.entity] || '') !== fe) return false;
+    if (fr && regionHeader && (s.meta[regionHeader] || '') !== fr) return false;
+    if (fs === 'complete' && s.pending !== 0) return false;
+    if (fs === 'pending' && s.pending === 0) return false;
+    if (q){
+      var hay = Object.keys(s.meta).map(function(k){ return s.meta[k]; }).join(' ').toLowerCase();
+      if (hay.indexOf(q) === -1) return false;
     }
-    google.script.run.withSuccessHandler(render)
-      .withFailureHandler(function(e){elStatus.className='status err';elStatus.textContent='⚠ '+e.message;elRefresh.disabled=false;})
-      .getDashboardData();
+    return true;
+  });
+
+  /* secondary line: every plain-text meta field except the name itself */
+  var subFields = D.metaFields.filter(function(f){
+    return f.type === 'text' && f.key !== nameHeader;
+  });
+
+  $('sellersBody').innerHTML = rows.length ? rows.map(function(s){
+    var nm = nameHeader ? s.meta[nameHeader] : ('Row ' + s.row);
+    var sub = subFields.map(function(f){ return s.meta[f.key]; }).filter(Boolean).join(' · ');
+    return '<tr onclick="openDetail(' + s.row + ')">' +
+      '<td style="color:var(--ink-3)">' + esc(s.serial) + '</td>' +
+      '<td><div class="cell-name">' + esc(nm) + '</div>' + (sub ? '<div class="cell-sub">' + esc(sub) + '</div>' : '') + '</td>' +
+      '<td class="gst">' + esc(s.meta[fieldByType.gst] || '—') + '</td>' +
+      '<td>' + esc(s.meta[fieldByType.entity] || '—') + '</td>' +
+      '<td><div class="prog-cell"><div class="track"><div class="fill" style="width:' + s.completion + '%"></div></div><span>' + pct(s.completion) + '</span></div></td>' +
+      '<td>' + (s.pending
+          ? '<span class="chip warn">' + s.pending + ' pending</span>'
+          : '<span class="chip ok">Complete</span>') + '</td>' +
+      '<td onclick="event.stopPropagation();openForm(' + s.row + ')">' +
+        '<span class="row-edit" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></span></td>' +
+    '</tr>';
+  }).join('') : '<tr><td colspan="7" class="empty-cell">No sellers match the current filters.</td></tr>';
+}
+
+/* ═══════════════════════════ Matrix view ═══════════════════════════════ */
+
+function renderMatrix(){
+  var head = '<thead><tr><th>Seller</th>' + D.docs.map(function(d){
+    return '<th title="' + esc(d.key) + '">' + esc(docShort(d.key)) + '</th>';
+  }).join('') + '</tr></thead>';
+
+  var body = '<tbody>' + D.sellers.map(function(s){
+    var nm = nameHeader ? s.meta[nameHeader] : ('Row ' + s.row);
+    return '<tr><th onclick="openDetail(' + s.row + ')" style="cursor:pointer" title="' + esc(nm) + '">' + esc(nm) + '</th>' +
+      D.docs.map(function(d){
+        var cell = s.docs[d.key] || {status:'pending', raw:'', note:''};
+        var cls = cell.status === 'received' ? 'rec' : cell.status === 'na' ? 'na' : 'pen';
+        var tipTxt = '<b>' + esc(nm) + '</b><br>' + esc(d.key) + '<br><span class="t-sub">' +
+          (cell.status === 'received' ? 'Received' : cell.status === 'na' ? 'Not applicable' : 'Pending') +
+          (cell.note ? ' — ' + esc(cell.note) : '') + '</span>';
+        return '<td data-tip="' + esc(tipTxt) + '"><span class="dot ' + cls + (cell.note ? ' note' : '') + '"></span></td>';
+      }).join('') + '</tr>';
+  }).join('') + '</tbody>';
+
+  $('matrixTable').innerHTML = D.sellers.length ? head + body
+    : head + '<tbody><tr><td colspan="' + (D.docs.length+1) + '" class="empty-cell">No sellers yet — add the first one.</td></tr></tbody>';
+}
+
+/* ═══════════════════════ Seller detail drawer ══════════════════════════ */
+
+function sellerByRow(row){
+  return D.sellers.filter(function(s){ return s.row === row; })[0] || null;
+}
+
+function openDetail(row){
+  var s = sellerByRow(row);
+  if (!s) return;
+  var nm = nameHeader ? s.meta[nameHeader] : ('Row ' + s.row);
+  $('dName').textContent = nm;
+  $('dMeta').innerHTML = D.metaFields
+    .filter(function(f){ return f.key !== nameHeader && s.meta[f.key]; })
+    .map(function(f){ return '<span>' + esc(s.meta[f.key]) + '</span>'; })
+    .join('<span style="color:var(--line)">·</span>');
+
+  var groups = {pending: [], received: [], na: []};
+  D.docs.forEach(function(d){
+    var cell = s.docs[d.key] || {status:'pending', note:''};
+    groups[cell.status === 'received' ? 'received' : cell.status === 'na' ? 'na' : 'pending']
+      .push({key: d.key, note: cell.note});
+  });
+
+  var ICO = {
+    pending: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2.1" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>',
+    received:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--rk-green)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+    na:      '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--gray-dot)" stroke-width="2.1" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>'
+  };
+  function group(title, arr, kind){
+    if (!arr.length) return '';
+    return '<div class="doc-group"><h4>' + title + ' <span class="chip ' +
+      (kind==='pending'?'warn':kind==='received'?'ok':'mut') + '">' + arr.length + '</span></h4>' +
+      arr.map(function(d){
+        return '<div class="doc-item"><span class="di-ico">' + ICO[kind] + '</span>' +
+          '<div><div class="di-name">' + esc(d.key) + '</div>' +
+          (d.note ? '<div class="di-note">' + esc(d.note) + '</div>' : '') + '</div></div>';
+      }).join('') + '</div>';
   }
-  load();
+
+  $('dBody').innerHTML =
+    '<div class="detail-hero">' +
+      '<div style="position:relative;width:74px;height:74px;flex:none">' +
+        ringSvg(s.completion, 74, 8, 'var(--line-2)', 'var(--rk-green)') +
+        '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px">' + Math.round(s.completion) + '%</div>' +
+      '</div>' +
+      '<div class="nums">' +
+        '<div class="dh-num"><div class="v" style="color:var(--rk-green-ink)">' + s.received + '</div><div class="k">Received</div></div>' +
+        '<div class="dh-num"><div class="v" style="color:' + (s.pending ? 'var(--amber)' : 'var(--ink)') + '">' + s.pending + '</div><div class="k">Pending</div></div>' +
+        '<div class="dh-num"><div class="v" style="color:var(--ink-3)">' + s.na + '</div><div class="k">N/A</div></div>' +
+      '</div>' +
+    '</div>' +
+    group('Pending documents', groups.pending, 'pending') +
+    group('Received', groups.received, 'received') +
+    group('Not applicable for this entity', groups.na, 'na');
+
+  $('dEditBtn').onclick = function(){ closeDrawers(); openForm(row); };
+  openDrawer('detailDrawer');
+}
+
+/* ═══════════════════════════ Form drawer ═══════════════════════════════ */
+
+function openForm(row){
+  editingSeller = row ? sellerByRow(row) : null;
+  $('fTitle').textContent = editingSeller ? 'Update seller' : 'Add seller';
+  $('fSub').textContent = editingSeller
+    ? 'Editing row ' + editingSeller.row + ' of ' + D.trackerName
+    : 'Appends a new row to ' + D.trackerName + ' in the sheet’s exact format';
+  $('formAlert').classList.remove('on');
+
+  /* meta fields */
+  $('metaFields').innerHTML = D.metaFields.map(function(f, i){
+    var val = editingSeller ? (editingSeller.meta[f.key] || '') : '';
+    var isName = f.key === nameHeader;
+    var label = esc(f.key) + (isName || f.type === 'gst' || f.type === 'entity' ? ' <span class="req">*</span>' : '');
+    var full = isName ? ' full' : '';
+    if (f.type === 'entity'){
+      var opts = D.entityTypeOptions.map(function(o){
+        return '<option' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>';
+      }).join('');
+      return '<div class="field' + full + '" data-key="' + esc(f.key) + '"><label>' + label + '</label>' +
+        '<select id="mf' + i + '" onchange="onEntityChange()"><option value=""' + (val ? '' : ' selected') + ' disabled>Select entity type…</option>' + opts + '</select>' +
+        '<span class="err"></span></div>';
+    }
+    if (f.type === 'date'){
+      /* data-orig keeps the sheet's raw value so an unparseable date is never lost */
+      return '<div class="field' + full + '" data-key="' + esc(f.key) + '" data-orig="' + esc(val) + '"><label>' + label + '</label>' +
+        '<input id="mf' + i + '" type="date" value="' + esc(sheetDateToIso(val)) + '">' +
+        '<span class="err"></span></div>';
+    }
+    var listAttr = '', listHtml = '';
+    if (f.options && f.options.length && f.type === 'text'){
+      listAttr = ' list="dl' + i + '"';
+      listHtml = '<datalist id="dl' + i + '">' + f.options.map(function(o){ return '<option value="' + esc(o) + '">'; }).join('') + '</datalist>';
+    }
+    var ph = f.type === 'gst' ? ' placeholder="e.g. 36ADFFS5699R1ZU" maxlength="15" style="text-transform:uppercase"' : '';
+    return '<div class="field' + full + '" data-key="' + esc(f.key) + '"><label>' + label + '</label>' +
+      '<input id="mf' + i + '" type="text" value="' + esc(val) + '"' + ph + listAttr + ' autocomplete="off">' + listHtml +
+      '<span class="err"></span></div>';
+  }).join('');
+
+  /* document checklist */
+  $('docFields').innerHTML = D.docs.map(function(d, i){
+    var cell = editingSeller ? (editingSeller.docs[d.key] || {}) : {};
+    var st = cell.status || 'pending';
+    var note = cell.note || '';
+    return '<div class="doc-field" id="df' + i + '" data-key="' + esc(d.key) + '" data-status="' + st + '">' +
+      '<div class="doc-field-top">' +
+        '<span class="dname" title="' + esc(d.key) + '">' + esc(d.key) + '</span>' +
+        '<span class="na-tag" style="display:none"></span>' +
+        '<div class="seg" role="group">' +
+          '<button type="button" data-v="received" onclick="setDocStatus(' + i + ',\'received\')">Received</button>' +
+          '<button type="button" data-v="pending" onclick="setDocStatus(' + i + ',\'pending\')">Pending</button>' +
+          '<button type="button" data-v="na" onclick="setDocStatus(' + i + ',\'na\')">NA</button>' +
+        '</div>' +
+      '</div>' +
+      '<button type="button" class="note-toggle" onclick="toggleNote(' + i + ')">' + (note ? 'Edit note' : '+ Add note') + '</button>' +
+      '<div class="note-in" style="display:' + (note ? 'block' : 'none') + '">' +
+        '<input type="text" maxlength="300" placeholder="Optional note — e.g. FY 25-26 provisional pending" value="' + esc(note) + '">' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  D.docs.forEach(function(d, i){ paintSeg(i); });
+  onEntityChange();
+  openDrawer('formDrawer');
+}
+
+function entitySelectValue(){
+  var idx = D.metaFields.findIndex(function(f){ return f.type === 'entity'; });
+  return idx === -1 ? '' : ($('mf' + idx) ? $('mf' + idx).value : '');
+}
+
+function onEntityChange(){
+  var entity = entitySelectValue();
+  var col = entityColumnFor(entity);
+  var applicable = 0;
+  D.docs.forEach(function(d, i){
+    var el = $('df' + i);
+    var na = entity && col ? !d.requiredBy[col] : false;
+    el.classList.toggle('is-na', na);
+    var tag = el.querySelector('.na-tag');
+    var seg = el.querySelector('.seg');
+    var noteT = el.querySelector('.note-toggle');
+    if (na){
+      tag.style.display = ''; tag.textContent = 'Not required · ' + col;
+      seg.style.display = 'none'; noteT.style.display = 'none';
+      el.querySelector('.note-in').style.display = 'none';
+    } else {
+      tag.style.display = 'none'; seg.style.display = ''; noteT.style.display = '';
+      applicable++;
+    }
+  });
+  $('docCount').textContent = entity
+    ? '— ' + applicable + ' required for ' + entity
+    : '— select an entity type to apply the requirement checklist';
+}
+
+function setDocStatus(i, v){
+  $('df' + i).dataset.status = v;
+  paintSeg(i);
+}
+function paintSeg(i){
+  var el = $('df' + i);
+  var st = el.dataset.status;
+  el.querySelectorAll('.seg button').forEach(function(b){
+    b.className = b.dataset.v === st
+      ? (st === 'received' ? 'on-rec' : st === 'pending' ? 'on-pen' : 'on-na') : '';
+  });
+}
+function toggleNote(i){
+  var box = $('df' + i).querySelector('.note-in');
+  var show = box.style.display === 'none';
+  box.style.display = show ? 'block' : 'none';
+  if (show) box.querySelector('input').focus();
+}
+
+function validateForm(){
+  var ok = true, meta = {};
+  D.metaFields.forEach(function(f, i){
+    var wrap = document.querySelector('.field[data-key="' + CSS.escape(f.key) + '"]');
+    var input = $('mf' + i);
+    var v = (input.value || '').trim();
+    if (f.type === 'gst') v = v.toUpperCase();
+    if (f.type === 'date' && !v && wrap.dataset.orig && !sheetDateToIso(wrap.dataset.orig)){
+      v = wrap.dataset.orig; // keep a sheet value the date picker couldn't represent
+    }
+    var err = '';
+    if (f.key === nameHeader && !v) err = 'Required.';
+    if (f.type === 'entity' && !v) err = 'Select the business category — it drives the document checklist.';
+    if (f.type === 'gst'){
+      if (!v) err = 'Required — GST is the unique seller identifier.';
+      else if (!GST_RE.test(v)) err = 'Not a valid 15-character GSTIN.';
+    }
+    wrap.classList.toggle('invalid', !!err);
+    wrap.querySelector('.err').textContent = err;
+    if (err) ok = false;
+    meta[f.key] = v;
+  });
+  return ok ? meta : null;
+}
+
+function save(){
+  var meta = validateForm();
+  var alert = $('formAlert');
+  if (!meta){
+    alert.textContent = 'Please fix the highlighted fields before saving.';
+    alert.classList.add('on');
+    $('formDrawer').querySelector('.drawer-body').scrollTop = 0;
+    return;
+  }
+  alert.classList.remove('on');
+
+  var statuses = {}, notes = {};
+  D.docs.forEach(function(d, i){
+    var el = $('df' + i);
+    statuses[d.key] = el.classList.contains('is-na') ? 'na' : el.dataset.status;
+    var n = el.querySelector('.note-in input').value.trim();
+    if (n && !el.classList.contains('is-na')) notes[d.key] = n;
+  });
+
+  var payload = {
+    row: editingSeller ? editingSeller.row : null,
+    originalGst: editingSeller ? (editingSeller.meta[fieldByType.gst] || '') : '',
+    meta: meta, statuses: statuses, notes: notes
+  };
+
+  var btn = $('saveBtn');
+  btn.disabled = true; $('saveSpin').style.display = 'inline-block'; $('saveLbl').textContent = 'Saving…';
+  run('saveSeller', payload).then(function(fresh){
+    onData(fresh);
+    closeDrawers();
+    var nm = nameHeader ? meta[nameHeader] : 'Seller';
+    toast(nm + ' ' + (fresh.savedAction === 'updated' ? 'updated' : 'added') + ' — sheet & dashboard are in sync');
+  }).catch(function(err){
+    alert.textContent = (err && err.message) ? err.message : String(err);
+    alert.classList.add('on');
+    $('formDrawer').querySelector('.drawer-body').scrollTop = 0;
+  }).finally(function(){
+    btn.disabled = false; $('saveSpin').style.display = 'none'; $('saveLbl').textContent = 'Save to sheet';
+  });
+}
+
+/* ═══════════════════ Drawers, tooltip, wiring ══════════════════════════ */
+
+function openDrawer(id){
+  closeDrawers(true);
+  $('scrim').classList.add('on');
+  $(id).classList.add('on');
+  $(id).setAttribute('aria-hidden','false');
+  document.body.style.overflow = 'hidden';
+}
+function closeDrawers(keepScrim){
+  ['detailDrawer','formDrawer'].forEach(function(id){
+    $(id).classList.remove('on'); $(id).setAttribute('aria-hidden','true');
+  });
+  if (!keepScrim){
+    $('scrim').classList.remove('on');
+    document.body.style.overflow = '';
+  }
+}
+
+document.addEventListener('click', function(e){
+  if (e.target.closest('[data-close]')) closeDrawers();
+});
+$('scrim').addEventListener('click', function(){ closeDrawers(); });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeDrawers(); });
+
+$('segNav').addEventListener('click', function(e){
+  var b = e.target.closest('button'); if (!b) return;
+  this.querySelectorAll('button').forEach(function(x){ x.classList.toggle('on', x === b); });
+  document.querySelectorAll('.view').forEach(function(v){
+    v.classList.toggle('on', v.id === 'view-' + b.dataset.view);
+  });
+});
+
+$('addSellerBtn').addEventListener('click', function(){ if (D) openForm(null); });
+$('refreshBtn').addEventListener('click', function(){ if (D) refresh(false); });
+$('saveBtn').addEventListener('click', save);
+['q','fltEntity','fltRegion','fltStatus'].forEach(function(id){
+  $(id).addEventListener('input', renderSellers);
+});
+
+/* tooltip (delegated) */
+var tipEl = $('tip');
+document.addEventListener('mouseover', function(e){
+  var t = e.target.closest('[data-tip]');
+  if (!t){ tipEl.classList.remove('on'); return; }
+  tipEl.innerHTML = t.dataset.tip;
+  tipEl.classList.add('on');
+});
+document.addEventListener('mousemove', function(e){
+  if (!tipEl.classList.contains('on')) return;
+  var x = Math.min(e.clientX + 14, window.innerWidth - tipEl.offsetWidth - 10);
+  var y = e.clientY + 16;
+  if (y + tipEl.offsetHeight > window.innerHeight - 8) y = e.clientY - tipEl.offsetHeight - 10;
+  tipEl.style.left = x + 'px'; tipEl.style.top = y + 'px';
+});
+
+/* pick up outside edits when the tab regains focus (throttled) */
+window.addEventListener('focus', function(){
+  if (!D) return;
+  var now = Date.now();
+  if (now - lastFocusRefresh > 60000){ lastFocusRefresh = now; refresh(true); }
+});
+
+boot();
 </script>
-</body>
-</html>

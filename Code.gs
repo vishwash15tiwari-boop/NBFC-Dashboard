@@ -1,452 +1,546 @@
-// ============================================================
-//  NBFC — Seller Document Collection Dashboard  (backend)
-//
-//  This single file powers everything. Only two files are needed
-//  in the Apps Script project: this Code.gs and Index.html.
-//
-//  READ-ONLY: it never edits your data. It reads the master tab's
-//  document columns and either (a) builds an in-sheet "NBFC
-//  Dashboard" tab, or (b) serves Index.html as a live web app.
-//
-//  IN-SHEET TAB:
-//    Extensions -> Apps Script -> paste Code.gs + Index.html ->
-//    run  buildNbfcDashboard  (grant permissions).
-//
-//  WEB APP:
-//    Deploy -> New deployment -> Web app -> Execute as: Me ->
-//    open the Web app URL. (getDashboardData() feeds Index.html.)
-// ============================================================
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  Recykal · Seller Onboarding — NBFC Document Tracker (Web App backend)
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  Backend for the one-page executive dashboard + seller entry form served by
+ *  Index.html. The spreadsheet is the single source of truth:
+ *
+ *    • "Seller_NBFC Tracker"  (4th tab)  — primary database, one row per seller
+ *    • "Seller Requirement"   (3rd tab)  — mandatory document checklist by
+ *                                          business category (read dynamically;
+ *                                          document names are NEVER hardcoded)
+ *
+ *  The sheet's structure is preserved exactly: this script only appends new
+ *  seller rows or updates existing ones, writing values in the sheet's own
+ *  column order and status vocabulary (Received / Pending / NA / free-text
+ *  notes).
+ *
+ *  NOTE ON THE FILE ID BELOW: the file supplied is an uploaded Excel workbook
+ *  (.xlsx). Apps Script cannot read or write .xlsx in place, so on first run
+ *  this script converts it once into a native Google Sheet ("… (Live)") in the
+ *  same Drive folder, stores the new ID in Script Properties, and uses that as
+ *  the live backend from then on. If SOURCE_FILE_ID already points to a native
+ *  Google Sheet, it is used directly and no copy is made.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 
-// Target spreadsheet. Leave '' to use the bound sheet.
-const SHEET_ID = '1Ysw0VPLYcpcbIWngrLjeSYI-43sbxnNVlS3OJKhu2wE';
+var CONFIG = {
+  // Drive file ID of the workbook (xlsx upload or native Google Sheet).
+  SOURCE_FILE_ID: '1cCcBcFcoB0Dqj0_6uCQlIVOQomMd-Ayl',
 
-// The tab the dashboard writes to. Only this tab is created/rewritten.
-const DASH_TAB = 'NBFC Dashboard';
+  // Tab discovery: matched by name first, then by header signature, then by
+  // position (0-based index) as a last resort.
+  TRACKER: { name: 'Seller_NBFC Tracker', index: 3, signature: ['seller business name', 'pending document'] },
+  REQUIREMENT: { name: 'Seller Requirement', index: 2, signature: ['documents', 'proprietor'] },
 
-// How the seller document block is located in the master tab.
-// The block is the contiguous run of columns from the first to the
-// last of these headers (matched case-insensitively, spaces collapsed).
-const FIRST_DOC_HEADER = 'Bank Account Details';
-const LAST_DOC_HEADER  = 'Last 6 Month platform sales ledger';
+  APP_TITLE: 'Recykal · NBFC Document Tracker',
+  PROP_BACKEND_ID: 'BACKEND_SHEET_ID'
+};
 
-// Identity columns used for the seller-wise table.
-const NAME_HEADER   = 'Seller Business Name';
-const ENTITY_HEADER = 'Entity Type';
-const REGION_HEADER = 'Region';
-
-// Status vocabulary already used in the sheet.
-//   Yes            -> received
-//   NA / N/A       -> not applicable
-//   No / - / blank -> pending
-const RECEIVED_VALUES = ['Yes'];
-const NA_VALUES       = ['NA', 'N/A'];
-
-// Number of seller rows the dashboard mirrors (future-proof buffer).
-const DASH_ROWS = 200;
-
-// ── small helpers ────────────────────────────────────────────
-
-function book_() {
-  return SHEET_ID
-    ? SpreadsheetApp.openById(SHEET_ID)
-    : SpreadsheetApp.getActiveSpreadsheet();
-}
-
-/** 1-based column index -> A1 letters. 1->A, 27->AA */
-function colA1_(n) {
-  let s = '';
-  while (n > 0) {
-    s = String.fromCharCode(64 + ((n - 1) % 26 + 1)) + s;
-    n = Math.floor((n - 1) / 26);
-  }
-  return s;
-}
-
-function norm_(v) {
-  return String(v == null ? '' : v).toLowerCase().replace(/\s+/g, ' ').trim();
-}
-
-/** Quote a sheet name for use in an A1 cross-sheet reference. */
-function q_(name) {
-  return "'" + String(name).replace(/'/g, "''") + "'";
-}
-
-/** COUNTIF over `range` for any of `values`, summed. */
-function countAny_(range, values) {
-  return values.map(v => `COUNTIF(${range},"${v}")`).join('+');
-}
-
-// ── locate the master tab + its columns (read only) ──────────
-
-function locateSource_(ss) {
-  const sheets = ss.getSheets();
-
-  for (const sh of sheets) {
-    if (sh.getName() === DASH_TAB) continue;
-    const maxProbe = Math.min(sh.getLastRow(), 10);
-    if (maxProbe < 1) continue;
-
-    const width = Math.max(sh.getLastColumn(), 1);
-    const probe = sh.getRange(1, 1, maxProbe, width).getValues();
-
-    for (let r = 0; r < probe.length; r++) {
-      const row = probe[r].map(norm_);
-      const nameIdx = row.indexOf(norm_(NAME_HEADER));
-      if (nameIdx === -1) continue;
-
-      const headerRow = r + 1;                 // 1-based
-      const find = h => row.indexOf(norm_(h)); // 0-based within row
-      const firstDoc = find(FIRST_DOC_HEADER);
-      const lastDoc  = find(LAST_DOC_HEADER);
-
-      if (firstDoc === -1 || lastDoc === -1) {
-        throw new Error(
-          'Found the master tab "' + sh.getName() + '" but could not locate the ' +
-          'document columns "' + FIRST_DOC_HEADER + '" .. "' + LAST_DOC_HEADER +
-          '". Check those header names.'
-        );
-      }
-
-      const docStart = Math.min(firstDoc, lastDoc) + 1; // 1-based
-      const docEnd   = Math.max(firstDoc, lastDoc) + 1; // 1-based
-      const labels   = probe[r].slice(docStart - 1, docEnd); // real header text
-
-      return {
-        sheet: sh,
-        name: sh.getName(),
-        headerRow: headerRow,
-        dataStart: headerRow + 1,
-        nameCol: nameIdx + 1,
-        entityCol: (find(ENTITY_HEADER) + 1) || 0,
-        regionCol: (find(REGION_HEADER) + 1) || 0,
-        docStart: docStart,
-        docEnd: docEnd,
-        numDocs: docEnd - docStart + 1,
-        docLabels: labels
-      };
-    }
-  }
-
-  throw new Error(
-    'Could not find a tab containing the header "' + NAME_HEADER + '". ' +
-    'Open the sheet and confirm the master data tab is present.'
-  );
-}
-
-// ── main entry point ─────────────────────────────────────────
-
-function buildNbfcDashboard() {
-  const ss  = book_();
-  const src = locateSource_(ss);
-
-  const P    = q_(src.name) + '!';
-  const dS   = colA1_(src.docStart);
-  const dE   = colA1_(src.docEnd);
-  const nCol = colA1_(src.nameCol);
-  const eCol = src.entityCol ? colA1_(src.entityCol) : null;
-  const N    = src.numDocs;
-
-  const first = src.dataStart;
-  const last  = src.dataStart + DASH_ROWS - 1;
-  const block = `${P}${dS}${first}:${dE}${last}`;
-  const nameRng = `${P}${nCol}${first}:${nCol}${last}`;
-
-  // (Re)create the dashboard tab; never touch anything else.
-  let sh = ss.getSheetByName(DASH_TAB);
-  if (sh) { sh.clear(); sh.clearConditionalFormatRules(); }
-  else    { sh = ss.insertSheet(DASH_TAB); }
-  ss.setActiveSheet(sh);
-
-  // Column widths
-  const widths = [230, 150, 80, 80, 60, 70, 80, 130, 190];
-  widths.forEach((w, i) => sh.setColumnWidth(i + 1, w));
-
-  // ── Title ──
-  sh.getRange('A1:I1').merge()
-    .setValue('NBFC  —  Seller Document Collection Dashboard')
-    .setBackground('#0D1B2A').setFontColor('#FFFFFF')
-    .setFontSize(18).setFontWeight('bold')
-    .setHorizontalAlignment('center').setVerticalAlignment('middle');
-  sh.setRowHeight(1, 46);
-
-  sh.getRange('A2:I2').merge()
-    .setFormula(`="Reflecting tab: ${src.name.replace(/"/g, '""')}"&"   |   Last updated: "&TEXT(NOW(),"dd-mmm-yyyy hh:mm")`)
-    .setBackground('#1B2A3B').setFontColor('#90CAF9')
-    .setFontSize(10).setHorizontalAlignment('center');
-  sh.setRowHeight(2, 22);
-
-  // ── Overall KPI strip (row 4 = labels, row 5 = values) ──
-  const KPI_LBL = 4, KPI_VAL = 5;
-  const sellers = `COUNTIF(${nameRng},"?*")`;
-  const recv    = countAny_(block, RECEIVED_VALUES);
-  const na      = countAny_(block, NA_VALUES);
-  const appl    = `(${N}*${sellers}-(${na}))`;
-
-  const kpis = [
-    ['Total Sellers',   `=${sellers}`,                                             '#37474F', '#FFFFFF'],
-    ['Docs Received',   `=${recv}`,                                                '#C8E6C9', '#1B5E20'],
-    ['Docs Pending',    `=${appl}-(${recv})`,                                      '#FFCDD2', '#B71C1C'],
-    ['Not Applicable',  `=${na}`,                                                  '#EEEEEE', '#616161'],
-    ['Applicable',      `=${appl}`,                                                '#E3F2FD', '#0D47A1'],
-    ['Completion',      `=IFERROR(TEXT((${recv})/(${appl}),"0.0%"),"—")`,          '#0D47A1', '#FFFFFF'],
-  ];
-  kpis.forEach((k, i) => {
-    const c = i + 1;
-    sh.getRange(KPI_LBL, c).setValue(k[0])
-      .setBackground('#263238').setFontColor('#ECEFF1')
-      .setFontSize(9).setFontWeight('bold')
-      .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true);
-    sh.getRange(KPI_VAL, c).setFormula(k[1])
-      .setBackground(k[2]).setFontColor(k[3])
-      .setFontSize(15).setFontWeight('bold')
-      .setHorizontalAlignment('center').setVerticalAlignment('middle');
-  });
-  sh.getRange(KPI_LBL, 7, 2, 3).setBackground('#FAFAFA'); // tidy empty G:I under strip
-  sh.setRowHeight(KPI_LBL, 26);
-  sh.setRowHeight(KPI_VAL, 40);
-
-  // Legend
-  sh.getRange('A6:I6').merge()
-    .setValue('Legend:   Yes = received    ·    NA / N/A = not applicable    ·    No / "-" / blank = pending')
-    .setBackground('#F5F5F5').setFontColor('#616161').setFontSize(9)
-    .setHorizontalAlignment('center').setFontStyle('italic');
-  sh.setRowHeight(6, 20);
-
-  // ── Seller-wise table ──
-  const SEC1 = 8, HDR1 = 9, DATA1 = 10;
-  sh.getRange(SEC1, 1, 1, 9).merge()
-    .setValue('▶  SELLER-WISE DOCUMENT STATUS')
-    .setBackground('#1565C0').setFontColor('#FFFFFF')
-    .setFontSize(12).setFontWeight('bold').setVerticalAlignment('middle');
-  sh.setRowHeight(SEC1, 28);
-
-  sh.getRange(HDR1, 1, 1, 9)
-    .setValues([['Seller Business Name', 'Entity Type', 'Recv', 'Pend', 'N/A', 'Req.', '% Done', 'Status', 'Progress (of required)']])
-    .setBackground('#37474F').setFontColor('#FFFFFF')
-    .setFontWeight('bold').setFontSize(10).setHorizontalAlignment('center');
-  sh.setRowHeight(HDR1, 24);
-
-  const rows = [];
-  for (let i = 0; i < DASH_ROWS; i++) {
-    const r    = src.dataStart + i;
-    const rng  = `${P}${dS}${r}:${dE}${r}`;
-    const g    = `${P}${nCol}${r}=""`;
-    const rc   = countAny_(rng, RECEIVED_VALUES);
-    const nc   = countAny_(rng, NA_VALUES);
-    const ap   = `(${N}-(${nc}))`;
-    const pc   = `(${ap}-(${rc}))`;
-    const ratio = `(${rc})/(${ap})`;
-
-    rows.push([
-      `=IF(${g},"",${P}${nCol}${r})`,
-      eCol ? `=IF(${g},"",${P}${eCol}${r})` : '',
-      `=IF(${g},"",${rc})`,
-      `=IF(${g},"",${pc})`,
-      `=IF(${g},"",${nc})`,
-      `=IF(${g},"",${ap})`,
-      `=IF(${g},"",IF(${ap}=0,"—",TEXT(${ratio},"0%")))`,
-      `=IF(${g},"",IF(${ap}=0,"— no docs",IF(${pc}<=0,"✅ Complete","⏳ "&(${pc})&" pending")))`,
-      `=IF(${g},"",IF(${ap}=0,"",REPT("█",ROUND(${ratio}*20,0))&REPT("░",20-ROUND(${ratio}*20,0))))`,
-    ]);
-  }
-  sh.getRange(DATA1, 1, DASH_ROWS, 9).setFormulas(rows);
-  sh.setRowHeights(DATA1, DASH_ROWS, 20);
-  sh.getRange(DATA1, 3, DASH_ROWS, 5).setHorizontalAlignment('center');
-  sh.getRange(DATA1, 8, DASH_ROWS, 1).setHorizontalAlignment('center');
-  sh.getRange(DATA1, 9, DASH_ROWS, 1)
-    .setFontFamily('Consolas').setFontSize(9).setFontColor('#1565C0');
-
-  // ── Document-wise summary ──
-  const SEC2 = DATA1 + DASH_ROWS + 1;
-  const HDR2 = SEC2 + 1;
-  const DATA2 = HDR2 + 1;
-
-  sh.getRange(SEC2, 1, 1, 9).merge()
-    .setValue('▶  DOCUMENT-WISE SUMMARY  (across all sellers)')
-    .setBackground('#2E7D32').setFontColor('#FFFFFF')
-    .setFontSize(12).setFontWeight('bold').setVerticalAlignment('middle');
-  sh.setRowHeight(SEC2, 28);
-
-  sh.getRange(HDR2, 1, 1, 6)
-    .setValues([['Document', 'Received', 'Pending', 'N/A', '% Collected', 'Progress']])
-    .setBackground('#37474F').setFontColor('#FFFFFF')
-    .setFontWeight('bold').setFontSize(10).setHorizontalAlignment('center');
-  sh.getRange(HDR2, 1).setHorizontalAlignment('left');
-  sh.setRowHeight(HDR2, 24);
-
-  const sellersCell = `$A$${KPI_VAL}`;   // Total Sellers
-  const docRows = [];
-  for (let i = 0; i < N; i++) {
-    const c   = colA1_(src.docStart + i);
-    const rng = `${P}${c}${first}:${c}${last}`;
-    const rc  = countAny_(rng, RECEIVED_VALUES);
-    const nc  = countAny_(rng, NA_VALUES);
-    const ap  = `(${sellersCell}-(${nc}))`;
-    const ratio = `(${rc})/(${ap})`;
-    docRows.push([
-      src.docLabels[i],
-      `=${rc}`,
-      `=${ap}-(${rc})`,
-      `=${nc}`,
-      `=IFERROR(TEXT(${ratio},"0%"),"—")`,
-      `=IFERROR(REPT("█",ROUND(${ratio}*20,0))&REPT("░",20-ROUND(${ratio}*20,0)),"")`,
-    ]);
-  }
-  sh.getRange(DATA2, 1, N, 1).setValues(docRows.map(r => [r[0]]));
-  sh.getRange(DATA2, 2, N, 5).setFormulas(docRows.map(r => r.slice(1)));
-  sh.setRowHeights(DATA2, N, 20);
-  sh.getRange(DATA2, 2, N, 4).setHorizontalAlignment('center');
-  sh.getRange(DATA2, 6, N, 1)
-    .setFontFamily('Consolas').setFontSize(9).setFontColor('#2E7D32');
-
-  // ── Conditional formatting ──
-  const sellerStatus = sh.getRange(DATA1, 8, DASH_ROWS, 1);
-  const sellerPct    = sh.getRange(DATA1, 7, DASH_ROWS, 1);
-  const docPct       = sh.getRange(DATA2, 5, N, 1);
-  sh.setConditionalFormatRules([
-    SpreadsheetApp.newConditionalFormatRule()
-      .whenTextContains('Complete').setBackground('#C8E6C9').setFontColor('#1B5E20')
-      .setRanges([sellerStatus]).build(),
-    SpreadsheetApp.newConditionalFormatRule()
-      .whenTextContains('pending').setBackground('#FFF9C4').setFontColor('#E65100')
-      .setRanges([sellerStatus]).build(),
-    SpreadsheetApp.newConditionalFormatRule()
-      .whenTextEqualTo('100%').setBackground('#C8E6C9').setFontColor('#1B5E20')
-      .setRanges([sellerPct, docPct]).build(),
-  ]);
-
-  sh.setFrozenRows(HDR1);
-  sh.setFrozenColumns(1);
-
-  try {
-    SpreadsheetApp.getUi().alert(
-      '✅  Dashboard built.\n\n' +
-      'Tab "' + DASH_TAB + '" now mirrors "' + src.name + '".\n' +
-      'Found ' + N + ' document columns.\n\n' +
-      'Nothing in your data was changed. Edit the master tab and\n' +
-      'the dashboard recalculates automatically.'
-    );
-  } catch (e) { /* running without UI */ }
-}
-
-// Backwards-compatible alias.
-function setupNBFCDashboard() { buildNbfcDashboard(); }
-
-// Convenience menu (appears when the sheet is opened).
-function onOpen() {
-  try {
-    SpreadsheetApp.getUi()
-      .createMenu('NBFC')
-      .addItem('Rebuild Dashboard', 'buildNbfcDashboard')
-      .addToUi();
-  } catch (e) { /* no UI context */ }
-}
-
-// ============================================================
-//  WEB APP  —  serves Index.html and feeds it live data
-// ============================================================
+/* ───────────────────────────── Web app entry ───────────────────────────── */
 
 function doGet() {
   return HtmlService.createTemplateFromFile('Index')
     .evaluate()
-    .setTitle('NBFC Document Dashboard')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    .setTitle(CONFIG.APP_TITLE)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
 }
 
-/** Lets Index.html pull in extra HTML partials if ever split out. */
-function include(name) {
-  return HtmlService.createHtmlOutputFromFile(name).getContent();
-}
+/* ─────────────────────────── Backend resolution ────────────────────────── */
 
-/** Called from Index.html via google.script.run. */
-function getDashboardData() {
+/**
+ * Returns the live native Google Sheet, converting the source .xlsx once if
+ * needed. The converted sheet keeps every tab, header and value unchanged.
+ */
+function getSpreadsheet_() {
+  var props = PropertiesService.getScriptProperties();
+  var savedId = props.getProperty(CONFIG.PROP_BACKEND_ID);
+  if (savedId) {
+    try { return SpreadsheetApp.openById(savedId); } catch (e) { /* stale — re-resolve below */ }
+  }
   try {
-    return computeDashboard_();
-  } catch (err) {
-    return { error: String(err && err.message ? err.message : err) };
+    var direct = SpreadsheetApp.openById(CONFIG.SOURCE_FILE_ID); // already a native Sheet
+    props.setProperty(CONFIG.PROP_BACKEND_ID, direct.getId());
+    return direct;
+  } catch (e) { /* not native — convert once */ }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    savedId = props.getProperty(CONFIG.PROP_BACKEND_ID); // another request may have converted meanwhile
+    if (savedId) {
+      try { return SpreadsheetApp.openById(savedId); } catch (e2) { /* fall through */ }
+    }
+    var newId = convertExcelToNativeSheet_(CONFIG.SOURCE_FILE_ID);
+    props.setProperty(CONFIG.PROP_BACKEND_ID, newId);
+    return SpreadsheetApp.openById(newId);
+  } finally {
+    lock.releaseLock();
   }
 }
 
-// Reads the sheet and returns computed values (not formulas), including
-// the per-seller × per-document status matrix used by the web app.
-function computeDashboard_() {
-  const ss  = book_();
-  const src = locateSource_(ss);
-  const sh  = src.sheet;
-
-  const recvSet = RECEIVED_VALUES.map(s => s.toLowerCase());
-  const naSet   = NA_VALUES.map(s => s.toLowerCase());
-  // 'Y' received, 'N' not applicable, 'X' missing (No / "-" / blank / other)
-  const classify = v => {
-    const t = String(v == null ? '' : v).trim().toLowerCase();
-    if (recvSet.indexOf(t) > -1) return 'Y';
-    if (naSet.indexOf(t) > -1)   return 'N';
-    return 'X';
+/** One-time multipart upload to Drive that re-imports the xlsx as a native Sheet. */
+function convertExcelToNativeSheet_(fileId) {
+  var file = DriveApp.getFileById(fileId);
+  var blob = file.getBlob();
+  var meta = {
+    name: file.getName().replace(/\.xlsx?$/i, '') + ' (Live)',
+    mimeType: 'application/vnd.google-apps.spreadsheet'
   };
+  var parents = file.getParents();
+  if (parents.hasNext()) meta.parents = [parents.next().getId()];
 
-  const N       = src.numDocs;
-  const lastRow = sh.getLastRow();
-  const numRows = Math.max(lastRow - src.dataStart + 1, 0);
+  var boundary = 'rkboundary' + new Date().getTime();
+  var head = '--' + boundary + '\r\n' +
+             'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+             JSON.stringify(meta) + '\r\n' +
+             '--' + boundary + '\r\n' +
+             'Content-Type: ' + blob.getContentType() + '\r\n\r\n';
+  var tail = '\r\n--' + boundary + '--';
+  var payload = Utilities.newBlob(head).getBytes()
+    .concat(blob.getBytes())
+    .concat(Utilities.newBlob(tail).getBytes());
 
-  const base = {
-    sourceName: src.name,
-    generatedAt: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd-MMM-yyyy HH:mm'),
-    numDocs: N,
-    docLabels: src.docLabels,
-    sellers: [],
-    docs: src.docLabels.map(l => ({ label: l, recv: 0, na: 0, appl: 0, pend: 0, pct: 0 })),
-    totals: { sellers: 0, recv: 0, na: 0, appl: 0, pend: 0, pct: 0 },
-  };
-  if (numRows === 0) return base;
-
-  const names    = sh.getRange(src.dataStart, src.nameCol, numRows, 1).getValues();
-  const entities = src.entityCol
-    ? sh.getRange(src.dataStart, src.entityCol, numRows, 1).getValues()
-    : null;
-  const block = sh.getRange(src.dataStart, src.docStart, numRows, N).getValues();
-
-  let tRecv = 0, tNa = 0;
-
-  for (let i = 0; i < numRows; i++) {
-    const name = String(names[i][0] == null ? '' : names[i][0]).trim();
-    if (!name) continue; // skip blank / buyer-only rows
-
-    const cells = new Array(N);
-    let recv = 0, na = 0;
-    for (let j = 0; j < N; j++) {
-      const c = classify(block[i][j]);
-      cells[j] = c;
-      if (c === 'Y') { recv++; base.docs[j].recv++; }
-      else if (c === 'N') { na++; base.docs[j].na++; }
+  var res = UrlFetchApp.fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true',
+    {
+      method: 'post',
+      contentType: 'multipart/related; boundary=' + boundary,
+      payload: payload,
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+      muteHttpExceptions: true
     }
-    const appl = N - na;
-    const pend = appl - recv;
-    base.sellers.push({
-      name: name,
-      type: entities ? String(entities[i][0] || '').trim() : '',
-      recv: recv, na: na, appl: appl, pend: pend,
-      pct: appl ? Math.round((recv / appl) * 100) : 0,
-      cells: cells.join(''),           // e.g. "YXYXNY..." aligned to docLabels
-    });
-    tRecv += recv;
-    tNa   += na;
+  );
+  if (res.getResponseCode() >= 300) {
+    throw new Error('Could not convert the Excel workbook to a native Google Sheet. ' +
+      'Drive API said: ' + res.getContentText());
   }
+  return JSON.parse(res.getContentText()).id;
+}
 
-  const S = base.sellers.length;
-  base.docs.forEach(d => {
-    d.appl = S - d.na;
-    d.pend = d.appl - d.recv;
-    d.pct  = d.appl ? Math.round((d.recv / d.appl) * 100) : 0;
+/* ───────────────────────────── Tab discovery ───────────────────────────── */
+
+function normKey_(s) {
+  return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function findSheet_(ss, spec) {
+  var sheets = ss.getSheets();
+  var want = normKey_(spec.name);
+  var i, sh;
+  for (i = 0; i < sheets.length; i++) {
+    if (normKey_(sheets[i].getName()) === want) return sheets[i];
+  }
+  for (i = 0; i < sheets.length; i++) {
+    sh = sheets[i];
+    if (sh.getLastRow() < 1 || sh.getLastColumn() < 1) continue;
+    var header = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0]
+      .map(function (h) { return String(h).toLowerCase(); }).join('|');
+    var hit = spec.signature.every(function (tok) { return header.indexOf(tok) !== -1; });
+    if (hit) return sh;
+  }
+  if (spec.index >= 0 && spec.index < sheets.length) return sheets[spec.index];
+  throw new Error('Could not locate the "' + spec.name + '" tab in the spreadsheet. ' +
+    'Please make sure the tab exists and its header row is intact.');
+}
+
+/* ─────────────────────────── Status vocabulary ─────────────────────────── */
+
+/**
+ * Interprets a tracker cell exactly the way the sheet already uses it:
+ *   "Received"                          → received
+ *   "NA" / "N/A" / "Not Applicable"     → na (not required for this entity)
+ *   "Pending" or any note that contains
+ *   the word "pending"                  → pending (note preserved)
+ *   blank / "-" / other free text       → pending (treated as an open item)
+ */
+function parseStatus_(raw) {
+  var s = String(raw == null ? '' : raw).trim();
+  var l = s.toLowerCase();
+  if (!s || s === '-') return { status: 'pending', note: '' };
+  if (l === 'na' || l === 'n/a' || l === 'not applicable') return { status: 'na', note: '' };
+  if (l.indexOf('pending') !== -1) {
+    return { status: 'pending', note: l === 'pending' ? '' : s };
+  }
+  if (l === 'received' || l === 'yes' || l === 'done' || l === 'submitted' ||
+      l.indexOf('receiv') !== -1 || l.indexOf('provided') !== -1) {
+    return { status: 'received', note: (l === 'received' || l === 'yes') ? '' : s };
+  }
+  return { status: 'pending', note: s };
+}
+
+/* ─────────────────────── Requirement matrix (3rd tab) ──────────────────── */
+
+/**
+ * Reads the Seller Requirement tab dynamically:
+ *   header:  Sr. No. | Documents | <entity column> | <entity column> | …
+ *   rows:    a checkmark (✔ / ✓ / yes) marks the document mandatory for that
+ *            business category; "-" or blank means not applicable.
+ */
+function readRequirementMatrix_(ss) {
+  var sh = findSheet_(ss, CONFIG.REQUIREMENT);
+  var values = sh.getRange(1, 1, sh.getLastRow(), sh.getLastColumn()).getDisplayValues();
+  var headerRow = -1, docCol = -1, r, c;
+  for (r = 0; r < values.length && headerRow === -1; r++) {
+    for (c = 0; c < values[r].length; c++) {
+      if (normKey_(values[r][c]) === 'documents') { headerRow = r; docCol = c; break; }
+    }
+  }
+  if (headerRow === -1) {
+    throw new Error('The "Seller Requirement" tab has no "Documents" header — cannot read the checklist.');
+  }
+  var entityCols = [];
+  for (c = docCol + 1; c < values[headerRow].length; c++) {
+    var label = String(values[headerRow][c]).trim();
+    if (label) entityCols.push({ col: c, label: label });
+  }
+  var rows = [];
+  for (r = headerRow + 1; r < values.length; r++) {
+    var docName = String(values[r][docCol]).trim();
+    if (!docName) continue;
+    var requiredBy = {};
+    entityCols.forEach(function (ec) {
+      var v = String(values[r][ec.col]).trim();
+      requiredBy[ec.label] = !!v && v !== '-' && v.toLowerCase() !== 'no' && v.toLowerCase() !== 'na';
+    });
+    rows.push({ name: docName, requiredBy: requiredBy });
+  }
+  return { entityColumns: entityCols.map(function (ec) { return ec.label; }), rows: rows };
+}
+
+/** Fuzzy-matches a requirement row to a tracker document column (normalized containment). */
+function matchRequirementRow_(matrix, trackerDocHeader) {
+  var target = normKey_(trackerDocHeader);
+  var best = null, bestLen = 0;
+  matrix.rows.forEach(function (row) {
+    var n = normKey_(row.name);
+    if (!n) return;
+    if (n === target || target.indexOf(n) !== -1 || n.indexOf(target) !== -1) {
+      if (n.length > bestLen) { best = row; bestLen = n.length; }
+    }
+  });
+  return best;
+}
+
+/**
+ * Maps a stored entity type (e.g. "Partnership Firm", "Private Limited
+ * Company") to the matching requirement column (e.g. "Partnership",
+ * "Private Limited"), preferring the longest label so "Private Limited
+ * Company" resolves to "Private Limited" and not "Limited".
+ */
+function matchEntityColumn_(matrix, entityType) {
+  var e = normKey_(entityType);
+  if (!e) return null;
+  var best = null, bestLen = 0;
+  matrix.entityColumns.forEach(function (label) {
+    var n = normKey_(label);
+    if ((e.indexOf(n) !== -1 || n.indexOf(e) !== -1) && n.length > bestLen) {
+      best = label; bestLen = n.length;
+    }
+  });
+  return best;
+}
+
+/* ───────────────────── Tracker structure (4th tab) ─────────────────────── */
+
+/**
+ * Reads the tracker header row and splits it, entirely by position, into:
+ *   serial column ("S.No") · meta columns (Region … Entity Type) ·
+ *   the "Pending Document" counter · document columns (everything after it).
+ * Nothing about the structure is assumed beyond the presence of the
+ * "Pending Document" header the sheet already has.
+ */
+function readTrackerLayout_(sh) {
+  var lastCol = sh.getLastColumn();
+  var headers = sh.getRange(1, 1, 1, lastCol).getDisplayValues()[0]
+    .map(function (h) { return String(h).trim(); });
+  var pendingIdx = -1, i;
+  for (i = 0; i < headers.length; i++) {
+    if (normKey_(headers[i]) === 'pendingdocument' || normKey_(headers[i]) === 'pendingdocuments') {
+      pendingIdx = i; break;
+    }
+  }
+  if (pendingIdx === -1) {
+    throw new Error('The tracker tab has no "Pending Document" column — the sheet structure has changed.');
+  }
+  var serialIdx = 0;
+  var metaIdx = [];
+  for (i = 0; i < pendingIdx; i++) {
+    if (i === serialIdx) continue;
+    if (headers[i]) metaIdx.push(i);
+  }
+  var docIdx = [];
+  for (i = pendingIdx + 1; i < headers.length; i++) {
+    if (headers[i]) docIdx.push(i);
+  }
+  return { headers: headers, serialIdx: serialIdx, metaIdx: metaIdx, pendingIdx: pendingIdx, docIdx: docIdx };
+}
+
+/** Detects an input affordance for a meta column from its header name only. */
+function metaFieldType_(header) {
+  var n = normKey_(header);
+  if (n.indexOf('gst') !== -1) return 'gst';
+  if (n.indexOf('date') !== -1) return 'date';
+  if (n.indexOf('entitytype') !== -1 || n.indexOf('businesstype') !== -1) return 'entity';
+  return 'text';
+}
+
+/* ────────────────────────────── Read API ───────────────────────────────── */
+
+/**
+ * Everything the front end needs, in one round trip:
+ * layout, requirement matrix, per-document applicability, and every seller
+ * row with parsed statuses and completion aggregates.
+ */
+function getInitialData() {
+  var ss = getSpreadsheet_();
+  var tracker = findSheet_(ss, CONFIG.TRACKER);
+  var layout = readTrackerLayout_(tracker);
+  var matrix = readRequirementMatrix_(ss);
+
+  var docs = layout.docIdx.map(function (idx) {
+    var header = layout.headers[idx];
+    var req = matchRequirementRow_(matrix, header);
+    var requiredBy = {};
+    matrix.entityColumns.forEach(function (label) {
+      requiredBy[label] = req ? !!req.requiredBy[label] : true; // unmatched docs default to required
+    });
+    return { key: header, requiredBy: requiredBy };
   });
 
-  const tAppl = N * S - tNa;
-  base.totals = {
-    sellers: S,
-    recv: tRecv,
-    na: tNa,
-    appl: tAppl,
-    pend: tAppl - tRecv,
-    pct: tAppl ? Math.round((tRecv / tAppl) * 1000) / 10 : 0,
+  var lastRow = tracker.getLastRow();
+  var sellers = [];
+  var maxSerial = 0;
+  var optionValues = {}; // distinct existing values per meta header, for form suggestions
+
+  if (lastRow > 1) {
+    var values = tracker.getRange(2, 1, lastRow - 1, tracker.getLastColumn()).getDisplayValues();
+    values.forEach(function (row, i) {
+      var meta = {};
+      layout.metaIdx.forEach(function (idx) { meta[layout.headers[idx]] = String(row[idx]).trim(); });
+      var hasIdentity = layout.metaIdx.some(function (idx) { return String(row[idx]).trim() !== ''; });
+      if (!hasIdentity) return; // skip fully blank rows
+
+      layout.metaIdx.forEach(function (idx) {
+        var h = layout.headers[idx], v = String(row[idx]).trim();
+        if (!v) return;
+        (optionValues[h] = optionValues[h] || {})[v] = true;
+      });
+
+      var serial = parseInt(row[layout.serialIdx], 10);
+      if (!isNaN(serial) && serial > maxSerial) maxSerial = serial;
+
+      var docStates = {};
+      var received = 0, pending = 0, na = 0;
+      layout.docIdx.forEach(function (idx) {
+        var parsed = parseStatus_(row[idx]);
+        docStates[layout.headers[idx]] = { raw: String(row[idx]).trim(), status: parsed.status, note: parsed.note };
+        if (parsed.status === 'received') received++;
+        else if (parsed.status === 'na') na++;
+        else pending++;
+      });
+      var applicable = received + pending;
+      sellers.push({
+        row: i + 2,                       // 1-based sheet row
+        serial: isNaN(serial) ? '' : serial,
+        meta: meta,
+        docs: docStates,
+        received: received,
+        pending: pending,
+        na: na,
+        applicable: applicable,
+        completion: applicable ? Math.round((received / applicable) * 1000) / 10 : 0
+      });
+    });
+  }
+
+  var entityOptions = {};
+  matrix.entityColumns.forEach(function (label) { entityOptions[label] = true; });
+  sellers.forEach(function (s) {
+    layout.metaIdx.forEach(function (idx) {
+      var h = layout.headers[idx];
+      if (metaFieldType_(h) === 'entity' && s.meta[h]) entityOptions[s.meta[h]] = true;
+    });
+  });
+
+  return {
+    ok: true,
+    sheetUrl: ss.getUrl(),
+    sheetName: ss.getName(),
+    trackerName: tracker.getName(),
+    metaFields: layout.metaIdx.map(function (idx) {
+      var h = layout.headers[idx];
+      return {
+        key: h,
+        type: metaFieldType_(h),
+        options: Object.keys(optionValues[h] || {}).sort()
+      };
+    }),
+    pendingHeader: layout.headers[layout.pendingIdx],
+    docs: docs,
+    entityColumns: matrix.entityColumns,
+    entityTypeOptions: Object.keys(entityOptions).sort(),
+    sellers: sellers,
+    generatedAt: new Date().toISOString()
   };
-  return base;
+}
+
+/* ────────────────────────────── Write API ──────────────────────────────── */
+
+/** Formats a date for the sheet the way existing rows store it: 01-Feb-2018. */
+function toSheetDate_(value) {
+  var s = String(value == null ? '' : value).trim();
+  if (!s) return '';
+  var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/); // ISO from the <input type="date">
+  if (m) {
+    var d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd-MMM-yyyy');
+  }
+  return s; // already in the sheet's own format — preserve as-is
+}
+
+/**
+ * Creates or updates one seller row, writing values in the sheet's exact
+ * column order and vocabulary. Never touches any other row or column.
+ *
+ * payload = {
+ *   row:        sheet row number to update, or null to create,
+ *   originalGst: GST the row had when the form was opened (guards against
+ *                the sheet being re-sorted while the form was open),
+ *   meta:       { <meta header>: value },
+ *   statuses:   { <doc header>: 'received' | 'pending' | 'na' },
+ *   notes:      { <doc header>: optional free-text note }
+ * }
+ */
+function saveSeller(payload) {
+  if (!payload || typeof payload !== 'object') throw new Error('Nothing to save.');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var ss = getSpreadsheet_();
+    var tracker = findSheet_(ss, CONFIG.TRACKER);
+    var layout = readTrackerLayout_(tracker);
+    var matrix = readRequirementMatrix_(ss);
+
+    var meta = payload.meta || {};
+    var statuses = payload.statuses || {};
+    var notes = payload.notes || {};
+
+    // Identify the GST + entity + name columns from the layout (never by letter).
+    var gstHeader = null, entityHeader = null, nameHeader = null;
+    layout.metaIdx.forEach(function (idx) {
+      var h = layout.headers[idx];
+      var t = metaFieldType_(h);
+      if (t === 'gst' && !gstHeader) gstHeader = h;
+      if (t === 'entity' && !entityHeader) entityHeader = h;
+      if (!nameHeader && normKey_(h).indexOf('name') !== -1) nameHeader = h;
+    });
+
+    var name = nameHeader ? String(meta[nameHeader] || '').trim() : '';
+    if (nameHeader && !name) throw new Error('Seller business name is required.');
+    var gst = gstHeader ? String(meta[gstHeader] || '').trim().toUpperCase() : '';
+    if (gstHeader) meta[gstHeader] = gst;
+
+    var lastRow = tracker.getLastRow();
+    var lastCol = tracker.getLastColumn();
+    var existing = lastRow > 1
+      ? tracker.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues()
+      : [];
+
+    // Resolve the target row.
+    var targetRow = null; // 1-based sheet row
+    if (payload.row) {
+      var idx0 = Number(payload.row) - 2;
+      var expected = String(payload.originalGst || '').trim().toUpperCase();
+      var gstColIdx = gstHeader ? layout.headers.indexOf(gstHeader) : -1;
+      if (idx0 >= 0 && idx0 < existing.length && gstColIdx !== -1 &&
+          String(existing[idx0][gstColIdx]).trim().toUpperCase() === expected) {
+        targetRow = Number(payload.row);
+      } else if (gstColIdx !== -1 && expected) {
+        for (var r = 0; r < existing.length; r++) { // row moved — find it by its original GST
+          if (String(existing[r][gstColIdx]).trim().toUpperCase() === expected) { targetRow = r + 2; break; }
+        }
+      }
+      if (!targetRow) {
+        throw new Error('The row being edited was not found in the sheet (it may have been deleted). ' +
+          'Please refresh and try again.');
+      }
+    } else if (gst && gstHeader) {
+      var gCol = layout.headers.indexOf(gstHeader);
+      for (var r2 = 0; r2 < existing.length; r2++) {
+        if (String(existing[r2][gCol]).trim().toUpperCase() === gst) {
+          throw new Error('A seller with GST ' + gst + ' already exists (' +
+            String(existing[r2][layout.headers.indexOf(nameHeader)] || 'row ' + (r2 + 2)).trim() +
+            '). Open that seller and use Update instead.');
+        }
+      }
+    }
+
+    // Applicability from the requirement matrix for this seller's entity type.
+    var entityType = entityHeader ? String(meta[entityHeader] || '').trim() : '';
+    var entityCol = matchEntityColumn_(matrix, entityType);
+
+    // Compose the full row in exact column order.
+    var out = new Array(layout.headers.length);
+    for (var c = 0; c < out.length; c++) out[c] = '';
+
+    if (targetRow) {
+      var current = tracker.getRange(targetRow, 1, 1, lastCol).getDisplayValues()[0];
+      for (var c2 = 0; c2 < out.length; c2++) out[c2] = current[c2]; // start from what's there
+    } else {
+      var maxSerial = 0;
+      var sIdx = layout.serialIdx;
+      existing.forEach(function (row) {
+        var n = parseInt(row[sIdx], 10);
+        if (!isNaN(n) && n > maxSerial) maxSerial = n;
+      });
+      out[layout.serialIdx] = maxSerial + 1;
+    }
+
+    layout.metaIdx.forEach(function (idx) {
+      var h = layout.headers[idx];
+      if (!(h in meta)) return; // untouched fields keep their current value
+      var v = String(meta[h] == null ? '' : meta[h]).trim();
+      out[idx] = metaFieldType_(h) === 'date' ? toSheetDate_(v) : v;
+    });
+
+    var pendingCount = 0;
+    layout.docIdx.forEach(function (idx) {
+      var h = layout.headers[idx];
+      var req = matchRequirementRow_(matrix, h);
+      var applicable = (!req || !entityCol) ? true : !!req.requiredBy[entityCol];
+      var status = String(statuses[h] || '').toLowerCase();
+      var note = String(notes[h] == null ? '' : notes[h]).trim().replace(/\s+/g, ' ').slice(0, 300);
+
+      var cell;
+      if (!applicable) {
+        cell = 'NA'; status = 'na';
+      } else if (status === 'received') {
+        cell = note || 'Received';
+      } else if (status === 'na') {
+        cell = 'NA';
+      } else { // pending (default when the form sends nothing for a column)
+        status = 'pending';
+        cell = note || 'Pending';
+      }
+      // A note must still parse back to the status it was saved with.
+      if (note && status !== 'na' && parseStatus_(cell).status !== status) {
+        cell = note + (status === 'received' ? ' — Received' : ' — Pending');
+      }
+      if (status === 'pending') pendingCount++;
+      out[idx] = cell;
+    });
+    out[layout.pendingIdx] = pendingCount;
+
+    var writeRow = targetRow || (lastRow + 1);
+    tracker.getRange(writeRow, 1, 1, out.length).setValues([out]);
+    SpreadsheetApp.flush();
+
+    var fresh = getInitialData();
+    fresh.savedRow = writeRow;
+    fresh.savedAction = targetRow ? 'updated' : 'created';
+    return fresh;
+  } finally {
+    lock.releaseLock();
+  }
 }
