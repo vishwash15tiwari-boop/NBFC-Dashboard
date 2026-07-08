@@ -42,11 +42,12 @@
     padding:14px 28px;background:rgba(255,255,255,.86);backdrop-filter:blur(14px);
     -webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line);
   }
-  .brand{display:flex;align-items:center;gap:11px;min-width:0}
-  .brand-mark{width:34px;height:34px;flex:none}
-  .brand-name{font-size:16px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
-  .brand-name em{font-style:normal;color:var(--rk-green)}
-  .brand-sub{font-size:11.5px;color:var(--ink-3);font-weight:500;margin-top:-2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}
+  .brand-mark{width:36px;height:36px;flex:none}
+  .brand-name{font-size:15px;font-weight:800;letter-spacing:-.03em;color:var(--ink);line-height:1.15}
+  .brand-name .dot-com{color:var(--rk-green)}
+  .brand-divider{display:inline-block;width:1px;height:14px;background:var(--line);margin:0 8px;vertical-align:middle;flex:none}
+  .brand-sub{font-size:12px;color:var(--ink-3);font-weight:600;letter-spacing:.01em;white-space:nowrap;text-transform:uppercase;letter-spacing:.06em}
   .topbar-spacer{flex:1}
   .sync{font-size:11.5px;color:var(--ink-3);white-space:nowrap}
   .sync b{color:var(--ink-2);font-weight:600}
@@ -348,14 +349,20 @@
 <!-- ─── Top bar ─────────────────────────────────────────────────────────── -->
 <header class="topbar">
   <div class="brand">
-    <svg class="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-      <rect width="40" height="40" rx="11" fill="#00A651"/>
-      <path d="M20 9.5c-5.8 0-10.5 4.7-10.5 10.5 0 2.9 1.2 5.6 3.1 7.5l2.2-2.2A7.4 7.4 0 0 1 12.6 20 7.4 7.4 0 0 1 20 12.6c1.6 0 3.2.5 4.4 1.5l-2.5 2.5h8.4V8.2l-3.7 3.6A10.4 10.4 0 0 0 20 9.5Z" fill="#fff"/>
-      <path d="M27.4 14.9l-2.2 2.3A7.4 7.4 0 0 1 27.4 20 7.4 7.4 0 0 1 20 27.4c-1.6 0-3.1-.5-4.4-1.4l2.5-2.6H9.7v8.4l3.6-3.6a10.4 10.4 0 0 0 6.7 2.3c5.8 0 10.5-4.7 10.5-10.5 0-2.9-1.2-5.6-3.1-7.6Z" fill="#fff" opacity=".68"/>
+    <!-- Recykal recycling-arrows wordmark icon, refined -->
+    <svg class="brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+      <rect width="36" height="36" rx="9" fill="#00A651"/>
+      <!-- upward arrow: top arc + arrowhead -->
+      <path d="M18 7.5c-3.4 0-6.4 1.6-8.3 4.1l2.1 1.4A7 7 0 0 1 18 10.5c3.9 0 7 3.1 7 7 0 1-.2 1.9-.5 2.8l2.3.8c.5-1.1.7-2.3.7-3.6 0-5.2-4.3-9.5-9.5-9.5Z" fill="#fff"/>
+      <polygon points="9,9.5 9,14.5 14,14.5" fill="#fff"/>
+      <!-- downward arrow: bottom arc + arrowhead -->
+      <path d="M18 28.5c3.4 0 6.4-1.6 8.3-4.1l-2.1-1.4A7 7 0 0 1 18 25.5c-3.9 0-7-3.1-7-7 0-1 .2-1.9.5-2.8l-2.3-.8c-.5 1.1-.7 2.3-.7 3.6 0 5.2 4.3 9.5 9.5 9.5Z" fill="#fff" opacity=".75"/>
+      <polygon points="27,26.5 27,21.5 22,21.5" fill="#fff" opacity=".75"/>
     </svg>
-    <div style="min-width:0">
-      <div class="brand-name">recykal<em>.</em> <span style="font-weight:600;color:var(--ink-2)">Seller Onboarding</span></div>
-      <div class="brand-sub">NBFC Document Tracker · Executive View</div>
+    <div style="min-width:0;display:flex;align-items:center;gap:0">
+      <div class="brand-name">Recykal<span class="dot-com">.com</span></div>
+      <span class="brand-divider"></span>
+      <div class="brand-sub">NBFC Tracker</div>
     </div>
   </div>
   <div class="topbar-spacer"></div>
