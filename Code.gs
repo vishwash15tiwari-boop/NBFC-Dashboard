@@ -338,7 +338,7 @@ function getInitialData() {
       layout.docIdx.forEach(function (idx) {
         var parsed = parseStatus_(row[idx]);
         var cellNote = String(rowNotes[idx] || '').trim();
-        var driveUrl = /^https?:\/\//.test(cellNote) ? cellNote : '';
+        var driveUrl = /^https?:\/\/\S+$/.test(cellNote) ? cellNote : '';
         docStates[layout.headers[idx]] = { raw: String(row[idx]).trim(), status: parsed.status, note: parsed.note, driveUrl: driveUrl };
         if (parsed.status === 'received') received++;
         else if (parsed.status === 'na') na++;
@@ -556,6 +556,13 @@ function saveSeller(payload) {
         if (!url) return;
         var colIdx = layout.headers.indexOf(docKey);
         if (colIdx >= 0) tracker.getRange(writeRow, colIdx + 1).setNote(url);
+      });
+    }
+    // Clear notes for documents whose Drive URL was removed in this session.
+    if (Array.isArray(payload.docClearUrls)) {
+      payload.docClearUrls.forEach(function (docKey) {
+        var colIdx = layout.headers.indexOf(docKey);
+        if (colIdx >= 0) tracker.getRange(writeRow, colIdx + 1).setNote('');
       });
     }
 

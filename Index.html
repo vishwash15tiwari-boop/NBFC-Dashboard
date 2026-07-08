@@ -678,6 +678,7 @@ var fieldByType = {};         // gst / date / entity → header name
 var nameHeader = null;
 var editingSeller = null;     // seller object while form is open, else null
 var _formDocUrls = {};        // docKey → Drive URL for the currently open form
+var _removedFormDocUrls = {}; // docKeys explicitly removed this session
 var lastFocusRefresh = 0;
 
 function $(id){ return document.getElementById(id); }
@@ -1123,6 +1124,7 @@ function openForm(row){
 
   /* per-doc Drive URLs: pre-populate from existing seller data */
   _formDocUrls = {};
+  _removedFormDocUrls = {};
   if (editingSeller) {
     D.docs.forEach(function(d){
       var cell = editingSeller.docs[d.key] || {};
@@ -1148,7 +1150,7 @@ function openForm(row){
       '</div>' +
       '<div class="doc-field-btns">' +
         '<button type="button" class="note-toggle" onclick="toggleNote(' + i + ')">' + (note ? 'Edit note' : '+ Add note') + '</button>' +
-        '<button type="button" class="note-toggle upload-btn" style="display:' + (st === 'pending' ? '' : 'none') + '" onclick="uploadFormDoc(' + i + ',\'' + d.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">' + upIco + ' Upload</button>' +
+        '<button type="button" class="note-toggle upload-btn" style="display:' + (st === 'pending' ? '' : 'none') + '" onclick="uploadFormDoc(' + i + ',\'' + d.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;') + '\')">' + upIco + ' Upload</button>' +
       '</div>' +
       '<div class="note-in" style="display:' + (note ? 'block' : 'none') + '">' +
         '<input type="text" maxlength="300" placeholder="Optional note — e.g. FY 25-26 provisional pending" value="' + esc(note) + '">' +
@@ -1262,7 +1264,8 @@ function save(){
     row: editingSeller ? editingSeller.row : null,
     originalGst: editingSeller ? (editingSeller.meta[fieldByType.gst] || '') : '',
     meta: meta, statuses: statuses, notes: notes,
-    docDriveUrls: Object.keys(_formDocUrls).length ? _formDocUrls : null
+    docDriveUrls: Object.keys(_formDocUrls).length ? _formDocUrls : null,
+    docClearUrls: Object.keys(_removedFormDocUrls)
   };
 
   var btn = $('saveBtn');
@@ -1356,7 +1359,7 @@ function renderDocFileRow(docKey, idx) {
   return '<div class="doc-file-row">' +
     linkIco +
     '<a class="doc-file-link" href="' + esc(url) + '" target="_blank" rel="noopener">View in Drive</a>' +
-    '<button type="button" class="doc-file-rm" title="Remove" onclick="removeFormDoc(\'' + docKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\',' + idx + ')">&#x2715;</button>' +
+    '<button type="button" class="doc-file-rm" title="Remove" onclick="removeFormDoc(\'' + docKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;') + '\',' + idx + ')">&#x2715;</button>' +
   '</div>';
 }
 
@@ -1369,6 +1372,7 @@ function uploadFormDoc(idx, docKey) {
 
 function removeFormDoc(docKey, idx) {
   delete _formDocUrls[docKey];
+  _removedFormDocUrls[docKey] = true;
   $('dfu' + idx).innerHTML = '';
 }
 
@@ -1376,9 +1380,9 @@ $('fileInput').addEventListener('change', function () {
   var file = this.files[0];
   if (!file || _formUploadDocIdx === null) return;
 
-  var MAX_BYTES = 25 * 1024 * 1024;
+  var MAX_BYTES = 10 * 1024 * 1024; // 10 MB raw → ~14 MB base64; safe for GAS payload limit
   if (file.size > MAX_BYTES) {
-    toast('File is too large (max 25 MB).', 'err');
+    toast('File is too large (max 10 MB).', 'err');
     return;
   }
 
@@ -1422,7 +1426,9 @@ $('fileInput').addEventListener('change', function () {
       _formDocUrls[docKey] = result.driveUrl;
       setDocStatus(docIdx, 'received');
       $('dfu' + docIdx).innerHTML = renderDocFileRow(docKey, docIdx);
-      if (result.sellers) onData(result);
+      // Only refresh the dashboard if the form is closed; while it's open,
+      // replacing D would make D.docs diverge from the rendered doc-field DOM.
+      if (result.sellers && !editingSeller) onData(result);
       toast('✓ ' + docKey + ' uploaded to Drive');
     }).catch(function (err) {
       $('uploadOverlay').classList.remove('on');
