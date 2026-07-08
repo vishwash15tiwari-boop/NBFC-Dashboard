@@ -425,32 +425,23 @@
   }
   @keyframes spin{to{transform:rotate(360deg)}}
 
-  /* ─── Form ZIP section ─────────────────────────────────────────────── */
-  .zip-section{
-    margin:4px 0 12px;padding:14px 16px;border-radius:12px;
-    border:1.5px dashed var(--line);background:var(--surface-2,var(--bg));
+  /* ─── Per-doc upload row (inside doc-field) ────────────────────────── */
+  .doc-field-btns{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px}
+  .doc-file-row{
+    display:flex;align-items:center;gap:6px;margin-top:6px;
+    padding:5px 9px;border-radius:8px;
+    background:var(--rk-green-tint-2);border:1px solid rgba(0,166,81,.22);
   }
-  .zip-section.has-file{
-    border-style:solid;border-color:rgba(0,166,81,.3);background:var(--rk-green-tint-2);
+  .doc-file-link{
+    flex:1;font-size:11.5px;font-weight:600;color:var(--rk-green-ink);
+    text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;
   }
-  .zip-section-label{
-    font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
-    color:var(--ink-3);margin-bottom:10px;
+  .doc-file-link:hover{text-decoration:underline}
+  .doc-file-rm{
+    font-size:15px;line-height:1;color:var(--ink-3);padding:0 2px;cursor:pointer;
+    border-radius:4px;transition:color .1s;
   }
-  .zip-file-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .zip-file-name{
-    flex:1;font-size:12.5px;font-weight:600;color:var(--rk-green-ink);
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;
-    text-decoration:none;
-  }
-  .zip-file-name:hover{text-decoration:underline}
-  .zip-hint{font-size:11px;color:var(--ink-3);margin-top:7px}
-  .zip-remove-btn{
-    padding:3px 9px;border-radius:6px;border:1px solid rgba(220,38,38,.35);
-    background:transparent;color:#dc2626;font-size:11.5px;font-weight:600;cursor:pointer;
-    transition:background .13s;
-  }
-  .zip-remove-btn:hover{background:rgba(220,38,38,.08)}
+  .doc-file-rm:hover{color:#dc2626}
 
   /* ─── Responsive ────────────────────────────────────────────────────── */
   @media (max-width:1100px){
@@ -480,7 +471,7 @@
 </style>
 
 <!-- Hidden file input for Drive uploads -->
-<input type="file" id="fileInput" style="display:none" accept=".zip,application/zip">
+<input type="file" id="fileInput" style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.heic,.zip">
 
 <!-- Upload progress overlay -->
 <div id="uploadOverlay" role="dialog" aria-modal="true">
@@ -662,7 +653,6 @@
   <div class="drawer-body">
     <div class="form-alert" id="formAlert"></div>
     <div class="fgrid" id="metaFields"></div>
-    <div id="zipSection"></div>
     <div class="fsec">Document checklist <span class="cnt" id="docCount"></span></div>
     <div id="docFields"></div>
   </div>
@@ -687,7 +677,6 @@ var D = null;                 // latest payload from getInitialData()
 var fieldByType = {};         // gst / date / entity → header name
 var nameHeader = null;
 var editingSeller = null;     // seller object while form is open, else null
-var _formDriveUrl = null;     // Drive ZIP URL attached to the current form session
 var lastFocusRefresh = 0;
 
 function $(id){ return document.getElementById(id); }
@@ -1131,15 +1120,21 @@ function openForm(row){
       '<span class="err"></span></div>';
   }).join('');
 
-  /* ZIP section */
-  _formDriveUrl = editingSeller ? (editingSeller.driveUrl || null) : null;
-  renderZipSection();
+  /* per-doc Drive URLs: pre-populate from existing seller data */
+  _formDocUrls = {};
+  if (editingSeller) {
+    D.docs.forEach(function(d){
+      var cell = editingSeller.docs[d.key] || {};
+      if (cell.driveUrl) _formDocUrls[d.key] = cell.driveUrl;
+    });
+  }
 
   /* document checklist */
   $('docFields').innerHTML = D.docs.map(function(d, i){
     var cell = editingSeller ? (editingSeller.docs[d.key] || {}) : {};
     var st = cell.status || 'pending';
     var note = cell.note || '';
+    var upIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
     return '<div class="doc-field" id="df' + i + '" data-key="' + esc(d.key) + '" data-status="' + st + '">' +
       '<div class="doc-field-top">' +
         '<span class="dname" title="' + esc(d.key) + '">' + esc(d.key) + '</span>' +
@@ -1150,10 +1145,14 @@ function openForm(row){
           '<button type="button" data-v="na" onclick="setDocStatus(' + i + ',\'na\')">NA</button>' +
         '</div>' +
       '</div>' +
-      '<button type="button" class="note-toggle" onclick="toggleNote(' + i + ')">' + (note ? 'Edit note' : '+ Add note') + '</button>' +
+      '<div class="doc-field-btns">' +
+        '<button type="button" class="note-toggle" onclick="toggleNote(' + i + ')">' + (note ? 'Edit note' : '+ Add note') + '</button>' +
+        '<button type="button" class="note-toggle" onclick="uploadFormDoc(' + i + ',\'' + d.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">' + upIco + ' Upload</button>' +
+      '</div>' +
       '<div class="note-in" style="display:' + (note ? 'block' : 'none') + '">' +
         '<input type="text" maxlength="300" placeholder="Optional note — e.g. FY 25-26 provisional pending" value="' + esc(note) + '">' +
       '</div>' +
+      '<div id="dfu' + i + '">' + renderDocFileRow(d.key, i) + '</div>' +
     '</div>';
   }).join('');
 
@@ -1259,7 +1258,7 @@ function save(){
     row: editingSeller ? editingSeller.row : null,
     originalGst: editingSeller ? (editingSeller.meta[fieldByType.gst] || '') : '',
     meta: meta, statuses: statuses, notes: notes,
-    driveUrl: _formDriveUrl || null
+    docDriveUrls: Object.keys(_formDocUrls).length ? _formDocUrls : null
   };
 
   var btn = $('saveBtn');
@@ -1341,69 +1340,60 @@ window.addEventListener('focus', function(){
   if (now - lastFocusRefresh > 60000){ lastFocusRefresh = now; refresh(true); }
 });
 
-/* ═══════════════════ Form ZIP upload ═══════════════════════════════════ */
+/* ═══════════════════ Per-doc Drive upload (form) ═══════════════════════ */
 
-function renderZipSection() {
-  var el = $('zipSection');
-  if (!el) return;
-  var upIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex:none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
-  var linkIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex:none"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>';
-  var zipIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;flex:none;color:var(--rk-green-ink)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
-  if (_formDriveUrl) {
-    el.className = 'zip-section has-file';
-    el.innerHTML =
-      '<div class="zip-section-label">Documents ZIP</div>' +
-      '<div class="zip-file-row">' +
-        zipIco +
-        '<a class="zip-file-name" href="' + esc(_formDriveUrl) + '" target="_blank" rel="noopener">' + linkIco + ' View in Drive</a>' +
-        '<button type="button" class="upload-btn" style="margin-top:0" onclick="triggerFormZipUpload()">' + upIco + 'Replace</button>' +
-        '<button type="button" class="zip-remove-btn" onclick="removeFormZip()">Remove</button>' +
-      '</div>';
-  } else {
-    el.className = 'zip-section';
-    el.innerHTML =
-      '<div class="zip-section-label">Documents ZIP</div>' +
-      '<button type="button" class="upload-btn" style="margin-top:0" onclick="triggerFormZipUpload()">' + upIco + 'Upload ZIP</button>' +
-      '<div class="zip-hint">All seller documents in one ZIP — auto-named and saved to Google Drive</div>';
-  }
+var _formUploadDocIdx = null;   // doc-field index waiting for a file pick
+var _formUploadDocKey = null;
+
+function renderDocFileRow(docKey, idx) {
+  var url = _formDocUrls[docKey];
+  if (!url) return '';
+  var linkIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;flex:none"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>';
+  return '<div class="doc-file-row">' +
+    linkIco +
+    '<a class="doc-file-link" href="' + esc(url) + '" target="_blank" rel="noopener">View in Drive</a>' +
+    '<button type="button" class="doc-file-rm" title="Remove" onclick="removeFormDoc(\'' + docKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\',' + idx + ')">&#x2715;</button>' +
+  '</div>';
 }
 
-function triggerFormZipUpload() {
+function uploadFormDoc(idx, docKey) {
+  _formUploadDocIdx = idx;
+  _formUploadDocKey = docKey;
   $('fileInput').value = '';
   $('fileInput').click();
 }
 
-function removeFormZip() {
-  _formDriveUrl = null;
-  renderZipSection();
+function removeFormDoc(docKey, idx) {
+  delete _formDocUrls[docKey];
+  $('dfu' + idx).innerHTML = '';
 }
 
 $('fileInput').addEventListener('change', function () {
   var file = this.files[0];
-  if (!file) return;
+  if (!file || _formUploadDocIdx === null) return;
 
-  var MAX_BYTES = 50 * 1024 * 1024;
+  var MAX_BYTES = 25 * 1024 * 1024;
   if (file.size > MAX_BYTES) {
-    toast('File is too large (max 50 MB).', 'err');
+    toast('File is too large (max 25 MB).', 'err');
     return;
   }
 
-  // Resolve seller identity: prefer editingSeller, else read live form values.
-  var sellerName = '', gst = '', row = null;
+  var docIdx = _formUploadDocIdx, docKey = _formUploadDocKey;
+  _formUploadDocIdx = null; _formUploadDocKey = null;
+
+  // Seller name: from editingSeller or live form field.
+  var sellerName = '', row = null;
   if (editingSeller) {
     sellerName = nameHeader ? (editingSeller.meta[nameHeader] || '') : '';
-    gst = fieldByType.gst ? (editingSeller.meta[fieldByType.gst] || '') : '';
     row = editingSeller.row;
   } else {
     D.metaFields.forEach(function (f, i) {
       var inp = $('mf' + i);
-      if (!inp) return;
-      if (f.key === nameHeader) sellerName = inp.value.trim();
-      if (f.type === 'gst') gst = inp.value.trim().toUpperCase();
+      if (inp && f.key === nameHeader) sellerName = inp.value.trim();
     });
   }
 
-  $('uploadDocName').textContent = sellerName || 'New seller';
+  $('uploadDocName').textContent = docKey;
   $('uploadOverlay').classList.add('on');
 
   var reader = new FileReader();
@@ -1411,14 +1401,17 @@ $('fileInput').addEventListener('change', function () {
     run('uploadDocument', {
       row: row,
       sellerName: sellerName,
-      gst: gst,
+      docKey: docKey,
+      fileName: file.name,
+      mimeType: file.type || 'application/octet-stream',
       base64Data: ev.target.result
     }).then(function (result) {
       $('uploadOverlay').classList.remove('on');
-      _formDriveUrl = result.driveUrl;
-      renderZipSection();
-      if (result.sellers) onData(result); // full refresh for existing-seller uploads
-      toast('✓ ZIP uploaded to Drive' + (sellerName ? ' for ' + sellerName : ''));
+      _formDocUrls[docKey] = result.driveUrl;
+      setDocStatus(docIdx, 'received');
+      $('dfu' + docIdx).innerHTML = renderDocFileRow(docKey, docIdx);
+      if (result.sellers) onData(result);
+      toast('✓ ' + docKey + ' uploaded to Drive');
     }).catch(function (err) {
       $('uploadOverlay').classList.remove('on');
       toast('Upload failed: ' + ((err && err.message) || String(err)), 'err');
