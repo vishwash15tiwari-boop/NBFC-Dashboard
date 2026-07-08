@@ -636,7 +636,7 @@ function uploadDocument(payload) {
     var bytes = Utilities.base64Decode(raw);
     var blob = Utilities.newBlob(bytes, payload.mimeType || 'application/octet-stream', fname);
 
-    var folder = getOrCreateSellerFolder_(sellerName, '');
+    var folder = getOrCreateSellerFolder_(sellerName, String(payload.gst || '').trim());
     var existing = folder.getFilesByName(fname);
     while (existing.hasNext()) existing.next().setTrashed(true);
     var driveFile = folder.createFile(blob);

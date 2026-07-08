@@ -677,6 +677,7 @@ var D = null;                 // latest payload from getInitialData()
 var fieldByType = {};         // gst / date / entity → header name
 var nameHeader = null;
 var editingSeller = null;     // seller object while form is open, else null
+var _formDocUrls = {};        // docKey → Drive URL for the currently open form
 var lastFocusRefresh = 0;
 
 function $(id){ return document.getElementById(id); }
@@ -1176,13 +1177,13 @@ function onEntityChange(){
     el.classList.toggle('is-na', na);
     var tag = el.querySelector('.na-tag');
     var seg = el.querySelector('.seg');
-    var noteT = el.querySelector('.note-toggle');
+    var btns = el.querySelector('.doc-field-btns');
     if (na){
       tag.style.display = ''; tag.textContent = 'Not required · ' + col;
-      seg.style.display = 'none'; noteT.style.display = 'none';
+      seg.style.display = 'none'; if (btns) btns.style.display = 'none';
       el.querySelector('.note-in').style.display = 'none';
     } else {
-      tag.style.display = 'none'; seg.style.display = ''; noteT.style.display = '';
+      tag.style.display = 'none'; seg.style.display = ''; if (btns) btns.style.display = '';
       applicable++;
     }
   });
@@ -1381,16 +1382,23 @@ $('fileInput').addEventListener('change', function () {
   var docIdx = _formUploadDocIdx, docKey = _formUploadDocKey;
   _formUploadDocIdx = null; _formUploadDocKey = null;
 
-  // Seller name: from editingSeller or live form field.
-  var sellerName = '', row = null;
+  // Seller name + GST: from editingSeller or live form fields.
+  var sellerName = '', sellerGst = '', row = null;
   if (editingSeller) {
     sellerName = nameHeader ? (editingSeller.meta[nameHeader] || '') : '';
+    sellerGst = fieldByType.gst ? (editingSeller.meta[fieldByType.gst] || '') : '';
     row = editingSeller.row;
   } else {
     D.metaFields.forEach(function (f, i) {
       var inp = $('mf' + i);
-      if (inp && f.key === nameHeader) sellerName = inp.value.trim();
+      if (!inp) return;
+      if (f.key === nameHeader) sellerName = inp.value.trim();
+      if (f.type === 'gst') sellerGst = inp.value.trim();
     });
+    if (!sellerName && !sellerGst) {
+      toast('Please enter a seller name before uploading documents.', 'err');
+      return;
+    }
   }
 
   $('uploadDocName').textContent = docKey;
@@ -1401,6 +1409,7 @@ $('fileInput').addEventListener('change', function () {
     run('uploadDocument', {
       row: row,
       sellerName: sellerName,
+      gst: sellerGst,
       docKey: docKey,
       fileName: file.name,
       mimeType: file.type || 'application/octet-stream',
