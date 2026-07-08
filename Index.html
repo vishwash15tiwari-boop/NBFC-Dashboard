@@ -453,7 +453,7 @@
 </style>
 
 <!-- Hidden file input for Drive uploads -->
-<input type="file" id="fileInput" style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.heic">
+<input type="file" id="fileInput" style="display:none" accept=".zip,application/zip">
 
 <!-- Upload progress overlay -->
 <div id="uploadOverlay" role="dialog" aria-modal="true">
@@ -1019,9 +1019,9 @@ function openDetail(row){
 
   var groups = {pending: [], received: [], na: []};
   D.docs.forEach(function(d){
-    var cell = s.docs[d.key] || {status:'pending', note:'', driveUrl:''};
+    var cell = s.docs[d.key] || {status:'pending', note:''};
     groups[cell.status === 'received' ? 'received' : cell.status === 'na' ? 'na' : 'pending']
-      .push({key: d.key, note: cell.note, driveUrl: cell.driveUrl || ''});
+      .push({key: d.key, note: cell.note});
   });
 
   var ICO = {
@@ -1036,18 +1036,16 @@ function openDetail(row){
     return '<div class="doc-group"><h4>' + title + ' <span class="chip ' +
       (kind==='pending'?'warn':kind==='received'?'ok':'mut') + '">' + arr.length + '</span></h4>' +
       arr.map(function(d){
-        var extra = '';
-        if (kind === 'pending') {
-          extra = '<button class="upload-btn" onclick="uploadDoc(' + row + ',\'' + d.key.replace(/'/g, "\\'") + '\')">' + uploadIco + 'Upload to Drive</button>';
-        } else if (kind === 'received' && d.driveUrl) {
-          extra = '<a class="drive-link" href="' + esc(d.driveUrl) + '" target="_blank" rel="noopener">' + driveIco + 'View in Drive</a>';
-        }
         return '<div class="doc-item"><span class="di-ico">' + ICO[kind] + '</span>' +
           '<div style="flex:1;min-width:0"><div class="di-name">' + esc(d.key) + '</div>' +
           (d.note ? '<div class="di-note">' + esc(d.note) + '</div>' : '') +
-          extra + '</div></div>';
+          '</div></div>';
       }).join('') + '</div>';
   }
+
+  var driveAction = s.driveUrl
+    ? '<a class="drive-link" href="' + esc(s.driveUrl) + '" target="_blank" rel="noopener">' + driveIco + 'View ZIP in Drive</a>'
+    : '<button class="upload-btn" onclick="uploadSellerZip(' + row + ')">' + uploadIco + 'Upload Documents (ZIP)</button>';
 
   $('dBody').innerHTML =
     '<div class="detail-hero">' +
@@ -1061,6 +1059,7 @@ function openDetail(row){
         '<div class="dh-num"><div class="v" style="color:var(--ink-3)">' + s.na + '</div><div class="k">N/A</div></div>' +
       '</div>' +
     '</div>' +
+    '<div style="padding:2px 4px 8px">' + driveAction + '</div>' +
     group('Pending documents', groups.pending, 'pending') +
     group('Received', groups.received, 'received') +
     group('Not applicable for this entity', groups.na, 'na');
@@ -1317,11 +1316,10 @@ window.addEventListener('focus', function(){
 
 /* ═══════════════════ Drive document upload ═════════════════════════════ */
 
-var _uploadRow = null, _uploadKey = null;
+var _uploadRow = null;
 
-function uploadDoc(row, docKey) {
+function uploadSellerZip(row) {
   _uploadRow = row;
-  _uploadKey = docKey;
   var inp = $('fileInput');
   inp.value = '';
   inp.click();
@@ -1331,30 +1329,28 @@ $('fileInput').addEventListener('change', function () {
   var file = this.files[0];
   if (!file || _uploadRow === null) return;
 
-  var MAX_BYTES = 15 * 1024 * 1024; // 15 MB
+  var MAX_BYTES = 50 * 1024 * 1024; // 50 MB
   if (file.size > MAX_BYTES) {
-    toast('File is too large (max 15 MB). Please compress or split the document.', 'err');
+    toast('File is too large (max 50 MB).', 'err');
     return;
   }
 
-  var docKey = _uploadKey;
   var row = _uploadRow;
-  $('uploadDocName').textContent = docKey;
+  var s = sellerByRow(row);
+  var label = s && nameHeader ? s.meta[nameHeader] : ('Row ' + row);
+  $('uploadDocName').textContent = label;
   $('uploadOverlay').classList.add('on');
 
   var reader = new FileReader();
   reader.onload = function (ev) {
     run('uploadDocument', {
       row: row,
-      docKey: docKey,
-      fileName: file.name,
-      mimeType: file.type || 'application/octet-stream',
       base64Data: ev.target.result
     }).then(function (fresh) {
       $('uploadOverlay').classList.remove('on');
       onData(fresh);
       openDetail(fresh.savedRow);
-      toast('✓ ' + docKey + ' uploaded and marked Received in the sheet');
+      toast('✓ Documents ZIP uploaded to Drive for ' + label);
     }).catch(function (err) {
       $('uploadOverlay').classList.remove('on');
       toast('Upload failed: ' + ((err && err.message) || String(err)), 'err');

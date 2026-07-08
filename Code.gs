@@ -333,13 +333,21 @@ function getInitialData() {
       if (!isNaN(serial) && serial > maxSerial) maxSerial = serial;
 
       var rowNotes = allNotes[i] || [];
+
+      // Seller-level Drive ZIP URL stored in the note of the seller name cell.
+      var sellerDriveUrl = '';
+      layout.metaIdx.forEach(function (mIdx) {
+        if (!sellerDriveUrl && normKey_(layout.headers[mIdx]).indexOf('name') !== -1) {
+          var n = String(rowNotes[mIdx] || '').trim();
+          if (/^https?:\/\//.test(n)) sellerDriveUrl = n;
+        }
+      });
+
       var docStates = {};
       var received = 0, pending = 0, na = 0;
       layout.docIdx.forEach(function (idx) {
         var parsed = parseStatus_(row[idx]);
-        var cellNote = String(rowNotes[idx] || '').trim();
-        var driveUrl = /^https?:\/\//.test(cellNote) ? cellNote : '';
-        docStates[layout.headers[idx]] = { raw: String(row[idx]).trim(), status: parsed.status, note: parsed.note, driveUrl: driveUrl };
+        docStates[layout.headers[idx]] = { raw: String(row[idx]).trim(), status: parsed.status, note: parsed.note };
         if (parsed.status === 'received') received++;
         else if (parsed.status === 'na') na++;
         else pending++;
@@ -350,6 +358,7 @@ function getInitialData() {
         serial: isNaN(serial) ? '' : serial,
         meta: meta,
         docs: docStates,
+        driveUrl: sellerDriveUrl,
         received: received,
         pending: pending,
         na: na,
@@ -593,21 +602,18 @@ function getOrCreateSellerFolder_(sellerName, gst) {
 }
 
 /**
- * Receives a base64-encoded document from the browser, saves it to a per-seller
- * folder in Google Drive, marks the sheet cell as Received, stores the Drive URL
- * in the cell note, and returns a fresh data payload.
+ * Receives a base64-encoded ZIP from the browser, saves it to the seller's Drive
+ * folder with an auto-generated name, stores the Drive URL in the seller name
+ * cell's note, and returns a fresh data payload.
  *
  * payload = {
- *   row:       sheet row number (1-based),
- *   docKey:    tracker column header for this document,
- *   fileName:  original filename,
- *   mimeType:  MIME type string,
+ *   row:        sheet row number (1-based),
  *   base64Data: data-URL string (data:[type];base64,[data]) or raw base64
  * }
  */
 function uploadDocument(payload) {
-  if (!payload || !payload.base64Data || !payload.row || !payload.docKey) {
-    throw new Error('uploadDocument: row, docKey and base64Data are required.');
+  if (!payload || !payload.base64Data || !payload.row) {
+    throw new Error('uploadDocument: row and base64Data are required.');
   }
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -622,25 +628,27 @@ function uploadDocument(payload) {
     var lastCol = tracker.getLastColumn();
     var rowData = tracker.getRange(targetRow, 1, 1, lastCol).getDisplayValues()[0];
 
-    // Pull seller name and GST from the row (same logic as saveSeller).
-    var sellerName = '', gst = '';
+    // Pull seller name, GST and the column index of the seller name cell.
+    var sellerName = '', gst = '', nameColIdx = -1;
     layout.metaIdx.forEach(function (idx) {
       var h = layout.headers[idx], t = metaFieldType_(h);
       if (t === 'gst' && !gst) gst = String(rowData[idx]).trim().toUpperCase();
-      if (!sellerName && normKey_(h).indexOf('name') !== -1) sellerName = String(rowData[idx]).trim();
+      if (normKey_(h).indexOf('name') !== -1 && nameColIdx < 0) {
+        sellerName = String(rowData[idx]).trim();
+        nameColIdx = idx;
+      }
     });
 
-    var docColIdx = layout.headers.indexOf(payload.docKey);
-    if (docColIdx < 0) throw new Error('Document column not found: ' + payload.docKey);
+    // Auto-generate file name from seller identity.
+    var safe = function (s) { return String(s || '').replace(/[\\\/:\*\?"<>\|]/g, '_').trim(); };
+    var fname = (sellerName ? safe(sellerName) : 'Seller') + (gst ? ' (' + safe(gst) + ')' : '') + '.zip';
 
-    // Decode and create the file blob.
+    // Decode and create the ZIP blob.
     var raw = String(payload.base64Data).replace(/^data:[^;]+;base64,/, '');
     var bytes = Utilities.base64Decode(raw);
-    var mime = payload.mimeType || 'application/octet-stream';
-    var fname = payload.fileName || (payload.docKey.replace(/[^a-zA-Z0-9 _-]/g, '_') + '.pdf');
-    var blob = Utilities.newBlob(bytes, mime, fname);
+    var blob = Utilities.newBlob(bytes, 'application/zip', fname);
 
-    // Save to Drive: remove any previous version with the same name.
+    // Save to Drive: trash any previous ZIP with the same name first.
     var folder = getOrCreateSellerFolder_(sellerName, gst);
     var existing = folder.getFilesByName(fname);
     while (existing.hasNext()) existing.next().setTrashed(true);
@@ -648,23 +656,14 @@ function uploadDocument(payload) {
     driveFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     var fileUrl = driveFile.getUrl();
 
-    // Write "Received" to the cell and the Drive URL into the cell note.
-    var cell = tracker.getRange(targetRow, docColIdx + 1);
-    cell.setValue('Received');
-    cell.setNote(fileUrl);
-
-    // Recount pending docs (use updated value for this cell).
-    var pendingCount = 0;
-    layout.docIdx.forEach(function (idx) {
-      var val = (idx === docColIdx) ? 'Received' : String(rowData[idx]).trim();
-      if (parseStatus_(val).status === 'pending') pendingCount++;
-    });
-    tracker.getRange(targetRow, layout.pendingIdx + 1).setValue(pendingCount);
+    // Store Drive URL in the seller name cell's note (leaves cell value untouched).
+    if (nameColIdx >= 0) {
+      tracker.getRange(targetRow, nameColIdx + 1).setNote(fileUrl);
+    }
     SpreadsheetApp.flush();
 
     var fresh = getInitialData();
     fresh.savedRow = targetRow;
-    fresh.uploadedDoc = payload.docKey;
     fresh.driveUrl = fileUrl;
     return fresh;
   } finally {
