@@ -557,6 +557,16 @@ function saveSeller(payload) {
 
     var writeRow = targetRow || (lastRow + 1);
     tracker.getRange(writeRow, 1, 1, out.length).setValues([out]);
+
+    // Persist Drive ZIP URL in the seller name cell's note if the form provided one.
+    if (payload.driveUrl) {
+      var nameIdx = -1;
+      layout.metaIdx.forEach(function (idx) {
+        if (normKey_(layout.headers[idx]).indexOf('name') !== -1 && nameIdx < 0) nameIdx = idx;
+      });
+      if (nameIdx >= 0) tracker.getRange(writeRow, nameIdx + 1).setNote(String(payload.driveUrl).trim());
+    }
+
     SpreadsheetApp.flush();
 
     var fresh = getInitialData();
@@ -602,42 +612,47 @@ function getOrCreateSellerFolder_(sellerName, gst) {
 }
 
 /**
- * Receives a base64-encoded ZIP from the browser, saves it to the seller's Drive
- * folder with an auto-generated name, stores the Drive URL in the seller name
- * cell's note, and returns a fresh data payload.
+ * Uploads a base64-encoded ZIP to the seller's Drive folder with an auto-generated
+ * name. Works for both existing sellers (pass row) and new sellers not yet saved
+ * (pass sellerName + gst directly).
  *
  * payload = {
- *   row:        sheet row number (1-based),
- *   base64Data: data-URL string (data:[type];base64,[data]) or raw base64
+ *   row?:        sheet row number (1-based) — omit for new sellers
+ *   sellerName?: override / fallback seller name string
+ *   gst?:        override / fallback GST string
+ *   base64Data:  data-URL string (data:[type];base64,[data]) or raw base64
  * }
+ *
+ * Returns {ok, driveUrl, savedRow?} for new sellers, or a full fresh payload
+ * for existing sellers (row note is updated immediately).
  */
 function uploadDocument(payload) {
-  if (!payload || !payload.base64Data || !payload.row) {
-    throw new Error('uploadDocument: row and base64Data are required.');
+  if (!payload || !payload.base64Data) {
+    throw new Error('uploadDocument: base64Data is required.');
   }
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    var ss = getSpreadsheet_();
-    var tracker = findSheet_(ss, CONFIG.TRACKER);
-    var layout = readTrackerLayout_(tracker);
+    var sellerName = String(payload.sellerName || '').trim();
+    var gst = String(payload.gst || '').trim().toUpperCase();
+    var nameColIdx = -1, tracker = null, targetRow = null;
 
-    var targetRow = Number(payload.row);
-    if (targetRow < 2) throw new Error('Invalid row number.');
-
-    var lastCol = tracker.getLastColumn();
-    var rowData = tracker.getRange(targetRow, 1, 1, lastCol).getDisplayValues()[0];
-
-    // Pull seller name, GST and the column index of the seller name cell.
-    var sellerName = '', gst = '', nameColIdx = -1;
-    layout.metaIdx.forEach(function (idx) {
-      var h = layout.headers[idx], t = metaFieldType_(h);
-      if (t === 'gst' && !gst) gst = String(rowData[idx]).trim().toUpperCase();
-      if (normKey_(h).indexOf('name') !== -1 && nameColIdx < 0) {
-        sellerName = String(rowData[idx]).trim();
-        nameColIdx = idx;
-      }
-    });
+    if (payload.row) {
+      var ss = getSpreadsheet_();
+      tracker = findSheet_(ss, CONFIG.TRACKER);
+      var layout = readTrackerLayout_(tracker);
+      targetRow = Number(payload.row);
+      if (targetRow < 2) throw new Error('Invalid row number.');
+      var rowData = tracker.getRange(targetRow, 1, 1, tracker.getLastColumn()).getDisplayValues()[0];
+      layout.metaIdx.forEach(function (idx) {
+        var h = layout.headers[idx], t = metaFieldType_(h);
+        if (t === 'gst' && !gst) gst = String(rowData[idx]).trim().toUpperCase();
+        if (normKey_(h).indexOf('name') !== -1 && nameColIdx < 0) {
+          if (!sellerName) sellerName = String(rowData[idx]).trim();
+          nameColIdx = idx;
+        }
+      });
+    }
 
     // Auto-generate file name from seller identity.
     var safe = function (s) { return String(s || '').replace(/[\\\/:\*\?"<>\|]/g, '_').trim(); };
@@ -656,16 +671,18 @@ function uploadDocument(payload) {
     driveFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     var fileUrl = driveFile.getUrl();
 
-    // Store Drive URL in the seller name cell's note (leaves cell value untouched).
-    if (nameColIdx >= 0) {
+    // For existing sellers: store URL in cell note and return a full fresh payload.
+    if (tracker && targetRow && nameColIdx >= 0) {
       tracker.getRange(targetRow, nameColIdx + 1).setNote(fileUrl);
+      SpreadsheetApp.flush();
+      var fresh = getInitialData();
+      fresh.savedRow = targetRow;
+      fresh.driveUrl = fileUrl;
+      return fresh;
     }
-    SpreadsheetApp.flush();
 
-    var fresh = getInitialData();
-    fresh.savedRow = targetRow;
-    fresh.driveUrl = fileUrl;
-    return fresh;
+    // For new sellers: just return the URL — saveSeller will persist it.
+    return { ok: true, driveUrl: fileUrl };
   } finally {
     lock.releaseLock();
   }
