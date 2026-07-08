@@ -109,11 +109,16 @@
   .kpi-ring{position:absolute;right:10px;top:50%;transform:translateY(-50%)}
   .kpi-accent{width:24px;height:3px;border-radius:2px;margin-bottom:6px}
 
+  /* overview-specific layout — eliminates dead space */
+  .ov-top{display:grid;grid-template-columns:1fr 300px;gap:12px;align-items:start;margin-bottom:0}
+  .ov-attn{min-height:0}
+  .ov-breakdown{min-height:0}
+  /* legacy kept for other grids */
   .grid-2{display:grid;grid-template-columns:1.45fr 1fr;gap:12px;align-items:start}
   .stack{display:grid;gap:12px}
 
   /* ─── Document bars ─────────────────────────────────────────────────── */
-  .docbars{padding:4px 14px 12px;display:grid;grid-template-columns:1fr 1fr;column-gap:6px}
+  .docbars{padding:4px 14px 12px;display:grid;grid-template-columns:1fr 1fr 1fr;column-gap:6px}
   .docbar{
     display:grid;grid-template-columns:minmax(96px,.9fr) 1.6fr 50px;
     gap:8px;align-items:center;padding:4px 6px;border-radius:7px;
@@ -139,7 +144,7 @@
   .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 
   /* ─── Attention cards ───────────────────────────────────────────────── */
-  .attn{padding:8px 10px 10px;display:flex;flex-direction:column;gap:6px}
+  .attn{padding:8px 10px 10px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .attn-card{
     background:#FAFCFB;border:1px solid var(--line);border-radius:11px;
     padding:10px 12px;cursor:pointer;
@@ -185,11 +190,17 @@
   .mini-track{width:80px;height:4px;background:var(--line-2);border-radius:2px;overflow:hidden;margin-top:5px;margin-left:auto}
 
   /* ─── Breakdown chips ───────────────────────────────────────────────── */
-  .facets{padding:6px 20px 18px;display:grid;gap:14px}
-  .facet h4{font-size:11.5px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px}
-  .facet-row{display:flex;flex-wrap:wrap;gap:8px}
-  .facet-chip{background:#F5F7F6;border:1px solid var(--line);border-radius:10px;padding:7px 12px;font-size:12px;color:var(--ink-2)}
-  .facet-chip b{color:var(--ink);font-weight:700;margin-right:2px}
+  .facets{padding:6px 14px 14px;display:grid;gap:12px}
+  .facet h4{font-size:10.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px}
+  .facet-row{display:flex;flex-direction:column;gap:6px}
+  .facet-chip{
+    display:flex;align-items:center;justify-content:space-between;
+    background:#F5F7F6;border:1px solid var(--line);border-radius:9px;padding:7px 12px;font-size:12px;color:var(--ink-2);
+    transition:background .12s;
+  }
+  .facet-chip:hover{background:var(--rk-green-tint-2)}
+  .facet-chip b{color:var(--ink);font-weight:700}
+  .facet-bar{height:3px;border-radius:2px;background:var(--rk-green);margin-top:3px;transition:width .5s cubic-bezier(.22,1,.36,1)}
 
   /* ─── Toolbar / filters ─────────────────────────────────────────────── */
   .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
@@ -377,9 +388,16 @@
   .tip .t-sub{color:rgba(255,255,255,.72)}
 
   /* ─── Responsive ────────────────────────────────────────────────────── */
+  @media (max-width:1100px){
+    .ov-top{grid-template-columns:1fr 260px}
+    .docbars{grid-template-columns:1fr 1fr}
+  }
   @media (max-width:1020px){
     .kpis{grid-template-columns:repeat(2,1fr)}
     .kpi.hero{grid-column:1/-1}
+    .ov-top{grid-template-columns:1fr}
+    .attn{grid-template-columns:1fr 1fr}
+    .docbars{grid-template-columns:1fr 1fr}
     .grid-2{grid-template-columns:1fr}
   }
   @media (max-width:640px){
@@ -388,6 +406,8 @@
     .brand-sub{display:none}
     .sync{display:none}
     .kpis{grid-template-columns:1fr 1fr;gap:10px}
+    .attn{grid-template-columns:1fr}
+    .docbars{grid-template-columns:1fr}
     .fgrid{grid-template-columns:1fr}
     .drawer{width:100vw}
     .doc-field-top{flex-wrap:wrap}
@@ -461,29 +481,31 @@
     <!-- ─── Overview ─────────────────────────────────────────────────── -->
     <section class="view on" id="view-overview">
       <div class="kpis" id="kpis"></div>
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-h">
-            <h3>Document collection status</h3>
+      <!-- Row 1: Attention (wider) + Breakdown (narrower) -->
+      <div class="ov-top">
+        <div class="card ov-attn">
+          <div class="card-h"><h3>Needs attention</h3><span class="hint">highest pending first</span></div>
+          <div class="attn" id="attnList"></div>
+        </div>
+        <div class="card ov-breakdown">
+          <div class="card-h"><h3>Portfolio breakdown</h3></div>
+          <div class="facets" id="facets"></div>
+        </div>
+      </div>
+      <!-- Row 2: Document status full-width, 3-column compact -->
+      <div class="card" style="margin-top:12px">
+        <div class="card-h">
+          <h3>Document collection status</h3>
+          <div style="display:flex;align-items:center;gap:14px">
+            <div class="legend" style="padding:0">
+              <span><i style="background:var(--rk-green)"></i>Received</span>
+              <span><i style="background:var(--amber)"></i>Pending</span>
+              <span><i style="background:var(--line-2)"></i>N/A</span>
+            </div>
             <span class="hint">sorted by most pending</span>
           </div>
-          <div class="legend">
-            <span><i style="background:var(--rk-green)"></i>Received</span>
-            <span><i style="background:var(--amber)"></i>Pending</span>
-            <span><i style="background:var(--line-2)"></i>Not applicable</span>
-          </div>
-          <div class="docbars" id="docBars"></div>
         </div>
-        <div class="stack">
-          <div class="card">
-            <div class="card-h"><h3>Needs attention</h3><span class="hint">highest pending first</span></div>
-            <div class="attn" id="attnList"></div>
-          </div>
-          <div class="card">
-            <div class="card-h"><h3>Portfolio breakdown</h3></div>
-            <div class="facets" id="facets"></div>
-          </div>
-        </div>
+        <div class="docbars" id="docBars"></div>
       </div>
     </section>
 
@@ -823,10 +845,15 @@ function renderOverview(){
       var v = s.meta[header] || '—';
       counts[v] = (counts[v] || 0) + 1;
     });
+    var total = Object.keys(counts).reduce(function(s,k){ return s + counts[k]; }, 0);
     var chips = Object.keys(counts).sort().map(function(k){
-      return '<span class="facet-chip"><b>' + counts[k] + '</b> ' + esc(k) + '</span>';
+      var pct = total ? Math.round(counts[k]/total*100) : 0;
+      return '<div class="facet-chip">' +
+        '<span>' + esc(k) + '</span>' +
+        '<b>' + counts[k] + '</b>' +
+      '</div>';
     }).join('');
-    return '<div class="facet"><h4>By ' + esc(header) + '</h4><div class="facet-row">' + chips + '</div></div>';
+    return '<div class="facet"><h4>' + esc(header) + '</h4><div class="facet-row">' + chips + '</div></div>';
   }).join('');
 }
 
