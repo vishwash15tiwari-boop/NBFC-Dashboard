@@ -354,13 +354,22 @@ function getInitialData() {
     });
   }
 
+  // Build entity options from actual sheet values first, then fall back to matrix column
+  // labels only for entity types not already represented (avoids "Partnership" + "Partnership Firm").
   var entityOptions = {};
-  matrix.entityColumns.forEach(function (label) { entityOptions[label] = true; });
   sellers.forEach(function (s) {
     layout.metaIdx.forEach(function (idx) {
       var h = layout.headers[idx];
       if (metaFieldType_(h) === 'entity' && s.meta[h]) entityOptions[s.meta[h]] = true;
     });
+  });
+  matrix.entityColumns.forEach(function (label) {
+    var n = normKey_(label);
+    var covered = Object.keys(entityOptions).some(function (existing) {
+      var e = normKey_(existing);
+      return e.indexOf(n) !== -1 || n.indexOf(e) !== -1;
+    });
+    if (!covered) entityOptions[label] = true;
   });
 
   return {
