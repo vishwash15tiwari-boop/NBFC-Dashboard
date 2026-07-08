@@ -693,7 +693,7 @@ function renderOverview(){
       '<span class="sub">' + t.received + ' of ' + t.applicable + ' required documents in</span>' +
       '<span class="kpi-ring">' + ringSvg(t.completion, 62, 7, 'rgba(255,255,255,.22)', '#3DDC84') + '</span>' +
     '</div>' +
-    kpiTile('Sellers onboarding', t.sellers, t.complete + ' fully complete', 'var(--rk-green)') +
+    kpiTile('Total Sellers', t.sellers, t.complete + ' fully complete', 'var(--rk-green)') +
     kpiTile('Documents received', t.received, 'across all sellers', 'var(--rk-green)') +
     kpiTile('Documents pending', t.pending, t.pending ? 'need follow-up' : 'nothing outstanding', 'var(--amber)') +
     kpiTile('Not applicable', t.na, 'per entity-type checklist', 'var(--gray-dot)');
