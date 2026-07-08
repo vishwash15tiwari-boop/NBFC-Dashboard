@@ -1148,7 +1148,7 @@ function openForm(row){
       '</div>' +
       '<div class="doc-field-btns">' +
         '<button type="button" class="note-toggle" onclick="toggleNote(' + i + ')">' + (note ? 'Edit note' : '+ Add note') + '</button>' +
-        '<button type="button" class="note-toggle" onclick="uploadFormDoc(' + i + ',\'' + d.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">' + upIco + ' Upload</button>' +
+        '<button type="button" class="note-toggle upload-btn" style="display:' + (st === 'pending' ? '' : 'none') + '" onclick="uploadFormDoc(' + i + ',\'' + d.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">' + upIco + ' Upload</button>' +
       '</div>' +
       '<div class="note-in" style="display:' + (note ? 'block' : 'none') + '">' +
         '<input type="text" maxlength="300" placeholder="Optional note — e.g. FY 25-26 provisional pending" value="' + esc(note) + '">' +
@@ -1193,8 +1193,11 @@ function onEntityChange(){
 }
 
 function setDocStatus(i, v){
-  $('df' + i).dataset.status = v;
+  var el = $('df' + i);
+  el.dataset.status = v;
   paintSeg(i);
+  var upBtn = el.querySelector('.upload-btn');
+  if (upBtn) upBtn.style.display = v === 'pending' ? '' : 'none';
 }
 function paintSeg(i){
   var el = $('df' + i);
