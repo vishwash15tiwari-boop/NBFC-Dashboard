@@ -387,6 +387,44 @@
   .tip b{font-weight:700}
   .tip .t-sub{color:rgba(255,255,255,.72)}
 
+  /* ─── Drive upload UI ──────────────────────────────────────────────── */
+  .upload-btn{
+    display:inline-flex;align-items:center;gap:5px;margin-top:6px;
+    padding:4px 10px;border-radius:7px;border:1.5px solid var(--line);
+    background:transparent;color:var(--ink-3);font-size:11.5px;font-weight:600;
+    cursor:pointer;transition:all .15s ease;
+  }
+  .upload-btn:hover{border-color:rgba(0,166,81,.45);color:var(--rk-green-ink);background:var(--rk-green-tint-2)}
+  .upload-btn svg{width:13px;height:13px;flex:none}
+  .drive-link{
+    display:inline-flex;align-items:center;gap:4px;margin-top:5px;
+    font-size:11.5px;font-weight:600;color:var(--rk-green-ink);text-decoration:none;
+    padding:3px 8px;border-radius:6px;background:var(--rk-green-tint-2);border:1px solid rgba(0,166,81,.22);
+    transition:background .13s;
+  }
+  .drive-link:hover{background:rgba(0,166,81,.18)}
+  .drive-link svg{width:12px;height:12px;flex:none}
+  /* upload progress overlay */
+  #uploadOverlay{
+    display:none;position:fixed;inset:0;z-index:400;
+    background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+    align-items:center;justify-content:center;flex-direction:column;gap:16px;
+  }
+  #uploadOverlay.on{display:flex}
+  .upload-card{
+    background:var(--surface);border-radius:18px;padding:28px 36px 26px;
+    box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;
+    align-items:center;gap:14px;min-width:240px;text-align:center;
+  }
+  .upload-card .u-title{font-size:14px;font-weight:700;color:var(--ink)}
+  .upload-card .u-sub{font-size:12px;color:var(--ink-3)}
+  .upload-spinner{
+    width:40px;height:40px;border-radius:50%;
+    border:3.5px solid var(--line-2);border-top-color:var(--rk-green);
+    animation:spin .75s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
   /* ─── Responsive ────────────────────────────────────────────────────── */
   @media (max-width:1100px){
     .ov-top{grid-template-columns:1fr 260px}
@@ -413,6 +451,18 @@
     .doc-field-top{flex-wrap:wrap}
   }
 </style>
+
+<!-- Hidden file input for Drive uploads -->
+<input type="file" id="fileInput" style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.heic">
+
+<!-- Upload progress overlay -->
+<div id="uploadOverlay" role="dialog" aria-modal="true">
+  <div class="upload-card">
+    <div class="upload-spinner"></div>
+    <div class="u-title">Uploading to Drive…</div>
+    <div class="u-sub" id="uploadDocName"></div>
+  </div>
+</div>
 
 <!-- ─── Top bar ─────────────────────────────────────────────────────────── -->
 <header class="topbar">
@@ -969,9 +1019,9 @@ function openDetail(row){
 
   var groups = {pending: [], received: [], na: []};
   D.docs.forEach(function(d){
-    var cell = s.docs[d.key] || {status:'pending', note:''};
+    var cell = s.docs[d.key] || {status:'pending', note:'', driveUrl:''};
     groups[cell.status === 'received' ? 'received' : cell.status === 'na' ? 'na' : 'pending']
-      .push({key: d.key, note: cell.note});
+      .push({key: d.key, note: cell.note, driveUrl: cell.driveUrl || ''});
   });
 
   var ICO = {
@@ -979,14 +1029,23 @@ function openDetail(row){
     received:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--rk-green)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
     na:      '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--gray-dot)" stroke-width="2.1" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>'
   };
+  var driveIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>';
+  var uploadIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
   function group(title, arr, kind){
     if (!arr.length) return '';
     return '<div class="doc-group"><h4>' + title + ' <span class="chip ' +
       (kind==='pending'?'warn':kind==='received'?'ok':'mut') + '">' + arr.length + '</span></h4>' +
       arr.map(function(d){
+        var extra = '';
+        if (kind === 'pending') {
+          extra = '<button class="upload-btn" onclick="uploadDoc(' + row + ',\'' + d.key.replace(/'/g, "\\'") + '\')">' + uploadIco + 'Upload to Drive</button>';
+        } else if (kind === 'received' && d.driveUrl) {
+          extra = '<a class="drive-link" href="' + esc(d.driveUrl) + '" target="_blank" rel="noopener">' + driveIco + 'View in Drive</a>';
+        }
         return '<div class="doc-item"><span class="di-ico">' + ICO[kind] + '</span>' +
-          '<div><div class="di-name">' + esc(d.key) + '</div>' +
-          (d.note ? '<div class="di-note">' + esc(d.note) + '</div>' : '') + '</div></div>';
+          '<div style="flex:1;min-width:0"><div class="di-name">' + esc(d.key) + '</div>' +
+          (d.note ? '<div class="di-note">' + esc(d.note) + '</div>' : '') +
+          extra + '</div></div>';
       }).join('') + '</div>';
   }
 
@@ -1254,6 +1313,58 @@ window.addEventListener('focus', function(){
   if (!D) return;
   var now = Date.now();
   if (now - lastFocusRefresh > 60000){ lastFocusRefresh = now; refresh(true); }
+});
+
+/* ═══════════════════ Drive document upload ═════════════════════════════ */
+
+var _uploadRow = null, _uploadKey = null;
+
+function uploadDoc(row, docKey) {
+  _uploadRow = row;
+  _uploadKey = docKey;
+  var inp = $('fileInput');
+  inp.value = '';
+  inp.click();
+}
+
+$('fileInput').addEventListener('change', function () {
+  var file = this.files[0];
+  if (!file || _uploadRow === null) return;
+
+  var MAX_BYTES = 15 * 1024 * 1024; // 15 MB
+  if (file.size > MAX_BYTES) {
+    toast('File is too large (max 15 MB). Please compress or split the document.', 'err');
+    return;
+  }
+
+  var docKey = _uploadKey;
+  var row = _uploadRow;
+  $('uploadDocName').textContent = docKey;
+  $('uploadOverlay').classList.add('on');
+
+  var reader = new FileReader();
+  reader.onload = function (ev) {
+    run('uploadDocument', {
+      row: row,
+      docKey: docKey,
+      fileName: file.name,
+      mimeType: file.type || 'application/octet-stream',
+      base64Data: ev.target.result
+    }).then(function (fresh) {
+      $('uploadOverlay').classList.remove('on');
+      onData(fresh);
+      openDetail(fresh.savedRow);
+      toast('✓ ' + docKey + ' uploaded and marked Received in the sheet');
+    }).catch(function (err) {
+      $('uploadOverlay').classList.remove('on');
+      toast('Upload failed: ' + ((err && err.message) || String(err)), 'err');
+    });
+  };
+  reader.onerror = function () {
+    $('uploadOverlay').classList.remove('on');
+    toast('Could not read the file. Please try again.', 'err');
+  };
+  reader.readAsDataURL(file);
 });
 
 boot();

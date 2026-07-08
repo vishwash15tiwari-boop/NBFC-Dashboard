@@ -314,7 +314,9 @@ function getInitialData() {
   var optionValues = {}; // distinct existing values per meta header, for form suggestions
 
   if (lastRow > 1) {
-    var values = tracker.getRange(2, 1, lastRow - 1, tracker.getLastColumn()).getDisplayValues();
+    var dataRange = tracker.getRange(2, 1, lastRow - 1, tracker.getLastColumn());
+    var values = dataRange.getDisplayValues();
+    var allNotes = dataRange.getNotes();
     values.forEach(function (row, i) {
       var meta = {};
       layout.metaIdx.forEach(function (idx) { meta[layout.headers[idx]] = String(row[idx]).trim(); });
@@ -330,11 +332,14 @@ function getInitialData() {
       var serial = parseInt(row[layout.serialIdx], 10);
       if (!isNaN(serial) && serial > maxSerial) maxSerial = serial;
 
+      var rowNotes = allNotes[i] || [];
       var docStates = {};
       var received = 0, pending = 0, na = 0;
       layout.docIdx.forEach(function (idx) {
         var parsed = parseStatus_(row[idx]);
-        docStates[layout.headers[idx]] = { raw: String(row[idx]).trim(), status: parsed.status, note: parsed.note };
+        var cellNote = String(rowNotes[idx] || '').trim();
+        var driveUrl = /^https?:\/\//.test(cellNote) ? cellNote : '';
+        docStates[layout.headers[idx]] = { raw: String(row[idx]).trim(), status: parsed.status, note: parsed.note, driveUrl: driveUrl };
         if (parsed.status === 'received') received++;
         else if (parsed.status === 'na') na++;
         else pending++;
@@ -548,6 +553,119 @@ function saveSeller(payload) {
     var fresh = getInitialData();
     fresh.savedRow = writeRow;
     fresh.savedAction = targetRow ? 'updated' : 'created';
+    return fresh;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/* ────────────────────────── Drive integration ───────────────────────────── */
+
+var DRIVE_ROOT_NAME = 'NBFC Documents';
+var PROP_DRIVE_ROOT = 'DRIVE_ROOT_FOLDER_ID';
+
+function getOrCreateRootFolder_() {
+  var props = PropertiesService.getScriptProperties();
+  var savedId = props.getProperty(PROP_DRIVE_ROOT);
+  if (savedId) {
+    try { return DriveApp.getFolderById(savedId); } catch (e) { /* stale */ }
+  }
+  var it = DriveApp.getFoldersByName(DRIVE_ROOT_NAME);
+  if (it.hasNext()) {
+    var found = it.next();
+    props.setProperty(PROP_DRIVE_ROOT, found.getId());
+    return found;
+  }
+  var created = DriveApp.createFolder(DRIVE_ROOT_NAME);
+  props.setProperty(PROP_DRIVE_ROOT, created.getId());
+  return created;
+}
+
+function getOrCreateSellerFolder_(sellerName, gst) {
+  var root = getOrCreateRootFolder_();
+  var safe = function (s) { return String(s || '').replace(/[\\\/:\*\?"<>\|]/g, '_').trim(); };
+  var folderName = sellerName && gst
+    ? safe(sellerName) + ' (' + safe(gst) + ')'
+    : safe(gst || sellerName || 'Unknown');
+  var it = root.getFoldersByName(folderName);
+  if (it.hasNext()) return it.next();
+  return root.createFolder(folderName);
+}
+
+/**
+ * Receives a base64-encoded document from the browser, saves it to a per-seller
+ * folder in Google Drive, marks the sheet cell as Received, stores the Drive URL
+ * in the cell note, and returns a fresh data payload.
+ *
+ * payload = {
+ *   row:       sheet row number (1-based),
+ *   docKey:    tracker column header for this document,
+ *   fileName:  original filename,
+ *   mimeType:  MIME type string,
+ *   base64Data: data-URL string (data:[type];base64,[data]) or raw base64
+ * }
+ */
+function uploadDocument(payload) {
+  if (!payload || !payload.base64Data || !payload.row || !payload.docKey) {
+    throw new Error('uploadDocument: row, docKey and base64Data are required.');
+  }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var ss = getSpreadsheet_();
+    var tracker = findSheet_(ss, CONFIG.TRACKER);
+    var layout = readTrackerLayout_(tracker);
+
+    var targetRow = Number(payload.row);
+    if (targetRow < 2) throw new Error('Invalid row number.');
+
+    var lastCol = tracker.getLastColumn();
+    var rowData = tracker.getRange(targetRow, 1, 1, lastCol).getDisplayValues()[0];
+
+    // Pull seller name and GST from the row (same logic as saveSeller).
+    var sellerName = '', gst = '';
+    layout.metaIdx.forEach(function (idx) {
+      var h = layout.headers[idx], t = metaFieldType_(h);
+      if (t === 'gst' && !gst) gst = String(rowData[idx]).trim().toUpperCase();
+      if (!sellerName && normKey_(h).indexOf('name') !== -1) sellerName = String(rowData[idx]).trim();
+    });
+
+    var docColIdx = layout.headers.indexOf(payload.docKey);
+    if (docColIdx < 0) throw new Error('Document column not found: ' + payload.docKey);
+
+    // Decode and create the file blob.
+    var raw = String(payload.base64Data).replace(/^data:[^;]+;base64,/, '');
+    var bytes = Utilities.base64Decode(raw);
+    var mime = payload.mimeType || 'application/octet-stream';
+    var fname = payload.fileName || (payload.docKey.replace(/[^a-zA-Z0-9 _-]/g, '_') + '.pdf');
+    var blob = Utilities.newBlob(bytes, mime, fname);
+
+    // Save to Drive: remove any previous version with the same name.
+    var folder = getOrCreateSellerFolder_(sellerName, gst);
+    var existing = folder.getFilesByName(fname);
+    while (existing.hasNext()) existing.next().setTrashed(true);
+    var driveFile = folder.createFile(blob);
+    driveFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    var fileUrl = driveFile.getUrl();
+
+    // Write "Received" to the cell and the Drive URL into the cell note.
+    var cell = tracker.getRange(targetRow, docColIdx + 1);
+    cell.setValue('Received');
+    cell.setNote(fileUrl);
+
+    // Recount pending docs (use updated value for this cell).
+    var pendingCount = 0;
+    layout.docIdx.forEach(function (idx) {
+      var val = (idx === docColIdx) ? 'Received' : String(rowData[idx]).trim();
+      if (parseStatus_(val).status === 'pending') pendingCount++;
+    });
+    tracker.getRange(targetRow, layout.pendingIdx + 1).setValue(pendingCount);
+    SpreadsheetApp.flush();
+
+    var fresh = getInitialData();
+    fresh.savedRow = targetRow;
+    fresh.uploadedDoc = payload.docKey;
+    fresh.driveUrl = fileUrl;
     return fresh;
   } finally {
     lock.releaseLock();
