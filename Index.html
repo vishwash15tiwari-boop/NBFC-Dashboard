@@ -70,76 +70,111 @@
   .btn-primary svg{width:15px;height:15px}
   .btn-primary[disabled]{opacity:.6;cursor:default;transform:none}
 
+  /* ─── Animations ────────────────────────────────────────────────────── */
+  @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @keyframes fadeSlideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes pendPulse{0%,100%{box-shadow:0 0 0 0 rgba(217,119,6,.28)}55%{box-shadow:0 0 0 5px rgba(217,119,6,0)}}
+  @keyframes barGrow{from{flex:0!important}to{}}
+
   /* ─── Layout & nav ──────────────────────────────────────────────────── */
-  .shell{max-width:1240px;margin:0 auto;padding:24px 28px 64px}
-  .seg-nav{display:inline-flex;background:#EDF1EF;border-radius:11px;padding:3px;margin-bottom:22px}
+  .shell{max-width:1260px;margin:0 auto;padding:18px 24px 48px}
+  .seg-nav{display:inline-flex;background:#EDF1EF;border-radius:11px;padding:3px;margin-bottom:16px}
   .seg-nav button{
     padding:7px 18px;border-radius:8px;font-size:13px;font-weight:600;color:var(--ink-3);
     transition:all .18s ease;
   }
   .seg-nav button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-sm)}
-  .view{display:none;animation:fadeUp .25s ease}
+  .view{display:none;animation:fadeUp .22s ease}
   .view.on{display:block}
-  @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
   /* ─── Cards & KPIs ──────────────────────────────────────────────────── */
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
-  .card-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:18px 20px 0}
-  .card-h h3{font-size:14px;font-weight:700;letter-spacing:-.01em}
-  .card-h .hint{font-size:11.5px;color:var(--ink-3);font-weight:500}
-  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:14px}
-  .kpi{padding:16px 18px 15px;display:flex;flex-direction:column;gap:2px;position:relative;overflow:hidden}
-  .kpi .lbl{font-size:11.5px;font-weight:600;color:var(--ink-3);letter-spacing:.02em;text-transform:uppercase}
-  .kpi .val{font-size:27px;font-weight:800;letter-spacing:-.03em;line-height:1.15}
-  .kpi .sub{font-size:11.5px;color:var(--ink-3)}
-  .kpi.hero{background:linear-gradient(135deg,#04331C 0%,#065F32 58%,#0B7A41 100%);border-color:transparent;color:#fff;padding-right:88px}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow-sm);transition:box-shadow .2s ease,border-color .2s ease;
+  }
+  .card:hover{box-shadow:var(--shadow-md);border-color:#D9E3DE}
+  .card-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:14px 18px 0}
+  .card-h h3{font-size:13.5px;font-weight:700;letter-spacing:-.01em}
+  .card-h .hint{font-size:11px;color:var(--ink-3);font-weight:500}
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:10px}
+  .kpi{padding:14px 16px 12px;display:flex;flex-direction:column;gap:2px;position:relative;overflow:hidden;transition:box-shadow .2s ease,transform .2s ease}
+  .kpi:not(.hero):hover{transform:translateY(-1px);box-shadow:var(--shadow-md)}
+  .kpi .lbl{font-size:10.5px;font-weight:700;color:var(--ink-3);letter-spacing:.03em;text-transform:uppercase}
+  .kpi .val{font-size:25px;font-weight:800;letter-spacing:-.03em;line-height:1.15}
+  .kpi .sub{font-size:11px;color:var(--ink-3)}
+  .kpi.hero{background:linear-gradient(135deg,#04331C 0%,#065F32 58%,#0B7A41 100%);border-color:transparent;color:#fff;padding-right:84px}
   .kpi.hero .lbl{color:rgba(255,255,255,.72)}
   .kpi.hero .sub{color:rgba(255,255,255,.66)}
   .kpi.hero .val{color:#fff}
-  .kpi-ring{position:absolute;right:12px;top:50%;transform:translateY(-50%)}
-  .kpi-accent{width:26px;height:3px;border-radius:2px;margin-bottom:8px}
+  .kpi-ring{position:absolute;right:10px;top:50%;transform:translateY(-50%)}
+  .kpi-accent{width:24px;height:3px;border-radius:2px;margin-bottom:6px}
 
-  .grid-2{display:grid;grid-template-columns:1.55fr 1fr;gap:14px;align-items:start}
-  .stack{display:grid;gap:14px}
+  .grid-2{display:grid;grid-template-columns:1.45fr 1fr;gap:12px;align-items:start}
+  .stack{display:grid;gap:12px}
 
   /* ─── Document bars ─────────────────────────────────────────────────── */
-  .docbars{padding:4px 20px 16px}
+  .docbars{padding:4px 14px 12px;display:grid;grid-template-columns:1fr 1fr;column-gap:6px}
   .docbar{
-    display:grid;grid-template-columns:minmax(140px,1fr) 2.2fr 72px;
-    gap:14px;align-items:center;padding:7px 10px;border-radius:9px;
-    transition:background .12s;position:relative;
+    display:grid;grid-template-columns:minmax(96px,.9fr) 1.6fr 50px;
+    gap:8px;align-items:center;padding:4px 6px;border-radius:7px;
+    transition:background .1s;
+    animation:fadeSlideUp .3s ease both;animation-delay:calc(var(--db-i,0)*30ms);
   }
   .docbar:hover{background:var(--rk-green-tint-2)}
-  .docbar .name{font-size:12.5px;font-weight:500;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
-  .docbar.has-pen .name{color:var(--ink);font-weight:600}
+  .docbar .name{font-size:11px;font-weight:500;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+  .docbar.has-pen .name{color:var(--ink);font-weight:700}
   /* stacked proportion bar */
-  .strack{height:7px;border-radius:5px;overflow:hidden;display:flex;background:var(--line-2);gap:1px}
-  .strack .s-rec{background:var(--rk-green);height:100%;border-radius:5px 0 0 5px;min-width:0;transition:flex .6s cubic-bezier(.22,1,.36,1)}
-  .strack .s-pen{background:var(--amber);opacity:.88;height:100%;min-width:0;transition:flex .6s cubic-bezier(.22,1,.36,1) .05s}
+  .strack{height:5px;border-radius:4px;overflow:hidden;display:flex;background:var(--line-2)}
+  .strack .s-rec{background:var(--rk-green);height:100%;border-radius:4px 0 0 4px;min-width:0;transition:flex .65s cubic-bezier(.22,1,.36,1)}
+  .strack .s-pen{background:var(--amber);opacity:.88;height:100%;min-width:0;transition:flex .65s cubic-bezier(.22,1,.36,1) .05s}
   /* stat badge */
-  .dstat{font-size:11.5px;font-weight:600;text-align:right;white-space:nowrap;line-height:1.3}
+  .dstat{font-size:10.5px;font-weight:600;text-align:right;white-space:nowrap;line-height:1.3}
   .dstat.pen{color:var(--amber)}
   .dstat.ok{color:var(--rk-green-ink)}
   .dstat.muted{color:var(--ink-3);font-weight:400}
   /* keep legacy .track/.fill for sellers table + mini-track */
-  .track{height:7px;background:var(--line-2);border-radius:4px;overflow:hidden;position:relative}
+  .track{height:6px;background:var(--line-2);border-radius:4px;overflow:hidden;position:relative}
   .fill{height:100%;background:var(--rk-green);border-radius:4px;transition:width .5s cubic-bezier(.22,1,.36,1)}
-  .legend{display:flex;gap:16px;align-items:center;padding:0 20px 8px;font-size:11.5px;color:var(--ink-3);font-weight:500}
-  .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .legend{display:flex;gap:14px;align-items:center;padding:0 14px 6px;font-size:11px;color:var(--ink-3);font-weight:500}
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 
-  /* ─── Attention list ────────────────────────────────────────────────── */
-  .attn{padding:6px 12px 12px}
-  .attn-row{display:flex;align-items:center;gap:12px;padding:10px 8px;border-radius:10px;cursor:pointer;transition:background .12s}
-  .attn-row:hover{background:var(--rk-green-tint-2)}
-  .attn-row + .attn-row{border-top:1px solid var(--line-2)}
-  .avatar{
-    width:34px;height:34px;border-radius:10px;background:var(--rk-green-tint);color:var(--rk-green-ink);
-    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12.5px;flex:none;
+  /* ─── Attention cards ───────────────────────────────────────────────── */
+  .attn{padding:8px 10px 10px;display:flex;flex-direction:column;gap:6px}
+  .attn-card{
+    background:#FAFCFB;border:1px solid var(--line);border-radius:11px;
+    padding:10px 12px;cursor:pointer;
+    transition:all .18s ease;
+    animation:fadeSlideUp .32s ease both;
   }
-  .attn-main{flex:1;min-width:0}
-  .attn-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .attn-sub{font-size:11.5px;color:var(--ink-3)}
-  .attn-right{text-align:right;flex:none}
+  .attn-card:hover{
+    border-color:rgba(0,166,81,.3);background:var(--rk-green-tint-2);
+    transform:translateY(-1px);box-shadow:var(--shadow-md);
+  }
+  .attn-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .avatar{
+    width:30px;height:30px;border-radius:8px;background:var(--rk-green-tint);color:var(--rk-green-ink);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11.5px;flex:none;
+  }
+  .attn-info{flex:1;min-width:0}
+  .attn-name{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+  .attn-type{font-size:10.5px;color:var(--ink-3);margin-top:1px}
+  .attn-cnt{
+    flex:none;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;
+    background:var(--amber-tint);color:#92400E;
+    animation:pendPulse 2.6s ease-in-out infinite;
+  }
+  .attn-docs{display:flex;flex-wrap:wrap;gap:3px 4px}
+  .doc-chk{
+    display:inline-flex;align-items:center;gap:3px;
+    padding:2px 7px 2px 5px;border-radius:5px;
+    background:rgba(217,119,6,.09);color:#92400E;
+    font-size:10px;font-weight:600;line-height:1.4;
+    border:1px solid rgba(217,119,6,.18);
+  }
+  .doc-chk svg{width:8px;height:8px;flex:none;opacity:.65}
+  .attn-prog{height:3px;background:var(--line-2);border-radius:2px;overflow:hidden;margin-top:8px}
+  .attn-prog-fill{height:100%;background:var(--rk-green);border-radius:2px;transition:width .5s cubic-bezier(.22,1,.36,1)}
+  /* chips used elsewhere */
   .chip{
     display:inline-flex;align-items:center;gap:5px;padding:2.5px 9px;border-radius:999px;
     font-size:11px;font-weight:700;white-space:nowrap;
@@ -147,7 +182,7 @@
   .chip.warn{background:var(--amber-tint);color:#92400E}
   .chip.ok{background:var(--rk-green-tint);color:var(--rk-green-ink)}
   .chip.mut{background:#F2F4F3;color:var(--ink-3)}
-  .mini-track{width:88px;height:5px;background:var(--line-2);border-radius:3px;overflow:hidden;margin-top:5px;margin-left:auto}
+  .mini-track{width:80px;height:4px;background:var(--line-2);border-radius:2px;overflow:hidden;margin-top:5px;margin-left:auto}
 
   /* ─── Breakdown chips ───────────────────────────────────────────────── */
   .facets{padding:6px 20px 18px;display:grid;gap:14px}
@@ -565,6 +600,17 @@ function initials(name){
   return ((p[0]||'')[0]||'•').toUpperCase() + ((p[1]||'')[0]||'').toUpperCase();
 }
 function pct(n){ return (Math.round(n*10)/10) + '%'; }
+function animCount(el, to, suffix, dur){
+  if (!el) return;
+  var start = null, ease = function(t){ return 1 - Math.pow(1 - t, 3); };
+  var step = function(ts){
+    if (!start) start = ts;
+    var p = Math.min((ts - start) / (dur || 680), 1);
+    el.textContent = Math.round(ease(p) * to) + (suffix || '');
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
 function run(fn){
   var args = Array.prototype.slice.call(arguments, 1);
   return new Promise(function(res, rej){
@@ -689,14 +735,19 @@ function renderOverview(){
   $('kpis').innerHTML =
     '<div class="card kpi hero">' +
       '<span class="lbl">Portfolio completion</span>' +
-      '<span class="val">' + pct(t.completion) + '</span>' +
+      '<span class="val" id="kv0">' + pct(t.completion) + '</span>' +
       '<span class="sub">' + t.received + ' of ' + t.applicable + ' required documents in</span>' +
-      '<span class="kpi-ring">' + ringSvg(t.completion, 62, 7, 'rgba(255,255,255,.22)', '#3DDC84') + '</span>' +
+      '<span class="kpi-ring">' + ringSvg(t.completion, 60, 6, 'rgba(255,255,255,.22)', '#3DDC84') + '</span>' +
     '</div>' +
-    kpiTile('Total Sellers', t.sellers, t.complete + ' fully complete', 'var(--rk-green)') +
-    kpiTile('Documents received', t.received, 'across all sellers', 'var(--rk-green)') +
-    kpiTile('Documents pending', t.pending, t.pending ? 'need follow-up' : 'nothing outstanding', 'var(--amber)') +
-    kpiTile('Not applicable', t.na, 'per entity-type checklist', 'var(--gray-dot)');
+    kpiTile('Total Sellers', t.sellers, t.complete + ' fully complete', 'var(--rk-green)', 'kv1') +
+    kpiTile('Documents received', t.received, 'across all sellers', 'var(--rk-green)', 'kv2') +
+    kpiTile('Documents pending', t.pending, t.pending ? 'need follow-up' : 'nothing outstanding', 'var(--amber)', 'kv3') +
+    kpiTile('Not applicable', t.na, 'per entity-type checklist', 'var(--gray-dot)', 'kv4');
+  /* countup animate integer KPIs */
+  animCount($('kv1'), t.sellers);
+  animCount($('kv2'), t.received);
+  animCount($('kv3'), t.pending);
+  animCount($('kv4'), t.na);
 
   /* document-wise bars */
   var rows = D.docs.map(function(doc){
@@ -709,17 +760,14 @@ function renderOverview(){
     return {key: doc.key, rec: rec, pen: pen, na: na, app: app, p: app ? rec/app*100 : 0};
   }).sort(function(a,b){ return b.pen - a.pen || a.p - b.p; });
 
-  $('docBars').innerHTML = rows.map(function(r){
+  $('docBars').innerHTML = rows.map(function(r, i){
     var tipTxt = '<b>' + esc(r.key) + '</b><br><span class="t-sub">' +
       r.rec + ' received · ' + r.pen + ' pending · ' + r.na + ' not applicable</span>';
-    var total = r.rec + r.pen + r.na;
-    /* stacked bar: flex units so proportions are automatic */
     var bar = r.app === 0
-      ? '<div class="strack" style="opacity:.35"><div class="s-rec" style="flex:0"></div></div>'
+      ? '<div class="strack" style="opacity:.3"><div class="s-rec" style="flex:0"></div></div>'
       : '<div class="strack">' +
           '<div class="s-rec" style="flex:' + r.rec + '"></div>' +
           '<div class="s-pen" style="flex:' + r.pen + '"></div>' +
-          /* remaining flex fills gray background */
         '</div>';
     var badge = r.app === 0
       ? '<div class="dstat muted">N/A</div>'
@@ -727,28 +775,42 @@ function renderOverview(){
         ? '<div class="dstat ok">' + r.rec + '/' + r.app + '</div>'
         : '<div class="dstat pen">' + r.pen + ' left</div>';
     var hasPen = r.pen > 0 ? ' has-pen' : '';
-    return '<div class="docbar' + hasPen + '" data-tip="' + esc(tipTxt) + '">' +
+    return '<div class="docbar' + hasPen + '" data-tip="' + esc(tipTxt) + '" style="--db-i:' + i + '">' +
       '<span class="name" title="' + esc(r.key) + '">' + esc(docShort(r.key)) + '</span>' +
-      bar +
-      badge +
+      bar + badge +
     '</div>';
   }).join('') || '<div class="empty-cell">No document columns found.</div>';
 
   /* needs attention */
+  var checkIcon = '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="1" y="1" width="8" height="8" rx="1.5"/></svg>';
   var attn = D.sellers.slice().sort(function(a,b){ return b.pending - a.pending || a.completion - b.completion; });
   var withPending = attn.filter(function(s){ return s.pending > 0; });
   $('attnList').innerHTML = withPending.length
-    ? withPending.slice(0, 6).map(function(s){
+    ? withPending.slice(0, 6).map(function(s, i){
         var nm = nameHeader ? s.meta[nameHeader] : ('Row ' + s.row);
-        return '<div class="attn-row" onclick="openDetail(' + s.row + ')">' +
-          '<div class="avatar">' + esc(initials(nm)) + '</div>' +
-          '<div class="attn-main"><div class="attn-name">' + esc(nm) + '</div>' +
-            '<div class="attn-sub">' + esc(s.meta[fieldByType.entity] || '') + '</div></div>' +
-          '<div class="attn-right"><span class="chip warn">' + s.pending + ' pending</span>' +
-            '<div class="mini-track"><div class="fill" style="width:' + s.completion + '%"></div></div></div>' +
+        var pendingDocs = D.docs.filter(function(d){
+          return (s.docs[d.key] || {}).status === 'pending';
+        }).map(function(d){
+          var k = d.key, short = k.length > 30 ? k.slice(0, 28).replace(/[,;:\s–-]+$/, '') + '…' : k;
+          return {full: k, short: short};
+        });
+        var docChips = pendingDocs.map(function(d){
+          return '<span class="doc-chk" title="' + esc(d.full) + '">' + checkIcon + esc(d.short) + '</span>';
+        }).join('');
+        return '<div class="attn-card" onclick="openDetail(' + s.row + ')" style="animation-delay:' + (i*55) + 'ms">' +
+          '<div class="attn-head">' +
+            '<div class="avatar">' + esc(initials(nm)) + '</div>' +
+            '<div class="attn-info">' +
+              '<div class="attn-name">' + esc(nm) + '</div>' +
+              '<div class="attn-type">' + esc(s.meta[fieldByType.entity] || '') + '</div>' +
+            '</div>' +
+            '<span class="attn-cnt">' + s.pending + ' pending</span>' +
+          '</div>' +
+          '<div class="attn-docs">' + docChips + '</div>' +
+          '<div class="attn-prog"><div class="attn-prog-fill" style="width:' + s.completion + '%"></div></div>' +
         '</div>';
       }).join('')
-    : '<div class="empty-cell">🎉 Every seller\'s checklist is complete.</div>';
+    : '<div class="empty-cell" style="padding:24px 12px">Every seller\'s checklist is complete.</div>';
 
   /* facets */
   $('facets').innerHTML = ['Region','Entity'].map(function(kind){
@@ -768,9 +830,10 @@ function renderOverview(){
   }).join('');
 }
 
-function kpiTile(lbl, val, sub, accent){
+function kpiTile(lbl, val, sub, accent, id){
+  var idAttr = id ? ' id="' + id + '"' : '';
   return '<div class="card kpi"><div class="kpi-accent" style="background:' + accent + '"></div>' +
-    '<span class="lbl">' + esc(lbl) + '</span><span class="val">' + esc(val) + '</span>' +
+    '<span class="lbl">' + esc(lbl) + '</span><span class="val"' + idAttr + '>' + esc(val) + '</span>' +
     '<span class="sub">' + esc(sub) + '</span></div>';
 }
 
