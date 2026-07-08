@@ -580,32 +580,14 @@ function saveSeller(payload) {
 
 /* ────────────────────────── Drive integration ───────────────────────────── */
 
-var DRIVE_ROOT_NAME = 'NBFC Documents';
-var PROP_DRIVE_ROOT = 'DRIVE_ROOT_FOLDER_ID';
-
-function getOrCreateRootFolder_() {
-  var props = PropertiesService.getScriptProperties();
-  var savedId = props.getProperty(PROP_DRIVE_ROOT);
-  if (savedId) {
-    try { return DriveApp.getFolderById(savedId); } catch (e) { /* stale */ }
-  }
-  var it = DriveApp.getFoldersByName(DRIVE_ROOT_NAME);
-  if (it.hasNext()) {
-    var found = it.next();
-    props.setProperty(PROP_DRIVE_ROOT, found.getId());
-    return found;
-  }
-  var created = DriveApp.createFolder(DRIVE_ROOT_NAME);
-  props.setProperty(PROP_DRIVE_ROOT, created.getId());
-  return created;
-}
+var DRIVE_ROOT_ID = '1i5melXCocWrV9rR-3gM75wwSwWy7Dqit';
 
 function getOrCreateSellerFolder_(sellerName, gst) {
-  var root = getOrCreateRootFolder_();
+  var root = DriveApp.getFolderById(DRIVE_ROOT_ID);
   var safe = function (s) { return String(s || '').replace(/[\\\/:\*\?"<>\|]/g, '_').trim(); };
-  var folderName = sellerName && gst
-    ? safe(sellerName) + ' (' + safe(gst) + ')'
-    : safe(gst || sellerName || 'Unknown');
+  var folderName = sellerName
+    ? safe(sellerName)
+    : safe(gst || 'Unknown');
   var it = root.getFoldersByName(folderName);
   if (it.hasNext()) return it.next();
   return root.createFolder(folderName);
