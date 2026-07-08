@@ -103,15 +103,28 @@
   .stack{display:grid;gap:14px}
 
   /* ─── Document bars ─────────────────────────────────────────────────── */
-  .docbars{padding:8px 20px 18px}
-  .docbar{display:grid;grid-template-columns:minmax(150px,1.15fr) 2fr auto;gap:12px;align-items:center;padding:8px 0;border-radius:8px}
+  .docbars{padding:4px 20px 16px}
+  .docbar{
+    display:grid;grid-template-columns:minmax(140px,1fr) 2.2fr 72px;
+    gap:14px;align-items:center;padding:7px 10px;border-radius:9px;
+    transition:background .12s;position:relative;
+  }
   .docbar:hover{background:var(--rk-green-tint-2)}
-  .docbar .name{font-size:12.5px;font-weight:500;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .track{height:8px;background:var(--line-2);border-radius:4px;overflow:hidden;position:relative}
+  .docbar .name{font-size:12.5px;font-weight:500;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+  .docbar.has-pen .name{color:var(--ink);font-weight:600}
+  /* stacked proportion bar */
+  .strack{height:7px;border-radius:5px;overflow:hidden;display:flex;background:var(--line-2);gap:1px}
+  .strack .s-rec{background:var(--rk-green);height:100%;border-radius:5px 0 0 5px;min-width:0;transition:flex .6s cubic-bezier(.22,1,.36,1)}
+  .strack .s-pen{background:var(--amber);opacity:.88;height:100%;min-width:0;transition:flex .6s cubic-bezier(.22,1,.36,1) .05s}
+  /* stat badge */
+  .dstat{font-size:11.5px;font-weight:600;text-align:right;white-space:nowrap;line-height:1.3}
+  .dstat.pen{color:var(--amber)}
+  .dstat.ok{color:var(--rk-green-ink)}
+  .dstat.muted{color:var(--ink-3);font-weight:400}
+  /* keep legacy .track/.fill for sellers table + mini-track */
+  .track{height:7px;background:var(--line-2);border-radius:4px;overflow:hidden;position:relative}
   .fill{height:100%;background:var(--rk-green);border-radius:4px;transition:width .5s cubic-bezier(.22,1,.36,1)}
-  .docbar .stat{font-size:12px;font-weight:600;color:var(--ink-2);min-width:76px;text-align:right;white-space:nowrap}
-  .docbar .stat .pend{color:var(--amber);font-weight:700}
-  .legend{display:flex;gap:16px;align-items:center;padding:0 20px 6px;font-size:11.5px;color:var(--ink-3);font-weight:500}
+  .legend{display:flex;gap:16px;align-items:center;padding:0 20px 8px;font-size:11.5px;color:var(--ink-3);font-weight:500}
   .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 
   /* ─── Attention list ────────────────────────────────────────────────── */
@@ -422,7 +435,7 @@
           <div class="legend">
             <span><i style="background:var(--rk-green)"></i>Received</span>
             <span><i style="background:var(--amber)"></i>Pending</span>
-            <span><i style="border:1.5px solid var(--gray-dot);background:transparent"></i>Not applicable</span>
+            <span><i style="background:var(--line-2)"></i>Not applicable</span>
           </div>
           <div class="docbars" id="docBars"></div>
         </div>
@@ -699,13 +712,25 @@ function renderOverview(){
   $('docBars').innerHTML = rows.map(function(r){
     var tipTxt = '<b>' + esc(r.key) + '</b><br><span class="t-sub">' +
       r.rec + ' received · ' + r.pen + ' pending · ' + r.na + ' not applicable</span>';
-    var stat = r.app === 0
-      ? '<span style="color:var(--ink-3)">NA for all</span>'
-      : r.rec + '/' + r.app + (r.pen ? ' · <span class="pend">' + r.pen + ' pending</span>' : '');
-    return '<div class="docbar" data-tip="' + esc(tipTxt) + '">' +
+    var total = r.rec + r.pen + r.na;
+    /* stacked bar: flex units so proportions are automatic */
+    var bar = r.app === 0
+      ? '<div class="strack" style="opacity:.35"><div class="s-rec" style="flex:0"></div></div>'
+      : '<div class="strack">' +
+          '<div class="s-rec" style="flex:' + r.rec + '"></div>' +
+          '<div class="s-pen" style="flex:' + r.pen + '"></div>' +
+          /* remaining flex fills gray background */
+        '</div>';
+    var badge = r.app === 0
+      ? '<div class="dstat muted">N/A</div>'
+      : r.pen === 0
+        ? '<div class="dstat ok">' + r.rec + '/' + r.app + '</div>'
+        : '<div class="dstat pen">' + r.pen + ' left</div>';
+    var hasPen = r.pen > 0 ? ' has-pen' : '';
+    return '<div class="docbar' + hasPen + '" data-tip="' + esc(tipTxt) + '">' +
       '<span class="name" title="' + esc(r.key) + '">' + esc(docShort(r.key)) + '</span>' +
-      '<div class="track"><div class="fill" style="width:' + r.p + '%"></div></div>' +
-      '<span class="stat">' + stat + '</span>' +
+      bar +
+      badge +
     '</div>';
   }).join('') || '<div class="empty-cell">No document columns found.</div>';
 
