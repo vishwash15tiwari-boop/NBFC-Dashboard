@@ -125,13 +125,23 @@
 
   /* ─── KPI detail drawer lists ───────────────────────────────────────── */
   .ks-sum{display:flex;gap:22px;align-items:center;padding:4px 0 16px;border-bottom:1px solid var(--line-2);margin-bottom:10px}
-  .ks-item{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;transition:background .12s}
+  .ks-item{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;transition:background .12s,transform .16s ease}
   .ks-item.link{cursor:pointer}
-  .ks-item.link:hover{background:var(--rk-green-tint-2)}
+  .ks-item.link:hover{background:var(--rk-green-tint-2);transform:translateX(3px)}
   .ks-item .ks-idx{width:24px;flex:none;font-size:11px;color:var(--ink-3);font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
   .ks-item .ks-name{font-size:13px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ks-item .ks-sub{font-size:11px;color:var(--ink-3);margin-top:1px}
   .ks-right{flex:none;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+
+  /* ─── UX polish ─────────────────────────────────────────────────────── */
+  .kpi .kpi-accent{transition:width .25s cubic-bezier(.22,1,.36,1)}
+  .kpi.click:hover .kpi-accent{width:38px}
+  .drawer-body::-webkit-scrollbar,.matrix-wrap::-webkit-scrollbar,.tbl-wrap::-webkit-scrollbar{width:8px;height:8px}
+  .drawer-body::-webkit-scrollbar-thumb,.matrix-wrap::-webkit-scrollbar-thumb,.tbl-wrap::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+  .drawer-body::-webkit-scrollbar-thumb:hover,.matrix-wrap::-webkit-scrollbar-thumb:hover,.tbl-wrap::-webkit-scrollbar-thumb:hover{background:#CBD5CE}
+  .drawer.on .drawer-body>*{animation:fadeSlideUp .28s ease both}
+  .drawer.on .drawer-body>*:nth-child(2){animation-delay:40ms}
+  .drawer.on .drawer-body>*:nth-child(3){animation-delay:80ms}
 
   /* overview-specific layout — eliminates dead space */
   .ov-top{display:grid;grid-template-columns:1fr 300px;gap:12px;align-items:start;margin-bottom:0}
@@ -732,6 +742,22 @@ function initials(name){
   var p = String(name||'').replace(/[^A-Za-z0-9 ]/g,' ').trim().split(/\s+/);
   return ((p[0]||'')[0]||'•').toUpperCase() + ((p[1]||'')[0]||'').toUpperCase();
 }
+
+/* Deterministic pastel avatar per name — same seller always gets the same colour. */
+var AV_COLORS = [
+  ['#E8F1FE','#1D4ED8'], ['#E7F7EF','#046C38'], ['#FDF3E3','#92400E'],
+  ['#F3E8FF','#7E22CE'], ['#FDE8F0','#BE185D'], ['#E0F2FE','#0369A1'],
+  ['#FEF3C7','#B45309'], ['#EDEFF3','#3F4A5A']
+];
+function avatarHtml(name, size){
+  var s = String(name||''), h = 0;
+  for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  var col = AV_COLORS[h % AV_COLORS.length];
+  var sz = size || 30;
+  return '<div class="avatar" style="width:' + sz + 'px;height:' + sz + 'px;font-size:' +
+    Math.max(Math.round(sz * 0.37), 9) + 'px;border-radius:' + Math.round(sz * 0.27) + 'px;background:' +
+    col[0] + ';color:' + col[1] + '">' + esc(initials(name)) + '</div>';
+}
 function pct(n){ return (Math.round(n*10)/10) + '%'; }
 function animCount(el, to, suffix, dur){
   if (!el) return;
@@ -873,20 +899,24 @@ function renderOverview(){
       '<span class="kpi-ring">' + ringSvg(t.completion, 60, 6, 'rgba(255,255,255,.22)', '#3DDC84') + '</span>' +
       KPI_GO +
     '</div>' +
-    kpiTile('Plastic sellers', sl.plastic, esc(sl.plasticName), 'var(--rk-green)', 'kv1', 'plastic') +
-    kpiTile('Metal sellers', sl.metal, esc(sl.metalName), 'var(--rk-green)', 'kv2', 'metal') +
-    kpiTile('Documents received', t.received,
-      given + ' of ' + t.sellers + ' seller' + (t.sellers === 1 ? '' : 's') + ' have given docs',
+    kpiTile('Plastic sellers', sl.plastic, sl.plasticName, 'var(--rk-green)', 'kv1', 'plastic') +
+    kpiTile('Metal sellers', sl.metal, sl.metalName, 'var(--rk-green)', 'kv2', 'metal') +
+    kpiTile('Sellers who shared documents', given,
+      given
+        ? t.received + ' document' + (t.received === 1 ? '' : 's') + ' received so far'
+        : 'no documents received yet',
       'var(--rk-green)', 'kv3', 'received') +
-    kpiTile('Documents pending', t.pending,
-      t.pending ? (t.complete + ' complete · ' + followUp + ' to follow up') : 'nothing outstanding',
-      'var(--amber)', 'kv4', 'pending');
+    kpiTile('Sellers completed', t.complete,
+      t.pending
+        ? followUp + ' to follow up · ' + t.pending + ' doc' + (t.pending === 1 ? '' : 's') + ' pending'
+        : 'every checklist complete',
+      (t.complete === t.sellers && t.sellers > 0) ? 'var(--rk-green)' : 'var(--amber)', 'kv4', 'pending');
   /* countup animate */
   animCount($('kv0'), totalList);
   animCount($('kv1'), sl.plastic);
   animCount($('kv2'), sl.metal);
-  animCount($('kv3'), t.received);
-  animCount($('kv4'), t.pending);
+  animCount($('kv3'), given);
+  animCount($('kv4'), t.complete);
 
   /* document-wise bars */
   var rows = D.docs.map(function(doc){
@@ -938,7 +968,7 @@ function renderOverview(){
         }).join('');
         return '<div class="attn-card" onclick="openDetail(' + s.row + ')" style="animation-delay:' + (i*55) + 'ms">' +
           '<div class="attn-head">' +
-            '<div class="avatar">' + esc(initials(nm)) + '</div>' +
+            avatarHtml(nm, 30) +
             '<div class="attn-info">' +
               '<div class="attn-name">' + esc(nm) + '</div>' +
               '<div class="attn-type">' + esc(s.meta[fieldByType.entity] || '') + '</div>' +
@@ -1005,7 +1035,7 @@ function nameRows_(arr){
   return arr.map(function(n, i){
     return '<div class="ks-item">' +
       '<span class="ks-idx">' + (i + 1) + '</span>' +
-      '<div class="avatar" style="width:26px;height:26px;font-size:10px;border-radius:7px">' + esc(initials(n)) + '</div>' +
+      avatarHtml(n, 26) +
       '<span class="ks-name" style="flex:1;min-width:0" title="' + esc(n) + '">' + esc(n) + '</span>' +
     '</div>';
   }).join('');
@@ -1017,7 +1047,7 @@ function trackerRows_(list, right){
     var nm = nameHeader ? (s.meta[nameHeader] || 'Row ' + s.row) : ('Row ' + s.row);
     var ent = s.meta[fieldByType.entity] || '';
     return '<div class="ks-item link" onclick="openDetail(' + s.row + ')" title="Open seller detail">' +
-      '<div class="avatar">' + esc(initials(nm)) + '</div>' +
+      avatarHtml(nm, 30) +
       '<div style="flex:1;min-width:0"><div class="ks-name">' + esc(nm) + '</div>' +
         (ent ? '<div class="ks-sub">' + esc(ent) + '</div>' : '') + '</div>' +
       '<div class="ks-right">' + right(s) + '</div>' +
@@ -1060,31 +1090,41 @@ function openKpi(kind){
   else if (kind === 'received'){
     var given = D.sellers.filter(function(s){ return s.received > 0; })
       .sort(function(a, b){ return b.received - a.received || a.pending - b.pending; });
-    title = 'Documents received';
+    var notStarted = D.sellers.filter(function(s){ return s.received === 0; })
+      .sort(function(a, b){ return b.pending - a.pending; });
+    title = 'Sellers who shared documents';
     meta = '<span><b style="color:var(--ink)">' + given.length + '</b> of ' + t.sellers +
-      ' tracked seller' + (t.sellers === 1 ? '' : 's') + ' have given documents</span>';
+      ' tracked seller' + (t.sellers === 1 ? '' : 's') + ' ' + (given.length === 1 ? 'has' : 'have') +
+      ' shared at least one document</span>';
     body =
       '<div class="ks-sum">' +
+        sumNum_(given.length, 'Sellers shared') +
         sumNum_(t.received, 'Docs received') +
-        sumNum_(given.length, 'Sellers gave docs') +
-        sumNum_(t.sellers - given.length, 'Not started') +
+        sumNum_(notStarted.length, 'Not started') +
       '</div>' +
-      (given.length
-        ? trackerRows_(given, function(s){
-            return '<span class="chip ok">' + s.received + '/' + s.applicable + ' given</span>' +
-              '<div class="mini-track"><div class="fill" style="width:' + s.completion + '%"></div></div>';
-          })
-        : '<div class="empty-cell">No documents received from any seller yet.</div>');
+      kpiGroup_('Shared documents', 'ok', given.length,
+        given.length
+          ? trackerRows_(given, function(s){
+              return '<span class="chip ok">' + s.received + '/' + s.applicable + ' given</span>' +
+                '<div class="mini-track"><div class="fill" style="width:' + s.completion + '%"></div></div>';
+            })
+          : '<div class="empty-cell" style="padding:18px">No documents received from any seller yet.</div>') +
+      (notStarted.length
+        ? kpiGroup_('Not started yet', 'mut', notStarted.length,
+            trackerRows_(notStarted, function(s){
+              return '<span class="chip mut">0 of ' + s.applicable + '</span>';
+            }))
+        : '');
   }
   else if (kind === 'pending'){
     var complete = D.sellers.filter(function(s){ return s.pending === 0 && s.applicable > 0; })
       .sort(function(a, b){ return b.received - a.received; });
     var open = D.sellers.filter(function(s){ return s.pending > 0; })
       .sort(function(a, b){ return b.pending - a.pending; });
-    title = 'Document completion';
-    meta = '<span><b style="color:var(--ink)">' + complete.length + '</b> seller' +
-      (complete.length === 1 ? ' has' : 's have') + ' every document in · ' +
-      open.length + ' still pending</span>';
+    title = 'Sellers completed';
+    meta = '<span><b style="color:var(--ink)">' + complete.length + '</b> of ' + t.sellers +
+      ' seller' + (t.sellers === 1 ? '' : 's') + ' ' + (complete.length === 1 ? 'has' : 'have') +
+      ' a complete checklist · ' + open.length + ' still pending</span>';
     body =
       '<div class="ks-sum">' +
         sumNum_(complete.length, 'Complete') +

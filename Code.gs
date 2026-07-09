@@ -317,32 +317,67 @@ function getSellerListCounts_() {
     function readNames(sheet) {
       if (!sheet) return [];
       var lastRow = sheet.getLastRow();
-      var lastCol = Math.min(sheet.getLastColumn(), 12);
-      if (lastRow <= 1 || lastCol < 1) return [];
+      var lastCol = Math.min(sheet.getLastColumn(), 15);
+      if (lastRow < 1 || lastCol < 1) return [];
       var values = sheet.getRange(1, 1, lastRow, lastCol).getDisplayValues();
-      var nameCol = -1;
-      for (var c = 0; c < lastCol; c++) {
-        if (String(values[0][c]).toLowerCase().indexOf('name') !== -1) { nameCol = c; break; }
+
+      function collect(startRow, col) {
+        var names = [];
+        for (var r = startRow; r < values.length && names.length < 1000; r++) {
+          var v = String(values[r][col]).trim();
+          if (v) names.push(v);
+        }
+        return names;
       }
-      if (nameCol === -1) {
-        for (var c2 = 0; c2 < lastCol && nameCol === -1; c2++) {
-          var filled = 0, text = 0;
-          for (var r = 1; r < values.length; r++) {
-            var v = String(values[r][c2]).trim();
-            if (!v) continue;
-            filled++;
-            if (isNaN(Number(v))) text++;
+
+      // Pass 1 — a header cell that names the seller column ("Seller Name",
+      // "Business Name", "Seller", …) anywhere in the first 5 rows wins;
+      // data starts on the row below it.
+      var probe = Math.min(values.length, 5);
+      for (var r = 0; r < probe; r++) {
+        for (var c = 0; c < lastCol; c++) {
+          var h = String(values[r][c]).toLowerCase().replace(/[^a-z]/g, '');
+          if (h.indexOf('name') !== -1 || h === 'seller' || h === 'sellers') {
+            return collect(r + 1, c);
           }
-          if (filled > 0 && text / filled > 0.7) nameCol = c2;
         }
       }
-      if (nameCol === -1) nameCol = 0;
-      var names = [];
-      for (var r2 = 1; r2 < values.length && names.length < 1000; r2++) {
-        var nv = String(values[r2][nameCol]).trim();
-        if (nv) names.push(nv);
+
+      // Pass 2 — no header found. A seller-name column is mostly text,
+      // nearly all-distinct (Region/Entity columns repeat heavily), usually
+      // multi-word, and not code-like (GST/phone have 4+ digits).
+      var bestCol = -1, bestScore = 0;
+      for (var c2 = 0; c2 < lastCol; c2++) {
+        var filled = 0, text = 0, spaced = 0, codelike = 0, seen = {};
+        for (var r2 = 0; r2 < values.length; r2++) {
+          var v = String(values[r2][c2]).trim();
+          if (!v) continue;
+          filled++;
+          if (isNaN(Number(v))) text++;
+          if (v.indexOf(' ') !== -1) spaced++;
+          if ((v.match(/\d/g) || []).length >= 4) codelike++;
+          seen[v.toLowerCase()] = 1;
+        }
+        if (!filled || text / filled <= 0.7) continue;
+        var distinct = Object.keys(seen).length / filled;
+        var score = distinct * (1 + spaced / filled) *
+                    (codelike / filled > 0.5 ? 0.2 : 1) * Math.min(filled, 50);
+        if (score > bestScore) { bestScore = score; bestCol = c2; }
       }
-      return names;
+      if (bestCol === -1) bestCol = 0;
+
+      // Skip a leading header-looking cell in the chosen column
+      // (e.g. a bare "Region" / "Name" / "Entity Type" label).
+      var start = 0;
+      for (var r3 = 0; r3 < values.length; r3++) {
+        var fv = String(values[r3][bestCol]).trim();
+        if (!fv) continue;
+        if (/^(region|state|city|zone|area|names?|sellers?( names?)?|entity ?types?|types?|category|material|status|remarks?)$/i.test(fv)) {
+          start = r3 + 1;
+        }
+        break;
+      }
+      return collect(start, bestCol);
     }
     return {
       plastic:        countNonEmptyRows(plasticSheet),
