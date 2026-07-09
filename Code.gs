@@ -291,9 +291,13 @@ function metaFieldType_(header) {
 /* ────────────────────────────── Read API ───────────────────────────────── */
 
 /**
- * Counts sellers from tabs 2 and 3 of the master seller-list workbook.
- * Returns {plastic, metal, plasticName, metalName}. On any error, returns
- * zeroes so getInitialData() can still succeed.
+ * Counts sellers from tabs 2 and 3 of the master seller-list workbook and
+ * collects their names for the KPI-card detail drawers.
+ * Returns {plastic, metal, plasticName, metalName, plasticSellers, metalSellers}.
+ * Counts are computed from column 1 exactly as before (KPI numbers never shift);
+ * names come from the first "name"-titled column, falling back to the first
+ * mostly-text column. On any error, returns zeroes so getInitialData() can
+ * still succeed.
  */
 function getSellerListCounts_() {
   try {
@@ -310,14 +314,47 @@ function getSellerListCounts_() {
       for (var i = 0; i < col.length; i++) if (String(col[i][0]).trim() !== '') n++;
       return n;
     }
+    function readNames(sheet) {
+      if (!sheet) return [];
+      var lastRow = sheet.getLastRow();
+      var lastCol = Math.min(sheet.getLastColumn(), 12);
+      if (lastRow <= 1 || lastCol < 1) return [];
+      var values = sheet.getRange(1, 1, lastRow, lastCol).getDisplayValues();
+      var nameCol = -1;
+      for (var c = 0; c < lastCol; c++) {
+        if (String(values[0][c]).toLowerCase().indexOf('name') !== -1) { nameCol = c; break; }
+      }
+      if (nameCol === -1) {
+        for (var c2 = 0; c2 < lastCol && nameCol === -1; c2++) {
+          var filled = 0, text = 0;
+          for (var r = 1; r < values.length; r++) {
+            var v = String(values[r][c2]).trim();
+            if (!v) continue;
+            filled++;
+            if (isNaN(Number(v))) text++;
+          }
+          if (filled > 0 && text / filled > 0.7) nameCol = c2;
+        }
+      }
+      if (nameCol === -1) nameCol = 0;
+      var names = [];
+      for (var r2 = 1; r2 < values.length && names.length < 1000; r2++) {
+        var nv = String(values[r2][nameCol]).trim();
+        if (nv) names.push(nv);
+      }
+      return names;
+    }
     return {
-      plastic:     countNonEmptyRows(plasticSheet),
-      metal:       countNonEmptyRows(metalSheet),
-      plasticName: plasticSheet ? plasticSheet.getName() : 'Plastic',
-      metalName:   metalSheet   ? metalSheet.getName()   : 'Metal'
+      plastic:        countNonEmptyRows(plasticSheet),
+      metal:          countNonEmptyRows(metalSheet),
+      plasticName:    plasticSheet ? plasticSheet.getName() : 'Plastic',
+      metalName:      metalSheet   ? metalSheet.getName()   : 'Metal',
+      plasticSellers: readNames(plasticSheet),
+      metalSellers:   readNames(metalSheet)
     };
   } catch (e) {
-    return { plastic: 0, metal: 0, plasticName: 'Plastic', metalName: 'Metal', error: String(e.message) };
+    return { plastic: 0, metal: 0, plasticName: 'Plastic', metalName: 'Metal',
+             plasticSellers: [], metalSellers: [], error: String(e.message) };
   }
 }
 
