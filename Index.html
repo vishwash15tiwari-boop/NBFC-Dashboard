@@ -752,11 +752,7 @@ function entityColumnFor(entityType){
   });
   return best;
 }
-function isApplicable(doc, entityType){
-  var col = entityColumnFor(entityType);
-  if (!col) return true;
-  return !!doc.requiredBy[col];
-}
+
 
 /* ═══════════════════════════════ Boot ══════════════════════════════════ */
 
@@ -824,22 +820,25 @@ function ringSvg(p, size, stroke, trackColor, fillColor){
 
 function renderOverview(){
   var t = totals();
+  var sl = D.sellerLists || {plastic: 0, metal: 0, plasticName: 'Plastic', metalName: 'Metal'};
+  var totalList = sl.plastic + sl.metal;
   $('kpis').innerHTML =
     '<div class="card kpi hero">' +
-      '<span class="lbl">Portfolio completion</span>' +
-      '<span class="val" id="kv0">' + pct(t.completion) + '</span>' +
-      '<span class="sub">' + t.received + ' of ' + t.applicable + ' required documents in</span>' +
+      '<span class="lbl">Sellers for document sharing</span>' +
+      '<span class="val" id="kv0">' + totalList + '</span>' +
+      '<span class="sub">Plastic: ' + sl.plastic + ' · Metal: ' + sl.metal + '</span>' +
       '<span class="kpi-ring">' + ringSvg(t.completion, 60, 6, 'rgba(255,255,255,.22)', '#3DDC84') + '</span>' +
     '</div>' +
-    kpiTile('Total Sellers', t.sellers, t.complete + ' fully complete', 'var(--rk-green)', 'kv1') +
-    kpiTile('Documents received', t.received, 'across all sellers', 'var(--rk-green)', 'kv2') +
-    kpiTile('Documents pending', t.pending, t.pending ? 'need follow-up' : 'nothing outstanding', 'var(--amber)', 'kv3') +
-    kpiTile('Not applicable', t.na, 'per entity-type checklist', 'var(--gray-dot)', 'kv4');
-  /* countup animate integer KPIs */
-  animCount($('kv1'), t.sellers);
-  animCount($('kv2'), t.received);
-  animCount($('kv3'), t.pending);
-  animCount($('kv4'), t.na);
+    kpiTile('Plastic sellers', sl.plastic, esc(sl.plasticName), 'var(--rk-green)', 'kv1') +
+    kpiTile('Metal sellers', sl.metal, esc(sl.metalName), 'var(--rk-green)', 'kv2') +
+    kpiTile('Documents received', t.received, t.sellers + ' seller' + (t.sellers === 1 ? '' : 's') + ' tracked', 'var(--rk-green)', 'kv3') +
+    kpiTile('Documents pending', t.pending, t.pending ? 'need follow-up' : 'nothing outstanding', 'var(--amber)', 'kv4');
+  /* countup animate */
+  animCount($('kv0'), totalList);
+  animCount($('kv1'), sl.plastic);
+  animCount($('kv2'), sl.metal);
+  animCount($('kv3'), t.received);
+  animCount($('kv4'), t.pending);
 
   /* document-wise bars */
   var rows = D.docs.map(function(doc){
@@ -1180,12 +1179,16 @@ function onEntityChange(){
     var tag = el.querySelector('.na-tag');
     var seg = el.querySelector('.seg');
     var btns = el.querySelector('.doc-field-btns');
+    var noteIn = el.querySelector('.note-in');
     if (na){
       tag.style.display = ''; tag.textContent = 'Not required · ' + col;
       seg.style.display = 'none'; if (btns) btns.style.display = 'none';
-      el.querySelector('.note-in').style.display = 'none';
+      noteIn.style.display = 'none';
     } else {
       tag.style.display = 'none'; seg.style.display = ''; if (btns) btns.style.display = '';
+      // Restore note-in visibility based on whether it has content.
+      var noteVal = noteIn.querySelector('input') ? noteIn.querySelector('input').value.trim() : '';
+      noteIn.style.display = noteVal ? 'block' : 'none';
       applicable++;
     }
   });
@@ -1255,6 +1258,7 @@ function save(){
   var statuses = {}, notes = {};
   D.docs.forEach(function(d, i){
     var el = $('df' + i);
+    if (!el) return; // guard: sheet column added while form was open
     statuses[d.key] = el.classList.contains('is-na') ? 'na' : el.dataset.status;
     var n = el.querySelector('.note-in input').value.trim();
     if (n && !el.classList.contains('is-na')) notes[d.key] = n;

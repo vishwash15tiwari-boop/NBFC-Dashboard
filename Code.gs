@@ -24,6 +24,9 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
+// Separate workbook with master seller lists (tabs 2 & 3).
+var SELLER_LIST_FILE_ID = '1DuCzGgtOPiFtERLy2ChgmCkigjiP2LcjD2ZIZBLoeug';
+
 var CONFIG = {
   // Drive file ID of the workbook (native Google Sheet, or xlsx upload).
   SOURCE_FILE_ID: '1RoHWbZyHhNKlweWXD4AMSZfB5ONdktPcVayOkpPgjpo',
@@ -288,6 +291,37 @@ function metaFieldType_(header) {
 /* ────────────────────────────── Read API ───────────────────────────────── */
 
 /**
+ * Counts sellers from tabs 2 and 3 of the master seller-list workbook.
+ * Returns {plastic, metal, plasticName, metalName}. On any error, returns
+ * zeroes so getInitialData() can still succeed.
+ */
+function getSellerListCounts_() {
+  try {
+    var ss = SpreadsheetApp.openById(SELLER_LIST_FILE_ID);
+    var sheets = ss.getSheets();
+    var plasticSheet = sheets[1]; // tab 2 (0-based index 1)
+    var metalSheet   = sheets[2]; // tab 3 (0-based index 2)
+    function countNonEmptyRows(sheet) {
+      if (!sheet) return 0;
+      var last = sheet.getLastRow();
+      if (last <= 1) return 0; // empty or header only
+      var col = sheet.getRange(2, 1, last - 1, 1).getValues();
+      var n = 0;
+      for (var i = 0; i < col.length; i++) if (String(col[i][0]).trim() !== '') n++;
+      return n;
+    }
+    return {
+      plastic:     countNonEmptyRows(plasticSheet),
+      metal:       countNonEmptyRows(metalSheet),
+      plasticName: plasticSheet ? plasticSheet.getName() : 'Plastic',
+      metalName:   metalSheet   ? metalSheet.getName()   : 'Metal'
+    };
+  } catch (e) {
+    return { plastic: 0, metal: 0, plasticName: 'Plastic', metalName: 'Metal', error: String(e.message) };
+  }
+}
+
+/**
  * Everything the front end needs, in one round trip:
  * layout, requirement matrix, per-document applicability, and every seller
  * row with parsed statuses and completion aggregates.
@@ -377,11 +411,13 @@ function getInitialData() {
     if (!covered) entityOptions[label] = true;
   });
 
+  var sellerLists = getSellerListCounts_();
   return {
     ok: true,
     sheetUrl: ss.getUrl(),
     sheetName: ss.getName(),
     trackerName: tracker.getName(),
+    sellerLists: sellerLists,
     metaFields: layout.metaIdx.map(function (idx) {
       var h = layout.headers[idx];
       return {
@@ -538,8 +574,10 @@ function saveSeller(payload) {
         cell = note || 'Pending';
       }
       // A note must still parse back to the status it was saved with.
+      // Put the status keyword FIRST so parseStatus_ always picks it up,
+      // even when the note itself starts with "pending" or "received".
       if (note && status !== 'na' && parseStatus_(cell).status !== status) {
-        cell = note + (status === 'received' ? ' — Received' : ' — Pending');
+        cell = (status === 'received' ? 'Received — ' : 'Pending — ') + note;
       }
       if (status === 'pending') pendingCount++;
       out[idx] = cell;
