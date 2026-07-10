@@ -1004,34 +1004,24 @@ function renderOverview(){
 
   /* ── Buyer KPIs ── */
   var bTotal = bt.buyers;
-  var entityCounts = {};
-  if (DB && DB.buyers) {
-    DB.buyers.forEach(function(b){
-      var ev = DB.entityHeader ? (b.meta[DB.entityHeader] || 'Unknown') : 'Unknown';
-      entityCounts[ev] = (entityCounts[ev] || 0) + 1;
-    });
-  }
-  var entKeys = Object.keys(entityCounts).sort(function(a,b){ return entityCounts[b]-entityCounts[a]; });
+  var bl = (DB && DB.buyerLists) ? DB.buyerLists : {plastic:0, metal:0, plasticName:'Plastic', metalName:'Metal', plasticBuyers:[], metalBuyers:[]};
+  var bListTotal = bl.plastic + bl.metal;
   var buyerKpisHtml =
     '<div class="card kpi hero buyer-hero click" onclick="openKpi(\'buyers-total\')">' +
       '<span class="lbl">Buyers giving docs to NBFC</span>' +
-      '<span class="val" id="bkv0">' + bTotal + '</span>' +
-      '<span class="sub">' + bt.complete + ' complete · ' + bTotal + ' total</span>' +
+      '<span class="val" id="bkv0">' + bListTotal + '</span>' +
+      '<span class="sub">Plastic: ' + bl.plastic + ' · Metal: ' + bl.metal + '</span>' +
       '<span class="kpi-ring">' + ringSvg(bt.completion, 60, 6, 'rgba(255,255,255,.22)', '#93C5FD') + '</span>' +
       KPI_GO +
-    '</div>';
-  entKeys.slice(0, 2).forEach(function(ek, i){
-    var cnt = entityCounts[ek];
-    buyerKpisHtml += kpiTileBlue(ek, cnt, cnt === 1 ? '1 buyer' : cnt + ' buyers', 'bkv'+(i+1), 'buyers-ent-'+encodeURIComponent(ek));
-  });
-  for (var _fi = entKeys.length; _fi < 2; _fi++){
-    buyerKpisHtml += kpiTileBlue('—', '—', 'no data', null, null);
-  }
-  buyerKpisHtml += kpiTileBlue('In tracker', bTotal, bTotal + ' buyer' + (bTotal===1?'':'s') + ' being tracked', 'bkv3', 'buyers-total');
-  buyerKpisHtml += kpiTileBlue('Completed', bt.complete, bTotal ? Math.round(bt.complete/bTotal*100)+'% done' : 'no buyers yet', 'bkv4', 'buyers-complete');
+    '</div>' +
+    kpiTileBlue('Plastic buyers', bl.plastic, esc(bl.plasticName || 'Plastic category'), 'bkv1', 'buyers-plastic') +
+    kpiTileBlue('Metal buyers',   bl.metal,   esc(bl.metalName   || 'Metal category'),   'bkv2', 'buyers-metal') +
+    kpiTileBlue('In tracker', bTotal, bTotal + ' buyer' + (bTotal===1?'':'s') + ' being tracked', 'bkv3', 'buyers-total') +
+    kpiTileBlue('Completed', bt.complete, bTotal ? Math.round(bt.complete/bTotal*100)+'% done' : 'no buyers yet', 'bkv4', 'buyers-complete');
   $('kpis-buyer').innerHTML = buyerKpisHtml;
-  animCount($('bkv0'), bTotal);
-  entKeys.slice(0, 2).forEach(function(ek, i){ animCount($('bkv'+(i+1)), entityCounts[ek]); });
+  animCount($('bkv0'), bListTotal);
+  animCount($('bkv1'), bl.plastic);
+  animCount($('bkv2'), bl.metal);
   animCount($('bkv3'), bTotal);
   animCount($('bkv4'), bt.complete);
 
@@ -1672,13 +1662,26 @@ function openKpi(kind){
       return {name: nameHeader?s.meta[nameHeader]:'Row '+s.row, dsub: s.received+' docs received'};
     }), 'name', null, 'dsub');
   } else if (kind === 'buyers-total'){
-    var allBuyers = DB ? DB.buyers.map(function(b){
-      var nm = buyerNameHeader ? b.meta[buyerNameHeader] : 'Row '+b.row;
-      var ent = DB.entityHeader ? (b.meta[DB.entityHeader]||'') : '';
-      return {name:nm, label:ent};
-    }) : [];
-    title = 'Buyers giving docs to NBFC'; sub = allBuyers.length + ' registered';
-    html = buildKpiList(allBuyers, 'name', 'label');
+    var bl2 = (DB && DB.buyerLists) ? DB.buyerLists : {};
+    var allBuyersList = (bl2.plasticBuyers||[]).map(function(n){ return {name:n,label:'Plastic'}; })
+      .concat((bl2.metalBuyers||[]).map(function(n){ return {name:n,label:'Metal'}; }));
+    title = 'Buyers giving docs to NBFC';
+    sub = allBuyersList.length ? allBuyersList.length + ' registered' : (DB&&DB.buyers?DB.buyers.length+' in tracker':'no data');
+    html = allBuyersList.length
+      ? buildKpiList(allBuyersList, 'name', 'label')
+      : buildKpiList((DB?DB.buyers:[]).map(function(b){
+          var nm = buyerNameHeader ? b.meta[buyerNameHeader] : 'Row '+b.row;
+          var ent = DB.entityHeader ? (b.meta[DB.entityHeader]||'') : '';
+          return {name:nm, label:ent};
+        }), 'name', 'label');
+  } else if (kind === 'buyers-plastic'){
+    var bl3 = (DB && DB.buyerLists) ? DB.buyerLists : {};
+    title = 'Plastic buyers'; sub = (bl3.plastic||0) + ' buyers';
+    html = buildKpiList((bl3.plasticBuyers||[]).map(function(n){ return {name:n}; }), 'name');
+  } else if (kind === 'buyers-metal'){
+    var bl4 = (DB && DB.buyerLists) ? DB.buyerLists : {};
+    title = 'Metal buyers'; sub = (bl4.metal||0) + ' buyers';
+    html = buildKpiList((bl4.metalBuyers||[]).map(function(n){ return {name:n}; }), 'name');
   } else if (kind === 'buyers-complete'){
     var done2 = DB ? DB.buyers.filter(function(b){ return b.pending===0 && b.applicable>0; }) : [];
     title = 'Completed buyers'; sub = done2.length + ' fully submitted';

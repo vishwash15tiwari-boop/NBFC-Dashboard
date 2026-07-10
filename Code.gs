@@ -27,6 +27,10 @@
 // Separate workbook with master seller lists (tabs 2 & 3).
 var SELLER_LIST_FILE_ID = '1DuCzGgtOPiFtERLy2ChgmCkigjiP2LcjD2ZIZBLoeug';
 
+// Separate workbook with master buyer lists (tabs 2 & 3 = Plastic Buyers, Metal Buyers).
+// Replace with the actual Google Sheets file ID of your buyer list workbook.
+var BUYER_LIST_FILE_ID = 'REPLACE_WITH_BUYER_LIST_FILE_ID';
+
 var CONFIG = {
   // Drive file ID of the workbook (native Google Sheet, or xlsx upload).
   SOURCE_FILE_ID: '1RoHWbZyHhNKlweWXD4AMSZfB5ONdktPcVayOkpPgjpo',
@@ -545,6 +549,90 @@ function getSellerListCounts_() {
 }
 
 /**
+ * Counts buyers from tabs 2 and 3 of the master buyer-list workbook and
+ * collects their names. Returns {plastic, metal, plasticName, metalName,
+ * plasticBuyers, metalBuyers}. Mirrors getSellerListCounts_ exactly.
+ */
+function getBuyerListCounts_() {
+  try {
+    if (BUYER_LIST_FILE_ID === 'REPLACE_WITH_BUYER_LIST_FILE_ID') {
+      return { plastic: 0, metal: 0, plasticName: 'Plastic', metalName: 'Metal',
+               plasticBuyers: [], metalBuyers: [], error: 'BUYER_LIST_FILE_ID not configured' };
+    }
+    var ss = SpreadsheetApp.openById(BUYER_LIST_FILE_ID);
+    var sheets = ss.getSheets();
+    var plasticSheet = sheets[1]; // tab 2 (0-based index 1)
+    var metalSheet   = sheets[2]; // tab 3 (0-based index 2)
+    function readNames(sheet) {
+      if (!sheet) return [];
+      var lastRow = sheet.getLastRow();
+      var lastCol = Math.min(sheet.getLastColumn(), 15);
+      if (lastRow < 1 || lastCol < 1) return [];
+      var values = sheet.getRange(1, 1, lastRow, lastCol).getDisplayValues();
+      function collect(startRow, col) {
+        var names = [];
+        for (var r = startRow; r < values.length && names.length < 1000; r++) {
+          var v = String(values[r][col]).trim();
+          if (v) names.push(v);
+        }
+        return names;
+      }
+      var probe = Math.min(values.length, 5);
+      for (var r = 0; r < probe; r++) {
+        for (var c = 0; c < lastCol; c++) {
+          var h = String(values[r][c]).toLowerCase().replace(/[^a-z]/g, '');
+          if (h.indexOf('name') !== -1 || h === 'buyer' || h === 'buyers') {
+            return collect(r + 1, c);
+          }
+        }
+      }
+      var bestCol = -1, bestScore = 0;
+      for (var c2 = 0; c2 < lastCol; c2++) {
+        var filled = 0, text = 0, spaced = 0, codelike = 0, seen = {};
+        for (var r2 = 0; r2 < values.length; r2++) {
+          var v = String(values[r2][c2]).trim();
+          if (!v) continue;
+          filled++;
+          if (isNaN(Number(v))) text++;
+          if (v.indexOf(' ') !== -1) spaced++;
+          if ((v.match(/\d/g) || []).length >= 4) codelike++;
+          seen[v.toLowerCase()] = 1;
+        }
+        if (!filled || text / filled <= 0.7) continue;
+        var distinct = Object.keys(seen).length / filled;
+        var score = distinct * (1 + spaced / filled) *
+                    (codelike / filled > 0.5 ? 0.2 : 1) * Math.min(filled, 50);
+        if (score > bestScore) { bestScore = score; bestCol = c2; }
+      }
+      if (bestCol === -1) bestCol = 0;
+      var start = 0;
+      for (var r3 = 0; r3 < values.length; r3++) {
+        var fv = String(values[r3][bestCol]).trim();
+        if (!fv) continue;
+        if (/^(region|state|city|zone|area|names?|buyers?( names?)?|entity ?types?|types?|category|material|status|remarks?)$/i.test(fv)) {
+          start = r3 + 1;
+        }
+        break;
+      }
+      return collect(start, bestCol);
+    }
+    var pb = readNames(plasticSheet);
+    var mb = readNames(metalSheet);
+    return {
+      plastic:      pb.length,
+      metal:        mb.length,
+      plasticName:  plasticSheet ? plasticSheet.getName() : 'Plastic',
+      metalName:    metalSheet   ? metalSheet.getName()   : 'Metal',
+      plasticBuyers: pb,
+      metalBuyers:   mb
+    };
+  } catch (e) {
+    return { plastic: 0, metal: 0, plasticName: 'Plastic', metalName: 'Metal',
+             plasticBuyers: [], metalBuyers: [], error: String(e.message) };
+  }
+}
+
+/**
  * Everything the front end needs, in one round trip:
  * layout, requirement matrix, per-document applicability, and every seller
  * row with parsed statuses and completion aggregates.
@@ -636,6 +724,7 @@ function getInitialData() {
 
   var sellerLists = getSellerListCounts_();
   var buyerData = getBuyerData_(ss);
+  buyerData.buyerLists = getBuyerListCounts_();
   return {
     ok: true,
     sheetUrl: ss.getUrl(),
