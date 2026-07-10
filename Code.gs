@@ -35,10 +35,32 @@ var CONFIG = {
   // position (0-based index) as a last resort.
   TRACKER: { name: 'Seller_NBFC Tracker', index: 3, signature: ['seller business name', 'pending document'] },
   REQUIREMENT: { name: 'Seller Requirement', index: 2, signature: ['documents', 'proprietor'] },
+  BUYER: { name: 'Buyer_NBFC Tracker', index: 4, signature: ['buyer business name', 'pending document'] },
 
   APP_TITLE: 'Recykal · NBFC Document Tracker',
   PROP_BACKEND_ID: 'BACKEND_SHEET_ID'
 };
+
+/* ─────────────── Buyer document requirement matrix (hardcoded) ─────────── */
+
+var BUYER_REQ_MATRIX = [
+  { doc: 'Audited Financials (Last 2 years)',            pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'Provisional Financials (Current Year)',        pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'ITR (Last year)',                              pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'GST Returns (12 months)',                      pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'Bank Statement (1 year)',                      pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'CIBIL Consent',                               pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'Shareholding Pattern',                         pvt: true,  ptn: false, ltd: true  },
+  { doc: 'Partnership Deed',                             pvt: false, ptn: true,  ltd: false },
+  { doc: 'Debtor Ageing',                               pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'Creditor Ageing',                             pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'Sanction Letter of all Loans',                pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'Stock Statement',                              pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'MSME Certificate (If applicable)',             pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'GST Certificate',                              pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'Entity PAN',                                   pvt: true,  ptn: true,  ltd: true  }
+];
+var BUYER_ENTITY_COLS = ['Private Limited', 'Partnership', 'Limited'];
 
 /* ───────────────────────────── Web app entry ───────────────────────────── */
 
@@ -288,6 +310,142 @@ function metaFieldType_(header) {
   return 'text';
 }
 
+/* ──────────────────────────── Buyer helpers ────────────────────────────── */
+
+/** Fuzzy-matches a buyer tracker doc header against BUYER_REQ_MATRIX. */
+function matchBuyerRequirement_(docHeader) {
+  var target = normKey_(docHeader);
+  var best = null, bestScore = 0;
+  BUYER_REQ_MATRIX.forEach(function (row) {
+    var n = normKey_(row.doc);
+    if (!n) return;
+    var score = 0;
+    if (n === target) score = 3;
+    else if (target.indexOf(n) !== -1 || n.indexOf(target) !== -1) score = 2;
+    else {
+      var words = n.split(/[^a-z0-9]+/).filter(function (w) { return w.length > 3; });
+      var tWords = target.split(/[^a-z0-9]+/).filter(function (w) { return w.length > 3; });
+      var common = 0;
+      words.forEach(function (w) { if (tWords.indexOf(w) !== -1) common++; });
+      if (common >= 2) score = 1;
+    }
+    if (score > bestScore) { best = row; bestScore = score; }
+  });
+  return best;
+}
+
+/** Maps an entity type string to the pvt / ptn / ltd key in BUYER_REQ_MATRIX. */
+function getBuyerEntityKey_(entityType) {
+  var e = normKey_(entityType);
+  if (!e) return null;
+  if (e.indexOf('private') !== -1 || e.indexOf('pvt') !== -1) return 'pvt';
+  if (e.indexOf('partner') !== -1) return 'ptn';
+  if (e.indexOf('limited') !== -1 || e.indexOf('ltd') !== -1) return 'ltd';
+  return null;
+}
+
+/**
+ * Reads the Buyer_NBFC Tracker tab, applies the hardcoded BUYER_REQ_MATRIX,
+ * and returns a buyer-data payload compatible with the seller payload shape so
+ * the frontend can reuse the same render helpers.
+ * On any error, returns an empty-but-valid payload so getInitialData() can
+ * still succeed and the buyer section just renders as empty.
+ */
+function getBuyerData_(ss) {
+  try {
+    var tracker = findSheet_(ss, CONFIG.BUYER);
+    var layout = readTrackerLayout_(tracker);
+
+    var buyerNameHeaderKey = null;
+    layout.metaIdx.forEach(function (idx) {
+      if (!buyerNameHeaderKey && normKey_(layout.headers[idx]).indexOf('name') !== -1) {
+        buyerNameHeaderKey = layout.headers[idx];
+      }
+    });
+
+    var entityHeaderKey = null;
+    layout.metaIdx.forEach(function (idx) {
+      if (!entityHeaderKey && metaFieldType_(layout.headers[idx]) === 'entity') {
+        entityHeaderKey = layout.headers[idx];
+      }
+    });
+
+    var docs = layout.docIdx.map(function (idx) {
+      var header = layout.headers[idx];
+      var req = matchBuyerRequirement_(header);
+      var requiredBy = {};
+      BUYER_ENTITY_COLS.forEach(function (label) {
+        var key = getBuyerEntityKey_(label);
+        requiredBy[label] = req && key ? !!req[key] : true;
+      });
+      return { key: header, requiredBy: requiredBy };
+    });
+
+    var lastRow = tracker.getLastRow();
+    var buyers = [];
+
+    if (lastRow > 1) {
+      var dataRange = tracker.getRange(2, 1, lastRow - 1, tracker.getLastColumn());
+      var values = dataRange.getDisplayValues();
+      values.forEach(function (row, i) {
+        var meta = {};
+        layout.metaIdx.forEach(function (idx) { meta[layout.headers[idx]] = String(row[idx]).trim(); });
+        var hasIdentity = layout.metaIdx.some(function (idx) { return String(row[idx]).trim() !== ''; });
+        if (!hasIdentity) return;
+
+        var entityType = entityHeaderKey ? (meta[entityHeaderKey] || '') : '';
+        var entityKey = getBuyerEntityKey_(entityType);
+
+        var docStates = {};
+        var received = 0, pending = 0, na = 0;
+        layout.docIdx.forEach(function (idx) {
+          var h = layout.headers[idx];
+          var req = matchBuyerRequirement_(h);
+          var applicable = !req || !entityKey ? true : !!req[entityKey];
+          if (!applicable) {
+            docStates[h] = { status: 'na', note: '', raw: '' };
+            na++;
+          } else {
+            var parsed = parseStatus_(row[idx]);
+            docStates[h] = { status: parsed.status, note: parsed.note, raw: String(row[idx]).trim() };
+            if (parsed.status === 'received') received++;
+            else if (parsed.status === 'na') na++;
+            else pending++;
+          }
+        });
+
+        var applicable = received + pending;
+        var serial = parseInt(row[layout.serialIdx], 10);
+        buyers.push({
+          row: i + 2,
+          serial: isNaN(serial) ? '' : serial,
+          meta: meta,
+          docs: docStates,
+          received: received,
+          pending: pending,
+          na: na,
+          applicable: applicable,
+          completion: applicable ? Math.round((received / applicable) * 1000) / 10 : 0
+        });
+      });
+    }
+
+    return {
+      ok: true,
+      buyers: buyers,
+      docs: docs,
+      entityColumns: BUYER_ENTITY_COLS,
+      nameHeader: buyerNameHeaderKey,
+      entityHeader: entityHeaderKey,
+      metaFields: layout.metaIdx.map(function (idx) {
+        return { key: layout.headers[idx], type: metaFieldType_(layout.headers[idx]) };
+      })
+    };
+  } catch (e) {
+    return { ok: false, error: String(e.message), buyers: [], docs: [], entityColumns: BUYER_ENTITY_COLS, nameHeader: null, entityHeader: null, metaFields: [] };
+  }
+}
+
 /* ────────────────────────────── Read API ───────────────────────────────── */
 
 /**
@@ -486,12 +644,14 @@ function getInitialData() {
   });
 
   var sellerLists = getSellerListCounts_();
+  var buyerData = getBuyerData_(ss);
   return {
     ok: true,
     sheetUrl: ss.getUrl(),
     sheetName: ss.getName(),
     trackerName: tracker.getName(),
     sellerLists: sellerLists,
+    buyerData: buyerData,
     metaFields: layout.metaIdx.map(function (idx) {
       var h = layout.headers[idx];
       return {

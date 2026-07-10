@@ -108,40 +108,6 @@
   .kpi.hero .val{color:#fff}
   .kpi-ring{position:absolute;right:10px;top:50%;transform:translateY(-50%)}
   .kpi-accent{width:24px;height:3px;border-radius:2px;margin-bottom:6px}
-  /* clickable KPI cards */
-  .kpi.click{cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none}
-  .kpi.click:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
-  .kpi.click:active{transform:translateY(-1px)}
-  .kpi.hero.click:hover{box-shadow:0 12px 30px -8px rgba(4,51,28,.5)}
-  .kpi.click:focus-visible{outline:2px solid var(--rk-green);outline-offset:2px}
-  .kpi .kpi-go{
-    position:absolute;top:9px;right:9px;width:22px;height:22px;border-radius:7px;
-    display:flex;align-items:center;justify-content:center;color:var(--ink-3);
-    opacity:0;transform:translateX(-3px);transition:all .18s ease;
-  }
-  .kpi.click:hover .kpi-go{opacity:1;transform:none}
-  .kpi.hero .kpi-go{color:rgba(255,255,255,.85)}
-  .kpi .kpi-go svg{width:13px;height:13px}
-
-  /* ─── KPI detail drawer lists ───────────────────────────────────────── */
-  .ks-sum{display:flex;gap:22px;align-items:center;padding:4px 0 16px;border-bottom:1px solid var(--line-2);margin-bottom:10px}
-  .ks-item{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;transition:background .12s,transform .16s ease}
-  .ks-item.link{cursor:pointer}
-  .ks-item.link:hover{background:var(--rk-green-tint-2);transform:translateX(3px)}
-  .ks-item .ks-idx{width:24px;flex:none;font-size:11px;color:var(--ink-3);font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
-  .ks-item .ks-name{font-size:13px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .ks-item .ks-sub{font-size:11px;color:var(--ink-3);margin-top:1px}
-  .ks-right{flex:none;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
-
-  /* ─── UX polish ─────────────────────────────────────────────────────── */
-  .kpi .kpi-accent{transition:width .25s cubic-bezier(.22,1,.36,1)}
-  .kpi.click:hover .kpi-accent{width:38px}
-  .drawer-body::-webkit-scrollbar,.matrix-wrap::-webkit-scrollbar,.tbl-wrap::-webkit-scrollbar{width:8px;height:8px}
-  .drawer-body::-webkit-scrollbar-thumb,.matrix-wrap::-webkit-scrollbar-thumb,.tbl-wrap::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
-  .drawer-body::-webkit-scrollbar-thumb:hover,.matrix-wrap::-webkit-scrollbar-thumb:hover,.tbl-wrap::-webkit-scrollbar-thumb:hover{background:#CBD5CE}
-  .drawer.on .drawer-body>*{animation:fadeSlideUp .28s ease both}
-  .drawer.on .drawer-body>*:nth-child(2){animation-delay:40ms}
-  .drawer.on .drawer-body>*:nth-child(3){animation-delay:80ms}
 
   /* overview-specific layout — eliminates dead space */
   .ov-top{display:grid;grid-template-columns:1fr 300px;gap:12px;align-items:start;margin-bottom:0}
@@ -477,6 +443,49 @@
   }
   .doc-file-rm:hover{color:#dc2626}
 
+  /* ─── Buyer colour tokens ───────────────────────────────────────────── */
+  :root{
+    --buyer:#1849D6;
+    --buyer-deep:#1238B0;
+    --buyer-ink:#112E8C;
+    --buyer-tint:#EEF3FF;
+    --buyer-tint-2:#F5F8FF;
+  }
+
+  /* ─── Section dividers (Sellers / Buyers) ───────────────────────────── */
+  .section-hd{
+    display:flex;align-items:center;gap:10px;
+    font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink-3);margin:10px 0 8px;
+  }
+  .section-hd::before,.section-hd::after{content:'';flex:1;height:1px;background:var(--line)}
+  .section-hd.buyer{color:var(--buyer-ink)}
+  .section-hd.buyer::before,.section-hd.buyer::after{background:rgba(24,73,214,.18)}
+
+  /* ─── Buyer hero KPI tile ───────────────────────────────────────────── */
+  .kpi.hero.buyer-hero{
+    background:linear-gradient(135deg,#0A1F70 0%,#1238B0 58%,#1849D6 100%);
+  }
+  .kpi.hero.buyer-hero .kpi-ring svg circle:last-child{stroke:#93C5FD}
+
+  /* ─── Card-level tab switcher (Sellers | Buyers) ────────────────────── */
+  .card-tabs{
+    display:inline-flex;background:#EDF1EF;border-radius:8px;padding:2px;gap:0;
+    margin-left:auto;
+  }
+  .card-tabs button{
+    padding:4px 13px;border-radius:6px;font-size:11.5px;font-weight:600;
+    color:var(--ink-3);transition:all .15s;
+  }
+  .card-tabs button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-sm)}
+  .card-tabs button[data-ct="buyer"].on{color:var(--buyer-ink)}
+
+  /* ─── Buyers table ──────────────────────────────────────────────────── */
+  .buyer-avatar{
+    width:30px;height:30px;border-radius:8px;background:var(--buyer-tint);color:var(--buyer-ink);
+    display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11.5px;flex:none;
+  }
+
   /* ─── Responsive ────────────────────────────────────────────────────── */
   @media (max-width:1100px){
     .ov-top{grid-template-columns:1fr 260px}
@@ -519,16 +528,18 @@
 <!-- ─── Top bar ─────────────────────────────────────────────────────────── -->
 <header class="topbar">
   <div class="brand">
-    <!-- Recykal logo: two crossing comma/teardrop shapes -->
+    <!-- Recykal logo: green rounded square with white three-arrow recycling symbol -->
     <svg class="brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true">
-      <rect width="36" height="36" rx="8.5" fill="#111111"/>
-      <path fill="#FFFFFF" fill-rule="evenodd" d="
-        M10,28 C6,23 7,15 12,10 C15,6 20,4 24,5 C28,6 29,11 27,16 C25,21 19,25 10,28Z
-        M26,28 C30,23 29,15 24,10 C21,6 16,4 12,5 C8,6 7,11 9,16 C11,21 17,25 26,28Z
-      "/>
+      <rect width="36" height="36" rx="8.5" fill="#00A651"/>
+      <path stroke="white" stroke-width="2.4" stroke-linecap="butt" fill="none" d="M20.3,10.9 A7.5,7.5 0 0,1 25.3,19.6"/>
+      <polygon fill="white" points="24.5,21.8 26.9,20.2 24.6,18.9"/>
+      <path stroke="white" stroke-width="2.4" stroke-linecap="butt" fill="none" d="M23.0,23.6 A7.5,7.5 0 0,1 13.0,23.6"/>
+      <polygon fill="white" points="11.5,21.8 11.6,24.6 13.9,23.3"/>
+      <path stroke="white" stroke-width="2.4" stroke-linecap="butt" fill="none" d="M10.7,19.6 A7.5,7.5 0 0,1 15.7,10.9"/>
+      <polygon fill="white" points="18.0,10.5 15.5,9.2 15.5,11.8"/>
     </svg>
     <div style="min-width:0;display:flex;align-items:center;gap:0">
-      <div class="brand-name">recykal<span class="dot-com">.com</span></div>
+      <div class="brand-name">Recykal<span class="dot-com">.com</span></div>
       <span class="brand-divider"></span>
       <div class="brand-sub">NBFC Tracker</div>
     </div>
@@ -575,37 +586,55 @@
     <nav class="seg-nav" id="segNav">
       <button data-view="overview" class="on">Overview</button>
       <button data-view="sellers">Sellers</button>
+      <button data-view="buyers">Buyers</button>
       <button data-view="matrix">Document Matrix</button>
     </nav>
 
     <!-- ─── Overview ─────────────────────────────────────────────────── -->
     <section class="view on" id="view-overview">
+      <!-- Seller KPIs -->
+      <div class="section-hd">Sellers</div>
       <div class="kpis" id="kpis"></div>
-      <!-- Row 1: Attention (wider) + Breakdown (narrower) -->
-      <div class="ov-top">
+      <!-- Buyer KPIs -->
+      <div class="section-hd buyer">Buyers</div>
+      <div class="kpis" id="kpis-buyer"></div>
+      <!-- Row 1: Attention (wider, tabbed) + Breakdown (narrower) -->
+      <div class="ov-top" style="margin-top:12px">
         <div class="card ov-attn">
-          <div class="card-h"><h3>Needs attention</h3><span class="hint">highest pending first</span></div>
+          <div class="card-h">
+            <h3>Needs attention</h3>
+            <div class="card-tabs" id="attnTabs">
+              <button data-ct="seller" class="on" onclick="switchAttn('seller')">Sellers</button>
+              <button data-ct="buyer" onclick="switchAttn('buyer')">Buyers</button>
+            </div>
+          </div>
           <div class="attn" id="attnList"></div>
+          <div class="attn" id="attnListBuyer" style="display:none"></div>
         </div>
         <div class="card ov-breakdown">
           <div class="card-h"><h3>Portfolio breakdown</h3></div>
           <div class="facets" id="facets"></div>
         </div>
       </div>
-      <!-- Row 2: Document status full-width, 3-column compact -->
+      <!-- Row 2: Document status full-width, tabbed Sellers/Buyers -->
       <div class="card" style="margin-top:12px">
         <div class="card-h">
           <h3>Document collection status</h3>
-          <div style="display:flex;align-items:center;gap:14px">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
             <div class="legend" style="padding:0">
               <span><i style="background:var(--rk-green)"></i>Received</span>
               <span><i style="background:var(--amber)"></i>Pending</span>
               <span><i style="background:var(--line-2)"></i>N/A</span>
             </div>
             <span class="hint">sorted by most pending</span>
+            <div class="card-tabs" id="docBarsTabs">
+              <button data-ct="seller" class="on" onclick="switchDocBars('seller')">Sellers</button>
+              <button data-ct="buyer" onclick="switchDocBars('buyer')">Buyers</button>
+            </div>
           </div>
         </div>
         <div class="docbars" id="docBars"></div>
+        <div class="docbars" id="docBarsBuyer" style="display:none"></div>
       </div>
     </section>
 
@@ -628,6 +657,28 @@
         <table class="tbl">
           <thead id="sellersHead"></thead>
           <tbody id="sellersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ─── Buyers ───────────────────────────────────────────────────── -->
+    <section class="view" id="view-buyers">
+      <div class="toolbar">
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="qBuyer" type="search" placeholder="Search buyer, GST, region…" autocomplete="off">
+        </div>
+        <select class="flt" id="fltBuyerEntity"><option value="">All entity types</option></select>
+        <select class="flt" id="fltBuyerStatus">
+          <option value="">All statuses</option>
+          <option value="complete">Complete</option>
+          <option value="pending">Has pending docs</option>
+        </select>
+      </div>
+      <div class="card tbl-wrap">
+        <table class="tbl">
+          <thead id="buyersHead"></thead>
+          <tbody id="buyersBody"></tbody>
         </table>
       </div>
     </section>
@@ -671,23 +722,6 @@
   </div>
 </aside>
 
-<!-- ─── KPI card detail drawer ──────────────────────────────────────────── -->
-<aside class="drawer" id="kpiDrawer" aria-hidden="true">
-  <div class="drawer-h">
-    <div style="min-width:0;flex:1">
-      <h2 id="kName"></h2>
-      <div class="meta-line" id="kMeta"></div>
-    </div>
-    <button class="x-btn" data-close aria-label="Close">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-    </button>
-  </div>
-  <div class="drawer-body" id="kBody"></div>
-  <div class="drawer-f">
-    <button class="btn-ghost" data-close>Close</button>
-  </div>
-</aside>
-
 <!-- ─── Form drawer ─────────────────────────────────────────────────────── -->
 <aside class="drawer" id="formDrawer" aria-hidden="true">
   <div class="drawer-h">
@@ -723,8 +757,10 @@
 /* ═══════════════════════════ State & helpers ═══════════════════════════ */
 
 var D = null;                 // latest payload from getInitialData()
+var DB = null;                // D.buyerData shorthand
 var fieldByType = {};         // gst / date / entity → header name
 var nameHeader = null;
+var buyerNameHeader = null;
 var editingSeller = null;     // seller object while form is open, else null
 var _formDocUrls = {};        // docKey → Drive URL for the currently open form
 var _removedFormDocUrls = {}; // docKeys explicitly removed this session
@@ -739,22 +775,6 @@ function esc(s){
 function initials(name){
   var p = String(name||'').replace(/[^A-Za-z0-9 ]/g,' ').trim().split(/\s+/);
   return ((p[0]||'')[0]||'•').toUpperCase() + ((p[1]||'')[0]||'').toUpperCase();
-}
-
-/* Deterministic pastel avatar per name — same seller always gets the same colour. */
-var AV_COLORS = [
-  ['#E8F1FE','#1D4ED8'], ['#E7F7EF','#046C38'], ['#FDF3E3','#92400E'],
-  ['#F3E8FF','#7E22CE'], ['#FDE8F0','#BE185D'], ['#E0F2FE','#0369A1'],
-  ['#FEF3C7','#B45309'], ['#EDEFF3','#3F4A5A']
-];
-function avatarHtml(name, size){
-  var s = String(name||''), h = 0;
-  for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  var col = AV_COLORS[h % AV_COLORS.length];
-  var sz = size || 30;
-  return '<div class="avatar" style="width:' + sz + 'px;height:' + sz + 'px;font-size:' +
-    Math.max(Math.round(sz * 0.37), 9) + 'px;border-radius:' + Math.round(sz * 0.27) + 'px;background:' +
-    col[0] + ';color:' + col[1] + '">' + esc(initials(name)) + '</div>';
 }
 function pct(n){ return (Math.round(n*10)/10) + '%'; }
 function animCount(el, to, suffix, dur){
@@ -834,11 +854,13 @@ function boot(){
 
 function onData(data){
   D = data;
+  DB = (data.buyerData && data.buyerData.ok) ? data.buyerData : null;
   fieldByType = {}; nameHeader = null;
   D.metaFields.forEach(function(f){
     if (f.type !== 'text' && !fieldByType[f.type]) fieldByType[f.type] = f.key;
     if (!nameHeader && normKey(f.key).indexOf('name') !== -1) nameHeader = f.key;
   });
+  buyerNameHeader = DB ? DB.nameHeader : null;
   $('loading').style.display = 'none';
   $('fatal').style.display = 'none';
   $('app').style.display = 'block';
@@ -848,6 +870,7 @@ function onData(data){
   renderOverview();
   renderFilters();
   renderSellers();
+  renderBuyers();
   renderMatrix();
 }
 
@@ -875,6 +898,18 @@ function totals(){
   return t;
 }
 
+function buyerTotals(){
+  var t = {buyers:0, received:0, pending:0, na:0, applicable:0, complete:0};
+  if (!DB || !DB.buyers) return t;
+  DB.buyers.forEach(function(b){
+    t.buyers++; t.received += b.received; t.pending += b.pending; t.na += b.na;
+    t.applicable += b.applicable;
+    if (b.pending === 0 && b.applicable > 0) t.complete++;
+  });
+  t.completion = t.applicable ? (t.received / t.applicable) * 100 : 0;
+  return t;
+}
+
 function ringSvg(p, size, stroke, trackColor, fillColor){
   var r = (size - stroke) / 2, c = 2 * Math.PI * r;
   var off = c * (1 - Math.min(Math.max(p,0),100)/100);
@@ -885,266 +920,148 @@ function ringSvg(p, size, stroke, trackColor, fillColor){
 
 function renderOverview(){
   var t = totals();
+  var bt = buyerTotals();
   var sl = D.sellerLists || {plastic: 0, metal: 0, plasticName: 'Plastic', metalName: 'Metal'};
   var totalList = sl.plastic + sl.metal;
-  var given = D.sellers.filter(function(s){ return s.received > 0; }).length;
-  var followUp = D.sellers.filter(function(s){ return s.pending > 0; }).length;
+
+  /* ── Seller KPIs ── */
   $('kpis').innerHTML =
-    '<div class="card kpi hero click" role="button" tabindex="0" data-kpi="total" aria-label="Sellers for document sharing — view details">' +
+    '<div class="card kpi hero">' +
       '<span class="lbl">Sellers for document sharing</span>' +
       '<span class="val" id="kv0">' + totalList + '</span>' +
       '<span class="sub">Plastic: ' + sl.plastic + ' · Metal: ' + sl.metal + '</span>' +
       '<span class="kpi-ring">' + ringSvg(t.completion, 60, 6, 'rgba(255,255,255,.22)', '#3DDC84') + '</span>' +
-      KPI_GO +
     '</div>' +
-    kpiTile('Plastic sellers', sl.plastic, sl.plasticName, 'var(--rk-green)', 'kv1', 'plastic') +
-    kpiTile('Metal sellers', sl.metal, sl.metalName, 'var(--rk-green)', 'kv2', 'metal') +
-    kpiTile('Sellers who shared documents', given,
-      given
-        ? t.received + ' document' + (t.received === 1 ? '' : 's') + ' received so far'
-        : 'no documents received yet',
-      'var(--rk-green)', 'kv3', 'received') +
-    kpiTile('Sellers completed', t.complete,
-      t.pending
-        ? followUp + ' to follow up · ' + t.pending + ' doc' + (t.pending === 1 ? '' : 's') + ' pending'
-        : 'every checklist complete',
-      (t.complete === t.sellers && t.sellers > 0) ? 'var(--rk-green)' : 'var(--amber)', 'kv4', 'pending');
-  /* countup animate */
-  animCount($('kv0'), totalList);
-  animCount($('kv1'), sl.plastic);
-  animCount($('kv2'), sl.metal);
-  animCount($('kv3'), given);
-  animCount($('kv4'), t.complete);
+    kpiTile('Plastic sellers', sl.plastic, esc(sl.plasticName), 'var(--rk-green)', 'kv1') +
+    kpiTile('Metal sellers', sl.metal, esc(sl.metalName), 'var(--rk-green)', 'kv2') +
+    kpiTile('Docs received', t.received, t.sellers + ' seller' + (t.sellers===1?'':'s') + ' tracked', 'var(--rk-green)', 'kv3') +
+    kpiTile('Docs pending', t.pending, t.pending ? 'need follow-up' : 'all clear', 'var(--amber)', 'kv4');
+  animCount($('kv0'), totalList); animCount($('kv1'), sl.plastic);
+  animCount($('kv2'), sl.metal); animCount($('kv3'), t.received); animCount($('kv4'), t.pending);
 
-  /* document-wise bars */
-  var rows = D.docs.map(function(doc){
-    var rec = 0, pen = 0, na = 0;
-    D.sellers.forEach(function(s){
-      var st = (s.docs[doc.key] || {}).status;
-      if (st === 'received') rec++; else if (st === 'na') na++; else pen++;
+  /* ── Buyer KPIs ── */
+  var bTotal = bt.buyers;
+  var entityCounts = {};
+  if (DB && DB.buyers) {
+    DB.buyers.forEach(function(b){
+      var ev = DB.entityHeader ? (b.meta[DB.entityHeader] || 'Unknown') : 'Unknown';
+      entityCounts[ev] = (entityCounts[ev] || 0) + 1;
     });
-    var app = rec + pen;
-    return {key: doc.key, rec: rec, pen: pen, na: na, app: app, p: app ? rec/app*100 : 0};
-  }).sort(function(a,b){ return b.pen - a.pen || a.p - b.p; });
+  }
+  var topEntity = Object.keys(entityCounts).sort(function(a,b){ return entityCounts[b]-entityCounts[a]; })[0] || '—';
+  var topEntityCount = entityCounts[topEntity] || 0;
+  $('kpis-buyer').innerHTML =
+    '<div class="card kpi hero buyer-hero">' +
+      '<span class="lbl">Buyers in tracker</span>' +
+      '<span class="val" id="bkv0">' + bTotal + '</span>' +
+      '<span class="sub">' + bt.complete + ' complete · ' + bt.buyers + ' total</span>' +
+      '<span class="kpi-ring">' + ringSvg(bt.completion, 60, 6, 'rgba(255,255,255,.22)', '#93C5FD') + '</span>' +
+    '</div>' +
+    kpiTileBlue('Top entity', topEntityCount, esc(topEntity), 'bkv1') +
+    kpiTileBlue('Docs received', bt.received, bt.buyers + ' buyer' + (bt.buyers===1?'':'s') + ' tracked', 'bkv2') +
+    kpiTileBlue('Docs pending', bt.pending, bt.pending ? 'need follow-up' : 'all clear', 'bkv3') +
+    kpiTileBlue('Complete buyers', bt.complete, bt.buyers ? Math.round(bt.complete/bt.buyers*100)+'% completion rate' : 'no buyers yet', 'bkv4');
+  animCount($('bkv0'), bTotal); animCount($('bkv1'), topEntityCount);
+  animCount($('bkv2'), bt.received); animCount($('bkv3'), bt.pending); animCount($('bkv4'), bt.complete);
 
-  $('docBars').innerHTML = rows.map(function(r, i){
-    var tipTxt = '<b>' + esc(r.key) + '</b><br><span class="t-sub">' +
-      r.rec + ' received · ' + r.pen + ' pending · ' + r.na + ' not applicable</span>';
-    var bar = r.app === 0
-      ? '<div class="strack" style="opacity:.3"><div class="s-rec" style="flex:0"></div></div>'
-      : '<div class="strack">' +
-          '<div class="s-rec" style="flex:' + r.rec + '"></div>' +
-          '<div class="s-pen" style="flex:' + r.pen + '"></div>' +
-        '</div>';
-    var badge = r.app === 0
-      ? '<div class="dstat muted">N/A</div>'
-      : r.pen === 0
-        ? '<div class="dstat ok">' + r.rec + '/' + r.app + '</div>'
-        : '<div class="dstat pen">' + r.pen + ' left</div>';
-    var hasPen = r.pen > 0 ? ' has-pen' : '';
-    return '<div class="docbar' + hasPen + '" data-tip="' + esc(tipTxt) + '" style="--db-i:' + i + '">' +
-      '<span class="name" title="' + esc(r.key) + '">' + esc(docShort(r.key)) + '</span>' +
-      bar + badge +
-    '</div>';
-  }).join('') || '<div class="empty-cell">No document columns found.</div>';
+  /* ── Seller doc bars ── */
+  $('docBars').innerHTML = buildDocBars(D.docs, D.sellers);
+  /* ── Buyer doc bars ── */
+  $('docBarsBuyer').innerHTML = DB ? buildDocBars(DB.docs, DB.buyers) : '<div class="empty-cell">No buyer data loaded.</div>';
 
-  /* needs attention */
+  /* ── Seller attention ── */
   var checkIcon = '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="1" y="1" width="8" height="8" rx="1.5"/></svg>';
-  var attn = D.sellers.slice().sort(function(a,b){ return b.pending - a.pending || a.completion - b.completion; });
-  var withPending = attn.filter(function(s){ return s.pending > 0; });
-  $('attnList').innerHTML = withPending.length
-    ? withPending.slice(0, 6).map(function(s, i){
-        var nm = nameHeader ? s.meta[nameHeader] : ('Row ' + s.row);
-        var pendingDocs = D.docs.filter(function(d){
-          return (s.docs[d.key] || {}).status === 'pending';
-        }).map(function(d){
-          var k = d.key, short = k.length > 30 ? k.slice(0, 28).replace(/[,;:\s–-]+$/, '') + '…' : k;
-          return {full: k, short: short};
-        });
-        var docChips = pendingDocs.map(function(d){
-          return '<span class="doc-chk" title="' + esc(d.full) + '">' + checkIcon + esc(d.short) + '</span>';
-        }).join('');
-        return '<div class="attn-card" onclick="openDetail(' + s.row + ')" style="animation-delay:' + (i*55) + 'ms">' +
-          '<div class="attn-head">' +
-            avatarHtml(nm, 30) +
-            '<div class="attn-info">' +
-              '<div class="attn-name">' + esc(nm) + '</div>' +
-              '<div class="attn-type">' + esc(s.meta[fieldByType.entity] || '') + '</div>' +
-            '</div>' +
-            '<span class="attn-cnt">' + s.pending + ' pending</span>' +
-          '</div>' +
-          '<div class="attn-docs">' + docChips + '</div>' +
-          '<div class="attn-prog"><div class="attn-prog-fill" style="width:' + s.completion + '%"></div></div>' +
-        '</div>';
-      }).join('')
-    : '<div class="empty-cell" style="padding:24px 12px">Every seller\'s checklist is complete.</div>';
+  $('attnList').innerHTML = buildAttnCards(D.sellers, D.docs, nameHeader, fieldByType.entity, checkIcon, 'openDetail');
+  /* ── Buyer attention ── */
+  $('attnListBuyer').innerHTML = DB ? buildAttnCards(DB.buyers, DB.docs, buyerNameHeader, DB.entityHeader, checkIcon, null, true) : '';
 
-  /* facets */
+  /* ── Facets (seller portfolio breakdown) ── */
   $('facets').innerHTML = ['Region','Entity'].map(function(kind){
     var header = kind === 'Region'
       ? (D.metaFields.filter(function(f){ return normKey(f.key) === 'region'; })[0] || {}).key
       : fieldByType.entity;
     if (!header) return '';
     var counts = {};
-    D.sellers.forEach(function(s){
-      var v = s.meta[header] || '—';
-      counts[v] = (counts[v] || 0) + 1;
-    });
-    var total = Object.keys(counts).reduce(function(s,k){ return s + counts[k]; }, 0);
+    D.sellers.forEach(function(s){ var v = s.meta[header]||'—'; counts[v]=(counts[v]||0)+1; });
     var chips = Object.keys(counts).sort().map(function(k){
-      var pct = total ? Math.round(counts[k]/total*100) : 0;
-      return '<div class="facet-chip">' +
-        '<span>' + esc(k) + '</span>' +
-        '<b>' + counts[k] + '</b>' +
-      '</div>';
+      return '<div class="facet-chip"><span>'+esc(k)+'</span><b>'+counts[k]+'</b></div>';
     }).join('');
-    return '<div class="facet"><h4>' + esc(header) + '</h4><div class="facet-row">' + chips + '</div></div>';
+    return '<div class="facet"><h4>'+esc(header)+'</h4><div class="facet-row">'+chips+'</div></div>';
   }).join('');
 }
 
-function kpiTile(lbl, val, sub, accent, id, kind){
+/* Shared: build stacked doc bars HTML from docs + entity rows */
+function buildDocBars(docs, rows){
+  if (!docs || !docs.length) return '<div class="empty-cell">No document columns found.</div>';
+  var data = docs.map(function(doc){
+    var rec=0,pen=0,na=0;
+    (rows||[]).forEach(function(r){ var st=(r.docs[doc.key]||{}).status; if(st==='received')rec++; else if(st==='na')na++; else pen++; });
+    var app=rec+pen;
+    return {key:doc.key, rec:rec, pen:pen, na:na, app:app, p:app?rec/app*100:0};
+  }).sort(function(a,b){ return b.pen-a.pen||a.p-b.p; });
+  return data.map(function(r,i){
+    var tipTxt='<b>'+esc(r.key)+'</b><br><span class="t-sub">'+r.rec+' received · '+r.pen+' pending · '+r.na+' not applicable</span>';
+    var bar=r.app===0
+      ? '<div class="strack" style="opacity:.3"><div class="s-rec" style="flex:0"></div></div>'
+      : '<div class="strack"><div class="s-rec" style="flex:'+r.rec+'"></div><div class="s-pen" style="flex:'+r.pen+'"></div></div>';
+    var badge=r.app===0?'<div class="dstat muted">N/A</div>'
+      :r.pen===0?'<div class="dstat ok">'+r.rec+'/'+r.app+'</div>'
+      :'<div class="dstat pen">'+r.pen+' left</div>';
+    return '<div class="docbar'+(r.pen>0?' has-pen':'')+'" data-tip="'+esc(tipTxt)+'" style="--db-i:'+i+'">'+
+      '<span class="name" title="'+esc(r.key)+'">'+esc(docShort(r.key))+'</span>'+bar+badge+'</div>';
+  }).join('');
+}
+
+/* Shared: build attention cards HTML from any entity rows array */
+function buildAttnCards(rows, docs, nHeader, entityHeader, checkIcon, openFn, isBuyer){
+  var withPending = (rows||[]).slice().sort(function(a,b){ return b.pending-a.pending||a.completion-b.completion; }).filter(function(r){ return r.pending>0; });
+  var avatarCls = isBuyer ? 'buyer-avatar' : 'avatar';
+  if (!withPending.length) return '<div class="empty-cell" style="padding:24px 12px">All checklists are complete.</div>';
+  return withPending.slice(0,6).map(function(r,i){
+    var nm = nHeader ? r.meta[nHeader] : ('Row '+r.row);
+    var pendingDocs = (docs||[]).filter(function(d){ return (r.docs[d.key]||{}).status==='pending'; });
+    var docChips = pendingDocs.map(function(d){
+      var k=d.key, short=k.length>30?k.slice(0,28).replace(/[,;:\s–-]+$/,'')+'…':k;
+      return '<span class="doc-chk" title="'+esc(k)+'">'+checkIcon+esc(short)+'</span>';
+    }).join('');
+    var clickAttr = openFn ? ' onclick="'+openFn+'('+r.row+')"' : '';
+    return '<div class="attn-card"'+clickAttr+' style="animation-delay:'+(i*55)+'ms">'+
+      '<div class="attn-head">'+
+        '<div class="'+avatarCls+'">'+esc(initials(nm))+'</div>'+
+        '<div class="attn-info"><div class="attn-name">'+esc(nm)+'</div>'+
+          '<div class="attn-type">'+esc(entityHeader?r.meta[entityHeader]||'':'')+'</div></div>'+
+        '<span class="attn-cnt">'+r.pending+' pending</span>'+
+      '</div>'+
+      '<div class="attn-docs">'+docChips+'</div>'+
+      '<div class="attn-prog"><div class="attn-prog-fill" style="width:'+r.completion+'%"></div></div>'+
+    '</div>';
+  }).join('');
+}
+
+function switchAttn(section){
+  var isBuyer = section === 'buyer';
+  $('attnList').style.display = isBuyer ? 'none' : '';
+  $('attnListBuyer').style.display = isBuyer ? '' : 'none';
+  $('attnTabs').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.ct === section); });
+}
+function switchDocBars(section){
+  var isBuyer = section === 'buyer';
+  $('docBars').style.display = isBuyer ? 'none' : '';
+  $('docBarsBuyer').style.display = isBuyer ? '' : 'none';
+  $('docBarsTabs').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.ct === section); });
+}
+
+function kpiTile(lbl, val, sub, accent, id){
   var idAttr = id ? ' id="' + id + '"' : '';
-  var open = kind
-    ? '<div class="card kpi click" role="button" tabindex="0" data-kpi="' + kind + '" aria-label="' + esc(lbl) + ' — view details">'
-    : '<div class="card kpi">';
-  return open + '<div class="kpi-accent" style="background:' + accent + '"></div>' +
+  return '<div class="card kpi"><div class="kpi-accent" style="background:' + accent + '"></div>' +
     '<span class="lbl">' + esc(lbl) + '</span><span class="val"' + idAttr + '>' + esc(val) + '</span>' +
-    '<span class="sub">' + esc(sub) + '</span>' + (kind ? KPI_GO : '') + '</div>';
+    '<span class="sub">' + esc(sub) + '</span></div>';
 }
-
-/* ═══════════════════ KPI card detail drawer ════════════════════════════ */
-
-var KPI_GO = '<span class="kpi-go" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>';
-
-function sumNum_(v, k){
-  return '<div class="dh-num"><div class="v">' + v + '</div><div class="k">' + esc(k) + '</div></div>';
-}
-
-function kpiGroup_(title, chipCls, n, rowsHtml){
-  return '<div class="doc-group"><h4>' + title +
-    ' <span class="chip ' + chipCls + '">' + n + '</span></h4>' + rowsHtml + '</div>';
-}
-
-/* Numbered name list for the master seller lists (plastic / metal tabs). */
-function nameRows_(arr){
-  if (!arr || !arr.length){
-    return '<div class="empty-cell" style="padding:22px 12px">Seller names are not loaded yet — paste the updated Code.gs into the Apps Script project, save, and hit Refresh.</div>';
-  }
-  return arr.map(function(n, i){
-    return '<div class="ks-item">' +
-      '<span class="ks-idx">' + (i + 1) + '</span>' +
-      avatarHtml(n, 26) +
-      '<span class="ks-name" style="flex:1;min-width:0" title="' + esc(n) + '">' + esc(n) + '</span>' +
-    '</div>';
-  }).join('');
-}
-
-/* Tracker seller rows — clicking one opens the existing seller detail drawer. */
-function trackerRows_(list, right){
-  return list.map(function(s){
-    var nm = nameHeader ? (s.meta[nameHeader] || 'Row ' + s.row) : ('Row ' + s.row);
-    var ent = s.meta[fieldByType.entity] || '';
-    return '<div class="ks-item link" onclick="openDetail(' + s.row + ')" title="Open seller detail">' +
-      avatarHtml(nm, 30) +
-      '<div style="flex:1;min-width:0"><div class="ks-name">' + esc(nm) + '</div>' +
-        (ent ? '<div class="ks-sub">' + esc(ent) + '</div>' : '') + '</div>' +
-      '<div class="ks-right">' + right(s) + '</div>' +
-    '</div>';
-  }).join('');
-}
-
-function openKpi(kind){
-  if (!D) return;
-  var sl = D.sellerLists || {};
-  var t = totals();
-  var title = '', meta = '', body = '';
-
-  if (kind === 'total'){
-    var totalList = (sl.plastic || 0) + (sl.metal || 0);
-    title = 'Sellers for document sharing';
-    meta = '<span><b style="color:var(--ink)">' + totalList + '</b> sellers across both master lists</span>';
-    body =
-      '<div class="ks-sum">' +
-        sumNum_(sl.plastic || 0, 'Plastic') +
-        sumNum_(sl.metal || 0, 'Metal') +
-        sumNum_(t.sellers, 'In tracker') +
-        sumNum_(Math.round(t.completion) + '%', 'Docs collected') +
-      '</div>' +
-      kpiGroup_(esc(sl.plasticName || 'Plastic sellers'), 'ok', sl.plastic || 0, nameRows_(sl.plasticSellers)) +
-      kpiGroup_(esc(sl.metalName || 'Metal sellers'), 'ok', sl.metal || 0, nameRows_(sl.metalSellers));
-  }
-  else if (kind === 'plastic'){
-    title = 'Plastic sellers';
-    meta = '<span>From <b style="color:var(--ink)">' + esc(sl.plasticName || 'the plastic list') + '</b></span>';
-    body = '<div class="ks-sum">' + sumNum_(sl.plastic || 0, 'Sellers on list') + '</div>' +
-      nameRows_(sl.plasticSellers);
-  }
-  else if (kind === 'metal'){
-    title = 'Metal sellers';
-    meta = '<span>From <b style="color:var(--ink)">' + esc(sl.metalName || 'the metal list') + '</b></span>';
-    body = '<div class="ks-sum">' + sumNum_(sl.metal || 0, 'Sellers on list') + '</div>' +
-      nameRows_(sl.metalSellers);
-  }
-  else if (kind === 'received'){
-    var given = D.sellers.filter(function(s){ return s.received > 0; })
-      .sort(function(a, b){ return b.received - a.received || a.pending - b.pending; });
-    var notStarted = D.sellers.filter(function(s){ return s.received === 0; })
-      .sort(function(a, b){ return b.pending - a.pending; });
-    title = 'Sellers who shared documents';
-    meta = '<span><b style="color:var(--ink)">' + given.length + '</b> of ' + t.sellers +
-      ' tracked seller' + (t.sellers === 1 ? '' : 's') + ' ' + (given.length === 1 ? 'has' : 'have') +
-      ' shared at least one document</span>';
-    body =
-      '<div class="ks-sum">' +
-        sumNum_(given.length, 'Sellers shared') +
-        sumNum_(t.received, 'Docs received') +
-        sumNum_(notStarted.length, 'Not started') +
-      '</div>' +
-      kpiGroup_('Shared documents', 'ok', given.length,
-        given.length
-          ? trackerRows_(given, function(s){
-              return '<span class="chip ok">' + s.received + '/' + s.applicable + ' given</span>' +
-                '<div class="mini-track"><div class="fill" style="width:' + s.completion + '%"></div></div>';
-            })
-          : '<div class="empty-cell" style="padding:18px">No documents received from any seller yet.</div>') +
-      (notStarted.length
-        ? kpiGroup_('Not started yet', 'mut', notStarted.length,
-            trackerRows_(notStarted, function(s){
-              return '<span class="chip mut">0 of ' + s.applicable + '</span>';
-            }))
-        : '');
-  }
-  else if (kind === 'pending'){
-    var complete = D.sellers.filter(function(s){ return s.pending === 0 && s.applicable > 0; })
-      .sort(function(a, b){ return b.received - a.received; });
-    var open = D.sellers.filter(function(s){ return s.pending > 0; })
-      .sort(function(a, b){ return b.pending - a.pending; });
-    title = 'Sellers completed';
-    meta = '<span><b style="color:var(--ink)">' + complete.length + '</b> of ' + t.sellers +
-      ' seller' + (t.sellers === 1 ? '' : 's') + ' ' + (complete.length === 1 ? 'has' : 'have') +
-      ' a complete checklist · ' + open.length + ' still pending</span>';
-    body =
-      '<div class="ks-sum">' +
-        sumNum_(complete.length, 'Complete') +
-        sumNum_(open.length, 'Need follow-up') +
-        sumNum_(t.pending, 'Docs outstanding') +
-      '</div>' +
-      kpiGroup_('Complete — all documents received', 'ok', complete.length,
-        complete.length
-          ? trackerRows_(complete, function(){ return '<span class="chip ok">Complete</span>'; })
-          : '<div class="empty-cell" style="padding:18px">No seller has a fully complete checklist yet.</div>') +
-      (open.length
-        ? kpiGroup_('Needs follow-up', 'warn', open.length,
-            trackerRows_(open, function(s){ return '<span class="chip warn">' + s.pending + ' pending</span>'; }))
-        : '');
-  }
-  else return;
-
-  $('kName').textContent = title;
-  $('kMeta').innerHTML = meta;
-  $('kBody').innerHTML = body;
-  $('kpiDrawer').querySelector('.drawer-body').scrollTop = 0;
-  openDrawer('kpiDrawer');
+function kpiTileBlue(lbl, val, sub, id){
+  var idAttr = id ? ' id="' + id + '"' : '';
+  return '<div class="card kpi"><div class="kpi-accent" style="background:var(--buyer)"></div>' +
+    '<span class="lbl" style="color:var(--buyer-ink)">' + esc(lbl) + '</span><span class="val"' + idAttr + ' style="color:var(--buyer-ink)">' + esc(val) + '</span>' +
+    '<span class="sub">' + esc(sub) + '</span></div>';
 }
 
 /* ═══════════════════════════ Sellers view ══════════════════════════════ */
@@ -1208,6 +1125,58 @@ function renderSellers(){
         '<span class="row-edit" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></span></td>' +
     '</tr>';
   }).join('') : '<tr><td colspan="7" class="empty-cell">No sellers match the current filters.</td></tr>';
+}
+
+/* ═══════════════════════════ Buyers view ═══════════════════════════════ */
+
+function renderBuyers(){
+  if (!DB || !DB.buyers){
+    $('buyersHead').innerHTML = '';
+    $('buyersBody').innerHTML = '<tr><td colspan="6" class="empty-cell">Buyer_NBFC Tracker tab not found or empty.</td></tr>';
+    return;
+  }
+
+  /* Populate entity filter */
+  var ents = {};
+  DB.buyers.forEach(function(b){ if (DB.entityHeader && b.meta[DB.entityHeader]) ents[b.meta[DB.entityHeader]] = 1; });
+  var fltEnt = $('fltBuyerEntity');
+  var curEnt = fltEnt.value;
+  fltEnt.innerHTML = '<option value="">All entity types</option>' +
+    Object.keys(ents).sort().map(function(o){ return '<option'+(o===curEnt?' selected':'')+'>'+esc(o)+'</option>'; }).join('');
+
+  var q = ($('qBuyer').value||'').trim().toLowerCase();
+  var fe = $('fltBuyerEntity').value;
+  var fs = $('fltBuyerStatus').value;
+
+  $('buyersHead').innerHTML = '<tr><th>#</th><th>Buyer</th><th>Entity type</th>' +
+    '<th>Completion</th><th>Pending</th><th></th></tr>';
+
+  var rows = DB.buyers.filter(function(b){
+    if (fe && DB.entityHeader && (b.meta[DB.entityHeader]||'') !== fe) return false;
+    if (fs === 'complete' && b.pending !== 0) return false;
+    if (fs === 'pending' && b.pending === 0) return false;
+    if (q){
+      var hay = Object.keys(b.meta).map(function(k){ return b.meta[k]; }).join(' ').toLowerCase();
+      if (hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+
+  var subFields = (DB.metaFields||[]).filter(function(f){ return f.type === 'text' && f.key !== buyerNameHeader; });
+
+  $('buyersBody').innerHTML = rows.length ? rows.map(function(b){
+    var nm = buyerNameHeader ? b.meta[buyerNameHeader] : ('Row '+b.row);
+    var sub = subFields.map(function(f){ return b.meta[f.key]; }).filter(Boolean).join(' · ');
+    var entityVal = DB.entityHeader ? (b.meta[DB.entityHeader]||'—') : '—';
+    return '<tr>' +
+      '<td style="color:var(--ink-3)">'+esc(b.serial)+'</td>'+
+      '<td><div class="cell-name">'+esc(nm)+'</div>'+(sub?'<div class="cell-sub">'+esc(sub)+'</div>':'')+'</td>'+
+      '<td>'+esc(entityVal)+'</td>'+
+      '<td><div class="prog-cell"><div class="track"><div class="fill" style="width:'+b.completion+'%;background:var(--buyer)"></div></div><span>'+pct(b.completion)+'</span></div></td>'+
+      '<td>'+(b.pending?'<span class="chip warn">'+b.pending+' pending</span>':'<span class="chip ok">Complete</span>')+'</td>'+
+      '<td></td>'+
+    '</tr>';
+  }).join('') : '<tr><td colspan="6" class="empty-cell">No buyers match the current filters.</td></tr>';
 }
 
 /* ═══════════════════════════ Matrix view ═══════════════════════════════ */
@@ -1512,7 +1481,7 @@ function openDrawer(id){
   document.body.style.overflow = 'hidden';
 }
 function closeDrawers(keepScrim){
-  ['detailDrawer','formDrawer','kpiDrawer'].forEach(function(id){
+  ['detailDrawer','formDrawer'].forEach(function(id){
     $(id).classList.remove('on'); $(id).setAttribute('aria-hidden','true');
   });
   if (!keepScrim){
@@ -1535,22 +1504,14 @@ $('segNav').addEventListener('click', function(e){
   });
 });
 
-/* KPI cards → detail drawer (delegated; survives re-render) */
-$('kpis').addEventListener('click', function(e){
-  var k = e.target.closest('[data-kpi]');
-  if (k) openKpi(k.dataset.kpi);
-});
-$('kpis').addEventListener('keydown', function(e){
-  if (e.key !== 'Enter' && e.key !== ' ') return;
-  var k = e.target.closest('[data-kpi]');
-  if (k){ e.preventDefault(); openKpi(k.dataset.kpi); }
-});
-
 $('addSellerBtn').addEventListener('click', function(){ if (D) openForm(null); });
 $('refreshBtn').addEventListener('click', function(){ if (D) refresh(false); });
 $('saveBtn').addEventListener('click', save);
 ['q','fltEntity','fltRegion','fltStatus'].forEach(function(id){
   $(id).addEventListener('input', renderSellers);
+});
+['qBuyer','fltBuyerEntity','fltBuyerStatus'].forEach(function(id){
+  $(id).addEventListener('input', renderBuyers);
 });
 
 /* tooltip (delegated) */
