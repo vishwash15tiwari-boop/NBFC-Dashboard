@@ -1036,7 +1036,13 @@ function renderOverview(){
     var counts = {};
     D.sellers.forEach(function(s){ var v = s.meta[header]||'—'; counts[v]=(counts[v]||0)+1; });
     var chips = Object.keys(counts).sort().map(function(k){
-      return '<div class="facet-chip"><span>'+esc(k)+'</span><b>'+counts[k]+'</b></div>';
+      var p = total ? Math.round(counts[k] / total * 100) : 0;
+      return '<div class="facet-chip" style="flex-direction:column;align-items:stretch;gap:4px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between">' +
+          '<span>' + esc(k) + '</span><b>' + counts[k] + '</b>' +
+        '</div>' +
+        '<div class="facet-bar" style="width:' + p + '%"></div>' +
+      '</div>';
     }).join('');
     return '<div class="facet"><h4>'+esc(header)+'</h4><div class="facet-row">'+chips+'</div></div>';
   }).join('');
@@ -1281,7 +1287,7 @@ function openDetail(row){
   D.docs.forEach(function(d){
     var cell = s.docs[d.key] || {status:'pending', note:''};
     groups[cell.status === 'received' ? 'received' : cell.status === 'na' ? 'na' : 'pending']
-      .push({key: d.key, note: cell.note});
+      .push({key: d.key, note: cell.note, driveUrl: cell.driveUrl || ''});
   });
 
   var ICO = {
@@ -1294,10 +1300,14 @@ function openDetail(row){
     return '<div class="doc-group"><h4>' + title + ' <span class="chip ' +
       (kind==='pending'?'warn':kind==='received'?'ok':'mut') + '">' + arr.length + '</span></h4>' +
       arr.map(function(d){
+        var drvHtml = d.driveUrl
+          ? '<a href="' + esc(d.driveUrl) + '" target="_blank" rel="noopener" class="drive-link" style="display:inline-flex;margin-top:5px">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>View in Drive</a>'
+          : '';
         return '<div class="doc-item"><span class="di-ico">' + ICO[kind] + '</span>' +
           '<div style="flex:1;min-width:0"><div class="di-name">' + esc(d.key) + '</div>' +
           (d.note ? '<div class="di-note">' + esc(d.note) + '</div>' : '') +
-          '</div></div>';
+          drvHtml + '</div></div>';
       }).join('') + '</div>';
   }
 

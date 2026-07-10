@@ -463,15 +463,6 @@ function getSellerListCounts_() {
     var sheets = ss.getSheets();
     var plasticSheet = sheets[1]; // tab 2 (0-based index 1)
     var metalSheet   = sheets[2]; // tab 3 (0-based index 2)
-    function countNonEmptyRows(sheet) {
-      if (!sheet) return 0;
-      var last = sheet.getLastRow();
-      if (last <= 1) return 0; // empty or header only
-      var col = sheet.getRange(2, 1, last - 1, 1).getValues();
-      var n = 0;
-      for (var i = 0; i < col.length; i++) if (String(col[i][0]).trim() !== '') n++;
-      return n;
-    }
     function readNames(sheet) {
       if (!sheet) return [];
       var lastRow = sheet.getLastRow();
