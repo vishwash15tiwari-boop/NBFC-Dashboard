@@ -379,13 +379,15 @@ function getSellerListCounts_() {
       }
       return collect(start, bestCol);
     }
+    var ps = readNames(plasticSheet);
+    var ms = readNames(metalSheet);
     return {
-      plastic:        countNonEmptyRows(plasticSheet),
-      metal:          countNonEmptyRows(metalSheet),
+      plastic:        ps.length,
+      metal:          ms.length,
       plasticName:    plasticSheet ? plasticSheet.getName() : 'Plastic',
       metalName:      metalSheet   ? metalSheet.getName()   : 'Metal',
-      plasticSellers: readNames(plasticSheet),
-      metalSellers:   readNames(metalSheet)
+      plasticSellers: ps,
+      metalSellers:   ms
     };
   } catch (e) {
     return { plastic: 0, metal: 0, plasticName: 'Plastic', metalName: 'Metal',
