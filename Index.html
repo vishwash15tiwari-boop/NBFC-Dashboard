@@ -752,6 +752,23 @@
   </div>
 </aside>
 
+<!-- ─── Buyer detail drawer ──────────────────────────────────────────────── -->
+<aside class="drawer" id="buyerDetailDrawer" aria-hidden="true">
+  <div class="drawer-h">
+    <div style="min-width:0;flex:1">
+      <h2 id="bdName"></h2>
+      <div class="meta-line" id="bdMeta"></div>
+    </div>
+    <button class="x-btn" data-close aria-label="Close">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body" id="bdBody"></div>
+  <div class="drawer-f">
+    <button class="btn-ghost" data-close>Close</button>
+  </div>
+</aside>
+
 <!-- ─── Form drawer ─────────────────────────────────────────────────────── -->
 <aside class="drawer" id="formDrawer" aria-hidden="true">
   <div class="drawer-h">
@@ -1003,17 +1020,19 @@ function renderOverview(){
       '<span class="kpi-ring">' + ringSvg(bt.completion, 60, 6, 'rgba(255,255,255,.22)', '#93C5FD') + '</span>' +
       KPI_GO +
     '</div>';
-  entKeys.slice(0, 3).forEach(function(ek, i){
+  entKeys.slice(0, 2).forEach(function(ek, i){
     var cnt = entityCounts[ek];
     buyerKpisHtml += kpiTileBlue(ek, cnt, cnt === 1 ? '1 buyer' : cnt + ' buyers', 'bkv'+(i+1), 'buyers-ent-'+encodeURIComponent(ek));
   });
-  for (var _fi = entKeys.length; _fi < 3; _fi++){
+  for (var _fi = entKeys.length; _fi < 2; _fi++){
     buyerKpisHtml += kpiTileBlue('—', '—', 'no data', null, null);
   }
+  buyerKpisHtml += kpiTileBlue('In tracker', bTotal, bTotal + ' buyer' + (bTotal===1?'':'s') + ' being tracked', 'bkv3', 'buyers-total');
   buyerKpisHtml += kpiTileBlue('Completed', bt.complete, bTotal ? Math.round(bt.complete/bTotal*100)+'% done' : 'no buyers yet', 'bkv4', 'buyers-complete');
   $('kpis-buyer').innerHTML = buyerKpisHtml;
   animCount($('bkv0'), bTotal);
-  entKeys.slice(0, 3).forEach(function(ek, i){ animCount($('bkv'+(i+1)), entityCounts[ek]); });
+  entKeys.slice(0, 2).forEach(function(ek, i){ animCount($('bkv'+(i+1)), entityCounts[ek]); });
+  animCount($('bkv3'), bTotal);
   animCount($('bkv4'), bt.complete);
 
   /* ── Seller doc bars ── */
@@ -1025,7 +1044,7 @@ function renderOverview(){
   var checkIcon = '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="1" y="1" width="8" height="8" rx="1.5"/></svg>';
   $('attnList').innerHTML = buildAttnCards(D.sellers, D.docs, nameHeader, fieldByType.entity, checkIcon, 'openDetail');
   /* ── Buyer attention ── */
-  $('attnListBuyer').innerHTML = DB ? buildAttnCards(DB.buyers, DB.docs, buyerNameHeader, DB.entityHeader, checkIcon, null, true) : '';
+  $('attnListBuyer').innerHTML = DB ? buildAttnCards(DB.buyers, DB.docs, buyerNameHeader, DB.entityHeader, checkIcon, 'openBuyerDetail', true) : '';
 
   /* ── Facets (seller portfolio breakdown) ── */
   $('facets').innerHTML = ['Region','Entity'].map(function(kind){
@@ -1035,8 +1054,9 @@ function renderOverview(){
     if (!header) return '';
     var counts = {};
     D.sellers.forEach(function(s){ var v = s.meta[header]||'—'; counts[v]=(counts[v]||0)+1; });
+    var facetTotal = D.sellers.length;
     var chips = Object.keys(counts).sort().map(function(k){
-      var p = total ? Math.round(counts[k] / total * 100) : 0;
+      var p = facetTotal ? Math.round(counts[k] / facetTotal * 100) : 0;
       return '<div class="facet-chip" style="flex-direction:column;align-items:stretch;gap:4px">' +
         '<div style="display:flex;align-items:center;justify-content:space-between">' +
           '<span>' + esc(k) + '</span><b>' + counts[k] + '</b>' +
@@ -1232,7 +1252,7 @@ function renderBuyers(){
     var nm = buyerNameHeader ? b.meta[buyerNameHeader] : ('Row '+b.row);
     var sub = subFields.map(function(f){ return b.meta[f.key]; }).filter(Boolean).join(' · ');
     var entityVal = DB.entityHeader ? (b.meta[DB.entityHeader]||'—') : '—';
-    return '<tr>' +
+    return '<tr onclick="openBuyerDetail('+b.row+')" style="cursor:pointer">' +
       '<td style="color:var(--ink-3)">'+esc(b.serial)+'</td>'+
       '<td><div class="cell-name">'+esc(nm)+'</div>'+(sub?'<div class="cell-sub">'+esc(sub)+'</div>':'')+'</td>'+
       '<td>'+esc(entityVal)+'</td>'+
@@ -1329,6 +1349,70 @@ function openDetail(row){
 
   $('dEditBtn').onclick = function(){ closeDrawers(); openForm(row); };
   openDrawer('detailDrawer');
+}
+
+/* ══════════════════════════ Buyer detail drawer ════════════════════════ */
+
+function buyerByRow(row){
+  return DB && DB.buyers ? DB.buyers.filter(function(b){ return b.row === row; })[0] || null : null;
+}
+
+function openBuyerDetail(row){
+  if (!DB) return;
+  var b = buyerByRow(row);
+  if (!b) return;
+  var nm = buyerNameHeader ? b.meta[buyerNameHeader] : ('Row ' + b.row);
+  $('bdName').textContent = nm;
+  $('bdMeta').innerHTML = (DB.metaFields || [])
+    .filter(function(f){ return f.key !== buyerNameHeader && b.meta[f.key]; })
+    .map(function(f){ return '<span>' + esc(b.meta[f.key]) + '</span>'; })
+    .join('<span style="color:var(--line)">·</span>');
+
+  var groups = {pending: [], received: [], na: []};
+  (DB.docs || []).forEach(function(d){
+    var cell = b.docs[d.key] || {status:'pending', note:''};
+    groups[cell.status === 'received' ? 'received' : cell.status === 'na' ? 'na' : 'pending']
+      .push({key: d.key, note: cell.note, driveUrl: cell.driveUrl || ''});
+  });
+
+  var ICO = {
+    pending: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2.1" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>',
+    received:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--buyer)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+    na:      '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--gray-dot)" stroke-width="2.1" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>'
+  };
+  function bgroup(title, arr, kind){
+    if (!arr.length) return '';
+    return '<div class="doc-group"><h4>' + title + ' <span class="chip ' +
+      (kind==='pending'?'warn':kind==='received'?'ok':'mut') + '">' + arr.length + '</span></h4>' +
+      arr.map(function(d){
+        var drvHtml = d.driveUrl
+          ? '<a href="' + esc(d.driveUrl) + '" target="_blank" rel="noopener" class="drive-link" style="display:inline-flex;margin-top:5px">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>View in Drive</a>'
+          : '';
+        return '<div class="doc-item"><span class="di-ico">' + ICO[kind] + '</span>' +
+          '<div style="flex:1;min-width:0"><div class="di-name">' + esc(d.key) + '</div>' +
+          (d.note ? '<div class="di-note">' + esc(d.note) + '</div>' : '') +
+          drvHtml + '</div></div>';
+      }).join('') + '</div>';
+  }
+
+  $('bdBody').innerHTML =
+    '<div class="detail-hero">' +
+      '<div style="position:relative;width:74px;height:74px;flex:none">' +
+        ringSvg(b.completion, 74, 8, 'var(--line-2)', 'var(--buyer)') +
+        '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px">' + Math.round(b.completion) + '%</div>' +
+      '</div>' +
+      '<div class="nums">' +
+        '<div class="dh-num"><div class="v" style="color:var(--buyer)">' + b.received + '</div><div class="k">Received</div></div>' +
+        '<div class="dh-num"><div class="v" style="color:' + (b.pending ? 'var(--amber)' : 'var(--ink)') + '">' + b.pending + '</div><div class="k">Pending</div></div>' +
+        '<div class="dh-num"><div class="v" style="color:var(--ink-3)">' + b.na + '</div><div class="k">N/A</div></div>' +
+      '</div>' +
+    '</div>' +
+    bgroup('Pending documents', groups.pending, 'pending') +
+    bgroup('Received', groups.received, 'received') +
+    bgroup('Not applicable for this entity', groups.na, 'na');
+
+  openDrawer('buyerDetailDrawer');
 }
 
 /* ═══════════════════════════ Form drawer ═══════════════════════════════ */
@@ -1549,7 +1633,7 @@ function openDrawer(id){
   document.body.style.overflow = 'hidden';
 }
 function closeDrawers(keepScrim){
-  ['detailDrawer','formDrawer'].forEach(function(id){
+  ['detailDrawer','formDrawer','buyerDetailDrawer'].forEach(function(id){
     $(id).classList.remove('on'); $(id).setAttribute('aria-hidden','true');
   });
   if (!keepScrim){
