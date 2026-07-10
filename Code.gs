@@ -933,6 +933,137 @@ function saveSeller(payload) {
   }
 }
 
+/**
+ * Creates or updates one buyer row in the Buyer_NBFC Tracker tab.
+ * Mirrors saveSeller but uses BUYER_REQ_MATRIX for applicability.
+ */
+function saveBuyer(payload) {
+  if (!payload || typeof payload !== 'object') throw new Error('Nothing to save.');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var ss = getSpreadsheet_();
+    var tracker = findSheet_(ss, CONFIG.BUYER);
+    var layout = readTrackerLayout_(tracker);
+
+    var meta = payload.meta || {};
+    var statuses = payload.statuses || {};
+    var notes = payload.notes || {};
+
+    var nameHeader = null, entityHeader = null;
+    layout.metaIdx.forEach(function (idx) {
+      var h = layout.headers[idx];
+      if (!nameHeader && normKey_(h).indexOf('name') !== -1) nameHeader = h;
+      if (!entityHeader && metaFieldType_(h) === 'entity') entityHeader = h;
+    });
+
+    var name = nameHeader ? String(meta[nameHeader] || '').trim() : '';
+    if (nameHeader && !name) throw new Error('Buyer business name is required.');
+
+    var lastRow = tracker.getLastRow();
+    var lastCol = tracker.getLastColumn();
+    var existing = lastRow > 1
+      ? tracker.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues()
+      : [];
+
+    var targetRow = null;
+    if (payload.row) {
+      var idx0 = Number(payload.row) - 2;
+      if (idx0 >= 0 && idx0 < existing.length) {
+        targetRow = Number(payload.row);
+      } else {
+        throw new Error('The row being edited was not found in the sheet (it may have been deleted). Please refresh and try again.');
+      }
+    } else if (name && nameHeader) {
+      var nCol = layout.headers.indexOf(nameHeader);
+      for (var r = 0; r < existing.length; r++) {
+        if (String(existing[r][nCol]).trim().toLowerCase() === name.toLowerCase()) {
+          throw new Error('A buyer named "' + name + '" already exists. Open that buyer and use Update instead.');
+        }
+      }
+    }
+
+    var entityType = entityHeader ? String(meta[entityHeader] || '').trim() : '';
+    var entityKey = getBuyerEntityKey_(entityType);
+
+    var out = new Array(layout.headers.length);
+    for (var c = 0; c < out.length; c++) out[c] = '';
+
+    if (targetRow) {
+      var current = tracker.getRange(targetRow, 1, 1, lastCol).getDisplayValues()[0];
+      for (var c2 = 0; c2 < out.length; c2++) out[c2] = current[c2];
+    } else {
+      var maxSerial = 0;
+      existing.forEach(function (row) {
+        var n = parseInt(row[layout.serialIdx], 10);
+        if (!isNaN(n) && n > maxSerial) maxSerial = n;
+      });
+      out[layout.serialIdx] = maxSerial + 1;
+    }
+
+    layout.metaIdx.forEach(function (idx) {
+      var h = layout.headers[idx];
+      if (!(h in meta)) return;
+      var v = String(meta[h] == null ? '' : meta[h]).trim();
+      out[idx] = metaFieldType_(h) === 'date' ? toSheetDate_(v) : v;
+    });
+
+    var pendingCount = 0;
+    layout.docIdx.forEach(function (idx) {
+      var h = layout.headers[idx];
+      var req = matchBuyerRequirement_(h);
+      var applicable = !req || !entityKey ? true : !!req[entityKey];
+      var status = String(statuses[h] || '').toLowerCase();
+      var note = String(notes[h] == null ? '' : notes[h]).trim().replace(/\s+/g, ' ').slice(0, 300);
+
+      var cell;
+      if (!applicable) {
+        cell = 'NA'; status = 'na';
+      } else if (status === 'received') {
+        cell = note || 'Received';
+      } else if (status === 'na') {
+        cell = 'NA';
+      } else {
+        status = 'pending';
+        cell = note || 'Pending';
+      }
+      if (note && status !== 'na' && parseStatus_(cell).status !== status) {
+        cell = (status === 'received' ? 'Received — ' : 'Pending — ') + note;
+      }
+      if (status === 'pending') pendingCount++;
+      out[idx] = cell;
+    });
+    out[layout.pendingIdx] = pendingCount;
+
+    var writeRow = targetRow || (lastRow + 1);
+    tracker.getRange(writeRow, 1, 1, out.length).setValues([out]);
+
+    if (payload.docDriveUrls && typeof payload.docDriveUrls === 'object') {
+      Object.keys(payload.docDriveUrls).forEach(function (docKey) {
+        var url = String(payload.docDriveUrls[docKey] || '').trim();
+        if (!url) return;
+        var colIdx = layout.headers.indexOf(docKey);
+        if (colIdx >= 0) tracker.getRange(writeRow, colIdx + 1).setNote(url);
+      });
+    }
+    if (Array.isArray(payload.docClearUrls)) {
+      payload.docClearUrls.forEach(function (docKey) {
+        var colIdx = layout.headers.indexOf(docKey);
+        if (colIdx >= 0) tracker.getRange(writeRow, colIdx + 1).setNote('');
+      });
+    }
+
+    SpreadsheetApp.flush();
+
+    var fresh = getInitialData();
+    fresh.savedRow = writeRow;
+    fresh.savedAction = targetRow ? 'updated' : 'created';
+    return fresh;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 /* ────────────────────────── Drive integration ───────────────────────────── */
 
 var DRIVE_ROOT_ID = '1i5melXCocWrV9rR-3gM75wwSwWy7Dqit';

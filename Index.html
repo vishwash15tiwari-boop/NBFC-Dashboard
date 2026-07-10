@@ -541,6 +541,43 @@
     .drawer{width:100vw}
     .doc-field-top{flex-wrap:wrap}
   }
+
+  /* ─── UX polish ─────────────────────────────────────────────────────── */
+  html{scroll-behavior:smooth}
+
+  .btn-primary{transition:background .18s ease,transform .15s ease,box-shadow .18s ease}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,140,68,.28),inset 0 1px 0 rgba(255,255,255,.18)}
+  .btn-primary:active{transform:translateY(0);box-shadow:0 1px 2px rgba(0,140,68,.2)}
+  .icon-btn{transition:all .18s ease}
+  .icon-btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-md)}
+  .icon-btn:active{transform:translateY(0)}
+
+  .card{transition:box-shadow .22s ease,border-color .22s ease,transform .22s ease}
+  .card:hover{box-shadow:var(--shadow-md);border-color:#C8D7CF;transform:translateY(-1px)}
+
+  .scrim{background:rgba(5,12,8,.48);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+  .drawer{transition:transform .26s cubic-bezier(.22,.68,.35,1.02)}
+  .drawer-f{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);background:rgba(255,255,255,.96)}
+
+  :focus-visible{outline:2px solid var(--rk-green);outline-offset:2px;border-radius:4px}
+  .btn-primary:focus-visible{outline-color:#fff}
+
+  .tbl tbody tr{transition:background .16s ease}
+  .tbl tbody tr:hover{background:rgba(0,166,81,.06)}
+  .attn-card{transition:box-shadow .2s ease,transform .2s ease,border-color .2s ease}
+  .attn-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+
+  .kpi.click:hover{transform:translateY(-3px);box-shadow:0 8px 20px -4px rgba(16,24,40,.14)}
+  .kpi.click:active{transform:translateY(-1px)}
+
+  .seg button,.card-tabs button,.seg-nav button{transition:all .14s ease}
+  .doc-field{transition:border-color .15s,background .15s,box-shadow .15s}
+  .doc-field:not(.is-na):hover{border-color:#C5D4CF;box-shadow:0 2px 8px rgba(16,24,40,.06)}
+  .facet-chip{transition:background .14s}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  }
 </style>
 
 <!-- Hidden file input for Drive uploads -->
@@ -587,6 +624,10 @@
   <button class="btn-primary" id="addSellerBtn">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
     Add Seller
+  </button>
+  <button class="btn-primary" id="addBuyerBtn" style="background:var(--buyer);box-shadow:0 1px 2px rgba(24,73,214,.35),inset 0 1px 0 rgba(255,255,255,.18)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    Add Buyer
   </button>
 </header>
 
@@ -642,8 +683,15 @@
           <div class="attn" id="attnListBuyer" style="display:none"></div>
         </div>
         <div class="card ov-breakdown">
-          <div class="card-h"><h3>Portfolio breakdown</h3></div>
+          <div class="card-h">
+            <h3>Portfolio breakdown</h3>
+            <div class="card-tabs" id="facetTabs">
+              <button data-ct="seller" class="on" onclick="switchFacets('seller')">Sellers</button>
+              <button data-ct="buyer" onclick="switchFacets('buyer')">Buyers</button>
+            </div>
+          </div>
           <div class="facets" id="facets"></div>
+          <div class="facets" id="facets-buyer" style="display:none"></div>
         </div>
       </div>
       <!-- Row 2: Document status full-width, tabbed Sellers/Buyers -->
@@ -766,6 +814,36 @@
   <div class="drawer-body" id="bdBody"></div>
   <div class="drawer-f">
     <button class="btn-ghost" data-close>Close</button>
+    <button class="btn-primary" id="bdEditBtn" style="background:var(--buyer);box-shadow:0 1px 2px rgba(24,73,214,.35),inset 0 1px 0 rgba(255,255,255,.18)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+      Edit buyer
+    </button>
+  </div>
+</aside>
+
+<!-- ─── Buyer form drawer ─────────────────────────────────────────────────── -->
+<aside class="drawer" id="buyerFormDrawer" aria-hidden="true">
+  <div class="drawer-h">
+    <div style="flex:1">
+      <h2 id="bfTitle">Add buyer</h2>
+      <div class="meta-line" id="bfSub">Writes directly to the Buyer_NBFC Tracker sheet</div>
+    </div>
+    <button class="x-btn" data-close aria-label="Close">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body">
+    <div class="form-alert" id="bfAlert"></div>
+    <div class="fgrid" id="bfMetaFields"></div>
+    <div class="fsec">Document checklist <span class="cnt" id="bfDocCount"></span></div>
+    <div id="bfDocFields"></div>
+  </div>
+  <div class="drawer-f">
+    <button class="btn-ghost" data-close>Cancel</button>
+    <button class="btn-primary" id="bfSaveBtn" style="background:var(--buyer);box-shadow:0 1px 2px rgba(24,73,214,.35),inset 0 1px 0 rgba(255,255,255,.18)">
+      <span id="bfSaveSpin" class="spin" style="display:none"></span>
+      <span id="bfSaveLbl">Save to sheet</span>
+    </button>
   </div>
 </aside>
 
@@ -824,8 +902,11 @@ var fieldByType = {};         // gst / date / entity → header name
 var nameHeader = null;
 var buyerNameHeader = null;
 var editingSeller = null;     // seller object while form is open, else null
+var editingBuyer  = null;     // buyer object while buyer form is open, else null
 var _formDocUrls = {};        // docKey → Drive URL for the currently open form
 var _removedFormDocUrls = {}; // docKeys explicitly removed this session
+var _buyerFormDocUrls = {};
+var _removedBuyerFormDocUrls = {};
 var lastFocusRefresh = 0;
 
 function $(id){ return document.getElementById(id); }
@@ -894,6 +975,16 @@ function entityColumnFor(entityType){
   var e = normKey(entityType); if (!e) return null;
   var best = null, len = 0;
   D.entityColumns.forEach(function(label){
+    var n = normKey(label);
+    if ((e.indexOf(n) !== -1 || n.indexOf(e) !== -1) && n.length > len){ best = label; len = n.length; }
+  });
+  return best;
+}
+function buyerEntityColumnFor(entityType){
+  if (!DB) return null;
+  var e = normKey(entityType); if (!e) return null;
+  var best = null, len = 0;
+  DB.entityColumns.forEach(function(label){
     var n = normKey(label);
     if ((e.indexOf(n) !== -1 || n.indexOf(e) !== -1) && n.length > len){ best = label; len = n.length; }
   });
@@ -1056,6 +1147,39 @@ function renderOverview(){
     }).join('');
     return '<div class="facet"><h4>'+esc(header)+'</h4><div class="facet-row">'+chips+'</div></div>';
   }).join('');
+
+  /* ── Buyer portfolio breakdown ── */
+  $('facets-buyer').innerHTML = (function(){
+    if (!DB || !DB.buyers || !DB.buyers.length)
+      return '<div class="empty-cell">No buyer data available.</div>';
+    var kinds = [];
+    if (DB.entityHeader) kinds.push(DB.entityHeader);
+    var rk = (DB.metaFields || []).filter(function(f){ return normKey(f.key) === 'region'; })[0];
+    if (rk) kinds.push(rk.key);
+    if (!kinds.length) return '<div class="empty-cell">No breakdown fields found.</div>';
+    var bTotal = DB.buyers.length;
+    return kinds.map(function(h){
+      var counts = {};
+      DB.buyers.forEach(function(b){ var v = (b.meta[h]||'—'); counts[v]=(counts[v]||0)+1; });
+      var chips = Object.keys(counts).sort().map(function(k){
+        var p = bTotal ? Math.round(counts[k] / bTotal * 100) : 0;
+        return '<div class="facet-chip" style="flex-direction:column;align-items:stretch;gap:4px">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between">' +
+            '<span>' + esc(k) + '</span><b>' + counts[k] + '</b>' +
+          '</div>' +
+          '<div class="facet-bar" style="width:' + p + '%;background:var(--buyer)"></div>' +
+        '</div>';
+      }).join('');
+      return '<div class="facet"><h4>' + esc(h) + '</h4><div class="facet-row">' + chips + '</div></div>';
+    }).join('');
+  })();
+}
+
+function switchFacets(section){
+  var isBuyer = section === 'buyer';
+  $('facets').style.display = isBuyer ? 'none' : '';
+  $('facets-buyer').style.display = isBuyer ? '' : 'none';
+  $('facetTabs').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.ct === section); });
 }
 
 /* Shared: build stacked doc bars HTML from docs + entity rows */
@@ -1404,7 +1528,205 @@ function openBuyerDetail(row){
     bgroup('Received', groups.received, 'received') +
     bgroup('Not applicable for this entity', groups.na, 'na');
 
+  $('bdEditBtn').onclick = function(){ closeDrawers(); openBuyerForm(row); };
   openDrawer('buyerDetailDrawer');
+}
+
+/* ═══════════════════════════ Buyer form drawer ══════════════════════════ */
+
+function openBuyerForm(row){
+  if (!DB) return;
+  editingBuyer = row ? buyerByRow(row) : null;
+  $('bfTitle').textContent = editingBuyer ? 'Update buyer' : 'Add buyer';
+  $('bfSub').textContent = editingBuyer
+    ? 'Editing row ' + editingBuyer.row + ' of Buyer_NBFC Tracker'
+    : 'Appends a new row to Buyer_NBFC Tracker in the sheet\'s exact format';
+  $('bfAlert').classList.remove('on');
+
+  $('bfMetaFields').innerHTML = DB.metaFields.map(function(f, i){
+    var val = editingBuyer ? (editingBuyer.meta[f.key] || '') : '';
+    var isName = f.key === buyerNameHeader;
+    var label = esc(f.key) + (isName || f.type === 'entity' ? ' <span class="req">*</span>' : '');
+    var full = isName ? ' full' : '';
+    if (f.type === 'entity'){
+      var opts = DB.entityColumns.map(function(o){
+        return '<option' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>';
+      }).join('');
+      return '<div class="field' + full + '" data-key="' + esc(f.key) + '"><label>' + label + '</label>' +
+        '<select id="bfmf' + i + '" onchange="onBuyerEntityChange()"><option value=""' + (val ? '' : ' selected') + ' disabled>Select entity type…</option>' + opts + '</select>' +
+        '<span class="err"></span></div>';
+    }
+    if (f.type === 'date'){
+      return '<div class="field' + full + '" data-key="' + esc(f.key) + '" data-orig="' + esc(val) + '"><label>' + label + '</label>' +
+        '<input id="bfmf' + i + '" type="date" value="' + esc(sheetDateToIso(val)) + '">' +
+        '<span class="err"></span></div>';
+    }
+    return '<div class="field' + full + '" data-key="' + esc(f.key) + '"><label>' + label + '</label>' +
+      '<input id="bfmf' + i + '" type="text" value="' + esc(val) + '" autocomplete="off">' +
+      '<span class="err"></span></div>';
+  }).join('');
+
+  _buyerFormDocUrls = {};
+  _removedBuyerFormDocUrls = {};
+  if (editingBuyer) {
+    DB.docs.forEach(function(d){
+      var cell = editingBuyer.docs[d.key] || {};
+      if (cell.driveUrl) _buyerFormDocUrls[d.key] = cell.driveUrl;
+    });
+  }
+
+  $('bfDocFields').innerHTML = DB.docs.map(function(d, i){
+    var cell = editingBuyer ? (editingBuyer.docs[d.key] || {}) : {};
+    var st = cell.status || 'pending';
+    var note = cell.note || '';
+    return '<div class="doc-field" id="bdf' + i + '" data-key="' + esc(d.key) + '" data-status="' + st + '">' +
+      '<div class="doc-field-top">' +
+        '<span class="dname" title="' + esc(d.key) + '">' + esc(d.key) + '</span>' +
+        '<span class="na-tag" style="display:none"></span>' +
+        '<div class="seg" role="group">' +
+          '<button type="button" data-v="received" onclick="setBuyerDocStatus(' + i + ',\'received\')">Received</button>' +
+          '<button type="button" data-v="pending" onclick="setBuyerDocStatus(' + i + ',\'pending\')">Pending</button>' +
+          '<button type="button" data-v="na" onclick="setBuyerDocStatus(' + i + ',\'na\')">NA</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="doc-field-btns">' +
+        '<button type="button" class="note-toggle" onclick="toggleBuyerNote(' + i + ')">' + (note ? 'Edit note' : '+ Add note') + '</button>' +
+      '</div>' +
+      '<div class="note-in" style="display:' + (note ? 'block' : 'none') + '">' +
+        '<input type="text" maxlength="300" placeholder="Optional note" value="' + esc(note) + '">' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  DB.docs.forEach(function(d, i){ paintBuyerSeg(i); });
+  onBuyerEntityChange();
+  openDrawer('buyerFormDrawer');
+}
+
+function buyerEntitySelectValue(){
+  if (!DB) return '';
+  var idx = DB.metaFields.findIndex(function(f){ return f.type === 'entity'; });
+  return idx === -1 ? '' : ($('bfmf' + idx) ? $('bfmf' + idx).value : '');
+}
+
+function onBuyerEntityChange(){
+  if (!DB) return;
+  var entity = buyerEntitySelectValue();
+  var col = buyerEntityColumnFor(entity);
+  var applicable = 0;
+  DB.docs.forEach(function(d, i){
+    var el = $('bdf' + i);
+    if (!el) return;
+    var na = entity && col ? !d.requiredBy[col] : false;
+    el.classList.toggle('is-na', na);
+    var tag = el.querySelector('.na-tag');
+    var seg = el.querySelector('.seg');
+    var btns = el.querySelector('.doc-field-btns');
+    var noteIn = el.querySelector('.note-in');
+    if (na){
+      tag.style.display = ''; tag.textContent = 'Not required · ' + col;
+      seg.style.display = 'none'; if (btns) btns.style.display = 'none';
+      noteIn.style.display = 'none';
+    } else {
+      tag.style.display = 'none'; seg.style.display = ''; if (btns) btns.style.display = '';
+      var noteVal = noteIn.querySelector('input') ? noteIn.querySelector('input').value.trim() : '';
+      noteIn.style.display = noteVal ? 'block' : 'none';
+      applicable++;
+    }
+  });
+  $('bfDocCount').textContent = entity
+    ? '— ' + applicable + ' required for ' + entity
+    : '— select an entity type to apply the requirement checklist';
+}
+
+function setBuyerDocStatus(i, v){
+  var el = $('bdf' + i);
+  if (!el) return;
+  el.dataset.status = v;
+  paintBuyerSeg(i);
+}
+
+function paintBuyerSeg(i){
+  var el = $('bdf' + i);
+  if (!el) return;
+  var st = el.dataset.status;
+  el.querySelectorAll('.seg button').forEach(function(b){
+    b.className = b.dataset.v === st
+      ? (st === 'received' ? 'on-rec' : st === 'pending' ? 'on-pen' : 'on-na') : '';
+  });
+}
+
+function toggleBuyerNote(i){
+  var box = $('bdf' + i).querySelector('.note-in');
+  var show = box.style.display === 'none';
+  box.style.display = show ? 'block' : 'none';
+  if (show) box.querySelector('input').focus();
+}
+
+function validateBuyerForm(){
+  if (!DB) return null;
+  var ok = true, meta = {};
+  DB.metaFields.forEach(function(f, i){
+    var wrap = $('bfMetaFields').querySelector('.field[data-key="' + CSS.escape(f.key) + '"]');
+    var input = $('bfmf' + i);
+    if (!wrap || !input) return;
+    var v = (input.value || '').trim();
+    if (f.type === 'date' && !v && wrap.dataset.orig && !sheetDateToIso(wrap.dataset.orig)){
+      v = wrap.dataset.orig;
+    }
+    var err = '';
+    if (f.key === buyerNameHeader && !v) err = 'Required.';
+    if (f.type === 'entity' && !v) err = 'Select the business category — it drives the document checklist.';
+    wrap.classList.toggle('invalid', !!err);
+    wrap.querySelector('.err').textContent = err;
+    if (err) ok = false;
+    meta[f.key] = v;
+  });
+  return ok ? meta : null;
+}
+
+function saveBuyerEntry(){
+  if (!DB) return;
+  var meta = validateBuyerForm();
+  var alert = $('bfAlert');
+  if (!meta){
+    alert.textContent = 'Please fix the highlighted fields before saving.';
+    alert.classList.add('on');
+    $('buyerFormDrawer').querySelector('.drawer-body').scrollTop = 0;
+    return;
+  }
+  alert.classList.remove('on');
+
+  var statuses = {}, notes = {};
+  DB.docs.forEach(function(d, i){
+    var el = $('bdf' + i);
+    if (!el) return;
+    statuses[d.key] = el.classList.contains('is-na') ? 'na' : el.dataset.status;
+    var n = el.querySelector('.note-in input').value.trim();
+    if (n && !el.classList.contains('is-na')) notes[d.key] = n;
+  });
+
+  var payload = {
+    row: editingBuyer ? editingBuyer.row : null,
+    meta: meta, statuses: statuses, notes: notes,
+    docDriveUrls: Object.keys(_buyerFormDocUrls).length ? _buyerFormDocUrls : null,
+    docClearUrls: Object.keys(_removedBuyerFormDocUrls)
+  };
+
+  var btn = $('bfSaveBtn');
+  btn.disabled = true; $('bfSaveSpin').style.display = 'inline-block'; $('bfSaveLbl').textContent = 'Saving…';
+  run('saveBuyer', payload).then(function(fresh){
+    onData(fresh);
+    closeDrawers();
+    var nm = buyerNameHeader ? meta[buyerNameHeader] : 'Buyer';
+    toast(nm + ' ' + (fresh.savedAction === 'updated' ? 'updated' : 'added') + ' — sheet & dashboard are in sync');
+  }).catch(function(err){
+    alert.textContent = (err && err.message) ? err.message : String(err);
+    alert.classList.add('on');
+    $('buyerFormDrawer').querySelector('.drawer-body').scrollTop = 0;
+  }).finally(function(){
+    btn.disabled = false; $('bfSaveSpin').style.display = 'none'; $('bfSaveLbl').textContent = 'Save to sheet';
+  });
 }
 
 /* ═══════════════════════════ Form drawer ═══════════════════════════════ */
@@ -1625,7 +1947,7 @@ function openDrawer(id){
   document.body.style.overflow = 'hidden';
 }
 function closeDrawers(keepScrim){
-  ['detailDrawer','formDrawer','buyerDetailDrawer'].forEach(function(id){
+  ['detailDrawer','formDrawer','buyerDetailDrawer','buyerFormDrawer'].forEach(function(id){
     $(id).classList.remove('on'); $(id).setAttribute('aria-hidden','true');
   });
   if (!keepScrim){
@@ -1749,8 +2071,10 @@ $('segNav').addEventListener('click', function(e){
 });
 
 $('addSellerBtn').addEventListener('click', function(){ if (D) openForm(null); });
+$('addBuyerBtn').addEventListener('click', function(){ if (DB) openBuyerForm(null); });
 $('refreshBtn').addEventListener('click', function(){ if (D) refresh(false); });
 $('saveBtn').addEventListener('click', save);
+$('bfSaveBtn').addEventListener('click', saveBuyerEntry);
 ['q','fltEntity','fltRegion','fltStatus'].forEach(function(id){
   $(id).addEventListener('input', renderSellers);
 });
