@@ -391,6 +391,7 @@ function getBuyerData_(ss) {
     if (lastRow > 1) {
       var dataRange = tracker.getRange(2, 1, lastRow - 1, tracker.getLastColumn());
       var values = dataRange.getDisplayValues();
+      var allNotes = dataRange.getNotes();
       values.forEach(function (row, i) {
         var meta = {};
         layout.metaIdx.forEach(function (idx) { meta[layout.headers[idx]] = String(row[idx]).trim(); });
@@ -400,18 +401,21 @@ function getBuyerData_(ss) {
         var entityType = entityHeaderKey ? (meta[entityHeaderKey] || '') : '';
         var entityKey = getBuyerEntityKey_(entityType);
 
+        var rowNotes = allNotes[i] || [];
         var docStates = {};
         var received = 0, pending = 0, na = 0;
         layout.docIdx.forEach(function (idx) {
           var h = layout.headers[idx];
           var req = matchBuyerRequirement_(h);
           var applicable = !req || !entityKey ? true : !!req[entityKey];
+          var cellNote = String(rowNotes[idx] || '').trim();
+          var driveUrl = /^https?:\/\/\S+$/.test(cellNote) ? cellNote : '';
           if (!applicable) {
-            docStates[h] = { status: 'na', note: '', raw: '' };
+            docStates[h] = { status: 'na', note: '', raw: '', driveUrl: '' };
             na++;
           } else {
             var parsed = parseStatus_(row[idx]);
-            docStates[h] = { status: parsed.status, note: parsed.note, raw: String(row[idx]).trim() };
+            docStates[h] = { status: parsed.status, note: parsed.note, raw: String(row[idx]).trim(), driveUrl: driveUrl };
             if (parsed.status === 'received') received++;
             else if (parsed.status === 'na') na++;
             else pending++;

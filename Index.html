@@ -995,8 +995,8 @@ function renderOverview(){
       '<span class="kpi-ring">' + ringSvg(t.completion, 60, 6, 'rgba(255,255,255,.22)', '#3DDC84') + '</span>' +
       KPI_GO +
     '</div>' +
-    kpiTile('Plastic sellers', sl.plastic, esc(sl.plasticName || 'Plastic category'), 'var(--rk-green)', 'kv1', 'sellers-plastic') +
-    kpiTile('Metal sellers', sl.metal, esc(sl.metalName || 'Metal category'), 'var(--rk-green)', 'kv2', 'sellers-metal') +
+    kpiTile('Plastic sellers', sl.plastic, sl.plasticName || 'Plastic category', 'var(--rk-green)', 'kv1', 'sellers-plastic') +
+    kpiTile('Metal sellers', sl.metal, sl.metalName || 'Metal category', 'var(--rk-green)', 'kv2', 'sellers-metal') +
     kpiTile('In tracker', t.sellers, t.sellers + ' seller' + (t.sellers===1?'':'s') + ' being tracked', 'var(--rk-green)', 'kv3', 'sellers-tracked') +
     kpiTile('Completed', t.complete, t.sellers ? Math.round(t.complete/t.sellers*100)+'% done' : 'no sellers yet', 'var(--rk-green)', 'kv4', 'sellers-complete');
   animCount($('kv0'), totalList); animCount($('kv1'), sl.plastic);
@@ -1005,23 +1005,23 @@ function renderOverview(){
   /* ── Buyer KPIs ── */
   var bTotal = bt.buyers;
   var bl = (DB && DB.buyerLists) ? DB.buyerLists : {plastic:0, metal:0, plasticName:'Plastic', metalName:'Metal', plasticBuyers:[], metalBuyers:[]};
-  var bListTotal = bl.plastic + bl.metal;
+  var blConfigured = bl.plastic > 0 || bl.metal > 0;
+  var bListTotal = blConfigured ? (bl.plastic + bl.metal) : bTotal;
   var buyerKpisHtml =
     '<div class="card kpi hero buyer-hero click" onclick="openKpi(\'buyers-total\')">' +
       '<span class="lbl">Buyers giving docs to NBFC</span>' +
       '<span class="val" id="bkv0">' + bListTotal + '</span>' +
-      '<span class="sub">Plastic: ' + bl.plastic + ' · Metal: ' + bl.metal + '</span>' +
+      '<span class="sub">' + (blConfigured ? 'Plastic: ' + bl.plastic + ' · Metal: ' + bl.metal : bTotal + ' in tracker') + '</span>' +
       '<span class="kpi-ring">' + ringSvg(bt.completion, 60, 6, 'rgba(255,255,255,.22)', '#93C5FD') + '</span>' +
       KPI_GO +
     '</div>' +
-    kpiTileBlue('Plastic buyers', bl.plastic, esc(bl.plasticName || 'Plastic category'), 'bkv1', 'buyers-plastic') +
-    kpiTileBlue('Metal buyers',   bl.metal,   esc(bl.metalName   || 'Metal category'),   'bkv2', 'buyers-metal') +
+    kpiTileBlue('Plastic buyers', blConfigured ? bl.plastic : '—', blConfigured ? (bl.plasticName || 'Plastic category') : 'Set up buyer list to see', 'bkv1', blConfigured ? 'buyers-plastic' : null) +
+    kpiTileBlue('Metal buyers',   blConfigured ? bl.metal   : '—', blConfigured ? (bl.metalName   || 'Metal category')   : 'Set up buyer list to see', 'bkv2', blConfigured ? 'buyers-metal'   : null) +
     kpiTileBlue('In tracker', bTotal, bTotal + ' buyer' + (bTotal===1?'':'s') + ' being tracked', 'bkv3', 'buyers-total') +
     kpiTileBlue('Completed', bt.complete, bTotal ? Math.round(bt.complete/bTotal*100)+'% done' : 'no buyers yet', 'bkv4', 'buyers-complete');
   $('kpis-buyer').innerHTML = buyerKpisHtml;
   animCount($('bkv0'), bListTotal);
-  animCount($('bkv1'), bl.plastic);
-  animCount($('bkv2'), bl.metal);
+  if (blConfigured){ animCount($('bkv1'), bl.plastic); animCount($('bkv2'), bl.metal); }
   animCount($('bkv3'), bTotal);
   animCount($('bkv4'), bt.complete);
 
@@ -1126,7 +1126,8 @@ function kpiTile(lbl, val, sub, accent, id, kind){
   var clickAttr = kind ? ' onclick="openKpi(\'' + kind + '\')"' : '';
   var clickCls = kind ? ' click' : '';
   return '<div class="card kpi' + clickCls + '"' + clickAttr + '><div class="kpi-accent" style="background:' + accent + '"></div>' +
-    '<span class="lbl">' + esc(lbl) + '</span><span class="val"' + idAttr + '>' + esc(val) + '</span>' +
+    '<span class="lbl">' + esc(lbl) + '</span>' +
+    '<span class="val"' + idAttr + '>' + String(val == null ? '—' : val) + '</span>' +
     '<span class="sub">' + esc(sub) + '</span>' + (kind ? KPI_GO : '') + '</div>';
 }
 function kpiTileBlue(lbl, val, sub, id, kind){
@@ -1134,7 +1135,8 @@ function kpiTileBlue(lbl, val, sub, id, kind){
   var clickAttr = kind ? ' onclick="openKpi(\'' + kind + '\')"' : '';
   var clickCls = kind ? ' click' : '';
   return '<div class="card kpi' + clickCls + '"' + clickAttr + '><div class="kpi-accent" style="background:var(--buyer)"></div>' +
-    '<span class="lbl" style="color:var(--buyer-ink)">' + esc(lbl) + '</span><span class="val"' + idAttr + ' style="color:var(--buyer-ink)">' + esc(val) + '</span>' +
+    '<span class="lbl" style="color:var(--buyer-ink)">' + esc(lbl) + '</span>' +
+    '<span class="val"' + idAttr + ' style="color:var(--buyer-ink)">' + String(val == null ? '—' : val) + '</span>' +
     '<span class="sub">' + esc(sub) + '</span>' + (kind ? KPI_GO : '') + '</div>';
 }
 
