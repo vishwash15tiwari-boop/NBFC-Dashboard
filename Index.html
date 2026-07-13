@@ -299,9 +299,17 @@
   .cell-name{font-weight:600;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
   .cell-sub{font-size:11.5px;color:var(--ink-3);margin-top:1px}
   .gst{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums;letter-spacing:.01em}
-  .tv-tag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:.01em;flex-shrink:0}
-  .tv-tag.seller{background:var(--rk-green-tint);color:var(--rk-green-ink)}
-  .tv-tag.buyer{background:var(--buyer-tint);color:var(--buyer-ink)}
+  /* Turnover tag — inline in name cell */
+  .tv-tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:.01em;flex-shrink:0}
+  .tv-tag.seller{background:var(--rk-green);color:#fff}
+  .tv-tag.buyer{background:var(--buyer);color:#fff}
+  /* Turnover row inside attention cards */
+  .attn-tv{margin-top:4px;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px}
+  .attn-tv-label{font-size:10px;font-weight:500;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em}
+  .attn-tv-val{padding:2px 9px;border-radius:20px;font-size:12px;font-weight:700}
+  .attn-tv-val.seller{background:var(--rk-green);color:#fff}
+  .attn-tv-val.buyer{background:var(--buyer);color:#fff}
+  .attn-tv-val.empty{background:var(--line-2);color:var(--ink-3);font-weight:500}
   .prog-cell{display:flex;align-items:center;gap:10px;min-width:150px}
   .prog-cell .track{flex:1}
   .prog-cell span{font-size:12px;font-weight:700;min-width:40px;text-align:right;color:var(--ink-2)}
@@ -1394,7 +1402,13 @@ function buildAttnCards(rows, docs, nHeader, entityHeader, checkIcon, openFn, is
         '<div class="'+avatarCls+'">'+esc(initials(nm))+'</div>'+
         '<div class="attn-info">'+
           '<div class="attn-name">'+esc(nm)+'</div>'+
-          '<div class="attn-type">'+esc(entityHeader?r.meta[entityHeader]||'':'')+(tv?'<span class="tv-tag '+tvCls+'" style="margin-left:6px">'+esc(tv)+'</span>':'')+'</div>'+
+          '<div class="attn-type">'+esc(entityHeader?r.meta[entityHeader]||'':'')+'</div>'+
+          '<div class="attn-tv">'+
+            '<span class="attn-tv-label">Turnover</span>'+
+            (tv
+              ? '<span class="attn-tv-val '+tvCls+'">'+esc(tv)+'</span>'
+              : '<span class="attn-tv-val empty">—</span>')+
+          '</div>'+
         '</div>'+
         '<span class="attn-cnt">'+r.pending+' pending</span>'+
       '</div>'+
@@ -1493,7 +1507,7 @@ function renderSellers(){
         (sub ? '<div class="cell-sub">' + esc(sub) + '</div>' : '') + '</td>' +
       '<td class="gst">' + esc(s.meta[fieldByType.gst] || '—') + '</td>' +
       '<td>' + esc(s.meta[fieldByType.entity] || '—') + '</td>' +
-      '<td style="font-weight:600;color:var(--rk-green-ink);font-variant-numeric:tabular-nums">' + esc(tv || '—') + '</td>' +
+      '<td>' + (tv ? '<span class="tv-tag seller">'+esc(tv)+'</span>' : '<span style="color:var(--ink-3)">—</span>') + '</td>' +
       '<td><div class="prog-cell"><div class="track"><div class="fill" style="width:' + s.completion + '%"></div></div><span>' + pct(s.completion) + '</span></div></td>' +
       '<td>' + (s.pending
           ? '<span class="chip warn">' + s.pending + ' pending</span>'
@@ -1550,7 +1564,7 @@ function renderBuyers(){
       '<td style="color:var(--ink-3)">'+esc(b.serial)+'</td>'+
       '<td><div class="cell-name">'+esc(nm)+(btv?'<span class="tv-tag buyer">'+esc(btv)+'</span>':'')+'</div>'+(sub?'<div class="cell-sub">'+esc(sub)+'</div>':'')+'</td>'+
       '<td>'+esc(entityVal)+'</td>'+
-      '<td style="font-weight:600;color:var(--buyer-ink);font-variant-numeric:tabular-nums">'+esc(btv||'—')+'</td>'+
+      '<td>'+(btv?'<span class="tv-tag buyer">'+esc(btv)+'</span>':'<span style="color:var(--ink-3)">—</span>')+'</td>'+
       '<td><div class="prog-cell"><div class="track"><div class="fill" style="width:'+b.completion+'%;background:var(--buyer)"></div></div><span>'+pct(b.completion)+'</span></div></td>'+
       '<td>'+(b.pending?'<span class="chip warn">'+b.pending+' pending</span>':'<span class="chip ok">Complete</span>')+'</td>'+
       '<td></td>'+
