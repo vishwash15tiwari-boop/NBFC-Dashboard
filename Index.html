@@ -228,7 +228,7 @@
   }
   .attn-info{flex:1;min-width:0}
   .attn-name{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
-  .attn-type{font-size:10.5px;color:var(--ink-3);margin-top:1px}
+  .attn-type{font-size:10.5px;color:var(--ink-3);margin-top:2px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
   .attn-cnt{
     flex:none;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;
     background:var(--amber-tint);color:#92400E;
@@ -1293,9 +1293,9 @@ function renderOverview(){
 
   /* ── Seller attention ── */
   var checkIcon = '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="1" y="1" width="8" height="8" rx="1.5"/></svg>';
-  $('attnList').innerHTML = buildAttnCards(D.sellers, D.docs, nameHeader, fieldByType.entity, checkIcon, 'openDetail');
+  $('attnList').innerHTML = buildAttnCards(D.sellers, D.docs, nameHeader, fieldByType.entity, checkIcon, 'openDetail', false, fieldByType.turnover);
   /* ── Buyer attention ── */
-  $('attnListBuyer').innerHTML = DB ? buildAttnCards(DB.buyers, DB.docs, buyerNameHeader, DB.entityHeader, checkIcon, 'openBuyerDetail', true) : '';
+  $('attnListBuyer').innerHTML = DB ? buildAttnCards(DB.buyers, DB.docs, buyerNameHeader, DB.entityHeader, checkIcon, 'openBuyerDetail', true, buyerFieldByType.turnover) : '';
 
   /* ── Facets (seller portfolio breakdown) ── */
   $('facets').innerHTML = ['Region','Entity'].map(function(kind){
@@ -1375,12 +1375,14 @@ function buildDocBars(docs, rows){
 }
 
 /* Shared: build attention cards HTML from any entity rows array */
-function buildAttnCards(rows, docs, nHeader, entityHeader, checkIcon, openFn, isBuyer){
+function buildAttnCards(rows, docs, nHeader, entityHeader, checkIcon, openFn, isBuyer, tvHeader){
   var withPending = (rows||[]).slice().sort(function(a,b){ return b.pending-a.pending||a.completion-b.completion; }).filter(function(r){ return r.pending>0; });
   var avatarCls = isBuyer ? 'buyer-avatar' : 'avatar';
+  var tvCls = isBuyer ? 'buyer' : 'seller';
   if (!withPending.length) return '<div class="empty-cell" style="padding:24px 12px">All checklists are complete.</div>';
   return withPending.slice(0,6).map(function(r,i){
     var nm = nHeader ? r.meta[nHeader] : ('Row '+r.row);
+    var tv = tvHeader ? formatTurnover(r.meta[tvHeader]) : '';
     var pendingDocs = (docs||[]).filter(function(d){ return (r.docs[d.key]||{}).status==='pending'; });
     var docChips = pendingDocs.map(function(d){
       var k=d.key, short=k.length>30?k.slice(0,28).replace(/[,;:\s–-]+$/,'')+'…':k;
@@ -1390,8 +1392,10 @@ function buildAttnCards(rows, docs, nHeader, entityHeader, checkIcon, openFn, is
     return '<div class="attn-card"'+clickAttr+' style="animation-delay:'+(i*55)+'ms">'+
       '<div class="attn-head">'+
         '<div class="'+avatarCls+'">'+esc(initials(nm))+'</div>'+
-        '<div class="attn-info"><div class="attn-name">'+esc(nm)+'</div>'+
-          '<div class="attn-type">'+esc(entityHeader?r.meta[entityHeader]||'':'')+'</div></div>'+
+        '<div class="attn-info">'+
+          '<div class="attn-name">'+esc(nm)+'</div>'+
+          '<div class="attn-type">'+esc(entityHeader?r.meta[entityHeader]||'':'')+(tv?'<span class="tv-tag '+tvCls+'" style="margin-left:6px">'+esc(tv)+'</span>':'')+'</div>'+
+        '</div>'+
         '<span class="attn-cnt">'+r.pending+' pending</span>'+
       '</div>'+
       '<div class="attn-docs">'+docChips+'</div>'+
