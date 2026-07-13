@@ -1753,6 +1753,20 @@ function openBuyerForm(row){
       '<span class="err"></span></div>';
   }).join('');
 
+  /* Always show Annual Turnover field for buyers too */
+  if (!buyerFieldByType.turnover) {
+    var existingTvB = editingBuyer ? (editingBuyer.meta['Annual Turnover'] || editingBuyer.meta['Turnover'] || '') : '';
+    $('bfMetaFields').innerHTML +=
+      '<div class="field" data-key="Turnover">' +
+        '<label>Annual Turnover</label>' +
+        '<div style="display:flex;align-items:center;gap:6px">' +
+          '<span style="font-size:16px;font-weight:700;color:var(--buyer-ink);flex:none;line-height:40px">₹</span>' +
+          '<input id="mfTurnoverBuyer" type="text" value="' + esc(existingTvB) + '" placeholder="e.g. 2.5 Cr or 50 L" autocomplete="off" style="flex:1">' +
+        '</div>' +
+        '<span class="err"></span>' +
+      '</div>';
+  }
+
   _buyerFormDocUrls = {};
   _removedBuyerFormDocUrls = {};
   if (editingBuyer) {
@@ -1869,6 +1883,11 @@ function validateBuyerForm(){
     if (err) ok = false;
     meta[f.key] = v;
   });
+  /* Collect hardcoded turnover field when buyer sheet has no turnover column */
+  if (!buyerFieldByType.turnover) {
+    var btvInput = $('mfTurnoverBuyer');
+    if (btvInput) meta['Turnover'] = btvInput.value.trim();
+  }
   return ok ? meta : null;
 }
 
@@ -1964,6 +1983,20 @@ function openForm(row){
       '<input id="mf' + i + '" type="text" value="' + esc(val) + '"' + ph + listAttr + ' autocomplete="off">' + listHtml +
       '<span class="err"></span></div>';
   }).join('');
+
+  /* Always show an Annual Turnover field; inject it if the sheet has no turnover column yet */
+  if (!fieldByType.turnover) {
+    var existingTvS = editingSeller ? (editingSeller.meta['Annual Turnover'] || editingSeller.meta['Turnover'] || '') : '';
+    $('metaFields').innerHTML +=
+      '<div class="field" data-key="Turnover">' +
+        '<label>Annual Turnover</label>' +
+        '<div style="display:flex;align-items:center;gap:6px">' +
+          '<span style="font-size:16px;font-weight:700;color:var(--ink-2);flex:none;line-height:40px">₹</span>' +
+          '<input id="mfTurnoverSeller" type="text" value="' + esc(existingTvS) + '" placeholder="e.g. 2.5 Cr or 50 L" autocomplete="off" style="flex:1">' +
+        '</div>' +
+        '<span class="err"></span>' +
+      '</div>';
+  }
 
   /* per-doc Drive URLs: pre-populate from existing seller data */
   _formDocUrls = {};
@@ -2085,6 +2118,11 @@ function validateForm(){
     if (err) ok = false;
     meta[f.key] = v;
   });
+  /* Collect hardcoded turnover field when sheet has no turnover column */
+  if (!fieldByType.turnover) {
+    var tvInput = $('mfTurnoverSeller');
+    if (tvInput) meta['Turnover'] = tvInput.value.trim();
+  }
   return ok ? meta : null;
 }
 

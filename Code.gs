@@ -845,6 +845,17 @@ function saveSeller(payload) {
       }
     }
 
+    // Auto-create 'Annual Turnover' column when form submits a value but no turnover column exists
+    var tvSubmitted = String(meta['Turnover'] || '').trim();
+    if (tvSubmitted && !layout.metaIdx.some(function(i){ return metaFieldType_(layout.headers[i]) === 'turnover'; })){
+      tracker.insertColumnBefore(layout.pendingIdx + 1); // insert right before "Pending Documents"
+      tracker.getRange(1, layout.pendingIdx + 1).setValue('Annual Turnover');
+      meta['Annual Turnover'] = tvSubmitted;
+      layout = readTrackerLayout_(tracker);
+      lastCol = tracker.getLastColumn();
+      existing = lastRow > 1 ? tracker.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues() : [];
+    }
+
     // Applicability from the requirement matrix for this seller's entity type.
     var entityType = entityHeader ? String(meta[entityHeader] || '').trim() : '';
     var entityCol = matchEntityColumn_(matrix, entityType);
@@ -982,6 +993,17 @@ function saveBuyer(payload) {
           throw new Error('A buyer named "' + name + '" already exists. Open that buyer and use Update instead.');
         }
       }
+    }
+
+    // Auto-create 'Annual Turnover' column for buyers when no turnover column exists
+    var tvSubmittedB = String(meta['Turnover'] || '').trim();
+    if (tvSubmittedB && !layout.metaIdx.some(function(i){ return metaFieldType_(layout.headers[i]) === 'turnover'; })){
+      tracker.insertColumnBefore(layout.pendingIdx + 1);
+      tracker.getRange(1, layout.pendingIdx + 1).setValue('Annual Turnover');
+      meta['Annual Turnover'] = tvSubmittedB;
+      layout = readTrackerLayout_(tracker);
+      lastCol = tracker.getLastColumn();
+      existing = lastRow > 1 ? tracker.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues() : [];
     }
 
     var entityType = entityHeader ? String(meta[entityHeader] || '').trim() : '';
