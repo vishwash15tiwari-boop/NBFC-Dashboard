@@ -311,6 +311,7 @@ function metaFieldType_(header) {
   if (n.indexOf('gst') !== -1) return 'gst';
   if (n.indexOf('date') !== -1) return 'date';
   if (n.indexOf('entitytype') !== -1 || n.indexOf('businesstype') !== -1) return 'entity';
+  if (n.indexOf('turnover') !== -1 || n === 'annualrevenue' || n === 'revenue') return 'turnover';
   return 'text';
 }
 

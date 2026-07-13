@@ -1045,7 +1045,8 @@
 
 var D = null;                 // latest payload from getInitialData()
 var DB = null;                // D.buyerData shorthand
-var fieldByType = {};         // gst / date / entity → header name
+var fieldByType = {};         // gst / date / entity / turnover → header name (sellers)
+var buyerFieldByType = {};    // gst / date / entity / turnover → header name (buyers)
 var nameHeader = null;
 var buyerNameHeader = null;
 var editingSeller = null;     // seller object while form is open, else null
@@ -1110,6 +1111,20 @@ function sheetDateToIso(s){
   return '';
 }
 
+/* Format a turnover value for display: "2.5 Cr", "50 L" → "₹2.5 Cr", "₹50 L" */
+function formatTurnover(raw){
+  if (!raw) return '';
+  var s = String(raw).trim();
+  if (!s || s === '—') return '';
+  var m = s.replace(/₹/g,'').trim().match(/^([\d,]+(?:\.\d+)?)\s*(cr(?:ore)?s?|l(?:akh)?s?)/i);
+  if (m){
+    var n = parseFloat(m[1].replace(/,/g,''));
+    var unit = /^cr/i.test(m[2]) ? 'Cr' : 'L';
+    return '₹' + n + ' ' + unit;
+  }
+  return s.indexOf('₹') === 0 ? s : '₹ ' + s;
+}
+
 /* Short display name for a document column header. */
 function docShort(key){
   var s = String(key);
@@ -1155,12 +1170,17 @@ function boot(){
 function onData(data){
   D = data;
   DB = (data.buyerData && data.buyerData.ok) ? data.buyerData : null;
-  fieldByType = {}; nameHeader = null;
+  fieldByType = {}; buyerFieldByType = {}; nameHeader = null;
   D.metaFields.forEach(function(f){
     if (f.type !== 'text' && !fieldByType[f.type]) fieldByType[f.type] = f.key;
     if (!nameHeader && normKey(f.key).indexOf('name') !== -1) nameHeader = f.key;
   });
   buyerNameHeader = DB ? DB.nameHeader : null;
+  if (DB) {
+    (DB.metaFields || []).forEach(function(f){
+      if (f.type !== 'text' && !buyerFieldByType[f.type]) buyerFieldByType[f.type] = f.key;
+    });
+  }
   $('loading').style.display = 'none';
   $('fatal').style.display = 'none';
   $('app').style.display = 'block';
@@ -1436,7 +1456,9 @@ function renderSellers(){
   var fe = $('fltEntity').value, fr = $('fltRegion').value, fs = $('fltStatus').value;
   var regionHeader = $('fltRegion').dataset.header;
 
+  var hasTurnover = !!fieldByType.turnover;
   $('sellersHead').innerHTML = '<tr><th>#</th><th>Seller</th><th>GST</th><th>Entity type</th>' +
+    (hasTurnover ? '<th>Turnover</th>' : '') +
     '<th>Completion</th><th>Pending</th><th></th></tr>';
 
   var rows = D.sellers.filter(function(s){
@@ -1459,11 +1481,13 @@ function renderSellers(){
   $('sellersBody').innerHTML = rows.length ? rows.map(function(s){
     var nm = nameHeader ? s.meta[nameHeader] : ('Row ' + s.row);
     var sub = subFields.map(function(f){ return s.meta[f.key]; }).filter(Boolean).join(' · ');
+    var tv = hasTurnover ? formatTurnover(s.meta[fieldByType.turnover]) : '';
     return '<tr onclick="openDetail(' + s.row + ')">' +
       '<td style="color:var(--ink-3)">' + esc(s.serial) + '</td>' +
       '<td><div class="cell-name">' + esc(nm) + '</div>' + (sub ? '<div class="cell-sub">' + esc(sub) + '</div>' : '') + '</td>' +
       '<td class="gst">' + esc(s.meta[fieldByType.gst] || '—') + '</td>' +
       '<td>' + esc(s.meta[fieldByType.entity] || '—') + '</td>' +
+      (hasTurnover ? '<td style="font-weight:600;color:var(--rk-green-ink);font-variant-numeric:tabular-nums">' + esc(tv || '—') + '</td>' : '') +
       '<td><div class="prog-cell"><div class="track"><div class="fill" style="width:' + s.completion + '%"></div></div><span>' + pct(s.completion) + '</span></div></td>' +
       '<td>' + (s.pending
           ? '<span class="chip warn">' + s.pending + ' pending</span>'
@@ -1471,7 +1495,7 @@ function renderSellers(){
       '<td onclick="event.stopPropagation();openForm(' + s.row + ')">' +
         '<span class="row-edit" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></span></td>' +
     '</tr>';
-  }).join('') : '<tr><td colspan="7" class="empty-cell">No sellers match the current filters.</td></tr>';
+  }).join('') : '<tr><td colspan="' + (hasTurnover ? 8 : 7) + '" class="empty-cell">No sellers match the current filters.</td></tr>';
 }
 
 /* ═══════════════════════════ Buyers view ═══════════════════════════════ */
@@ -1495,7 +1519,9 @@ function renderBuyers(){
   var fe = $('fltBuyerEntity').value;
   var fs = $('fltBuyerStatus').value;
 
+  var hasBuyerTurnover = !!buyerFieldByType.turnover;
   $('buyersHead').innerHTML = '<tr><th>#</th><th>Buyer</th><th>Entity type</th>' +
+    (hasBuyerTurnover ? '<th>Turnover</th>' : '') +
     '<th>Completion</th><th>Pending</th><th></th></tr>';
 
   var rows = DB.buyers.filter(function(b){
@@ -1515,15 +1541,17 @@ function renderBuyers(){
     var nm = buyerNameHeader ? b.meta[buyerNameHeader] : ('Row '+b.row);
     var sub = subFields.map(function(f){ return b.meta[f.key]; }).filter(Boolean).join(' · ');
     var entityVal = DB.entityHeader ? (b.meta[DB.entityHeader]||'—') : '—';
+    var btv = hasBuyerTurnover ? formatTurnover(b.meta[buyerFieldByType.turnover]) : '';
     return '<tr onclick="openBuyerDetail('+b.row+')" style="cursor:pointer">' +
       '<td style="color:var(--ink-3)">'+esc(b.serial)+'</td>'+
       '<td><div class="cell-name">'+esc(nm)+'</div>'+(sub?'<div class="cell-sub">'+esc(sub)+'</div>':'')+'</td>'+
       '<td>'+esc(entityVal)+'</td>'+
+      (hasBuyerTurnover ? '<td style="font-weight:600;color:var(--buyer-ink);font-variant-numeric:tabular-nums">'+esc(btv||'—')+'</td>' : '')+
       '<td><div class="prog-cell"><div class="track"><div class="fill" style="width:'+b.completion+'%;background:var(--buyer)"></div></div><span>'+pct(b.completion)+'</span></div></td>'+
       '<td>'+(b.pending?'<span class="chip warn">'+b.pending+' pending</span>':'<span class="chip ok">Complete</span>')+'</td>'+
       '<td></td>'+
     '</tr>';
-  }).join('') : '<tr><td colspan="6" class="empty-cell">No buyers match the current filters.</td></tr>';
+  }).join('') : '<tr><td colspan="' + (hasBuyerTurnover ? 7 : 6) + '" class="empty-cell">No buyers match the current filters.</td></tr>';
 }
 
 /* ═══════════════════════════ Matrix view ═══════════════════════════════ */
@@ -1594,6 +1622,7 @@ function openDetail(row){
       }).join('') + '</div>';
   }
 
+  var sTurnover = fieldByType.turnover ? formatTurnover(s.meta[fieldByType.turnover]) : '';
   $('dBody').innerHTML =
     '<div class="detail-hero">' +
       '<div style="position:relative;width:74px;height:74px;flex:none">' +
@@ -1604,6 +1633,7 @@ function openDetail(row){
         '<div class="dh-num"><div class="v" style="color:var(--rk-green-ink)">' + s.received + '</div><div class="k">Received</div></div>' +
         '<div class="dh-num"><div class="v" style="color:' + (s.pending ? 'var(--amber)' : 'var(--ink)') + '">' + s.pending + '</div><div class="k">Pending</div></div>' +
         '<div class="dh-num"><div class="v" style="color:var(--ink-3)">' + s.na + '</div><div class="k">N/A</div></div>' +
+        (sTurnover ? '<div class="dh-num"><div class="v" style="color:var(--rk-green-ink);font-size:15px">' + esc(sTurnover) + '</div><div class="k">Turnover</div></div>' : '') +
       '</div>' +
     '</div>' +
     group('Pending documents', groups.pending, 'pending') +
@@ -1659,6 +1689,7 @@ function openBuyerDetail(row){
       }).join('') + '</div>';
   }
 
+  var bTurnover = buyerFieldByType.turnover ? formatTurnover(b.meta[buyerFieldByType.turnover]) : '';
   $('bdBody').innerHTML =
     '<div class="detail-hero">' +
       '<div style="position:relative;width:74px;height:74px;flex:none">' +
@@ -1669,6 +1700,7 @@ function openBuyerDetail(row){
         '<div class="dh-num"><div class="v" style="color:var(--buyer)">' + b.received + '</div><div class="k">Received</div></div>' +
         '<div class="dh-num"><div class="v" style="color:' + (b.pending ? 'var(--amber)' : 'var(--ink)') + '">' + b.pending + '</div><div class="k">Pending</div></div>' +
         '<div class="dh-num"><div class="v" style="color:var(--ink-3)">' + b.na + '</div><div class="k">N/A</div></div>' +
+        (bTurnover ? '<div class="dh-num"><div class="v" style="color:var(--buyer-ink);font-size:15px">' + esc(bTurnover) + '</div><div class="k">Turnover</div></div>' : '') +
       '</div>' +
     '</div>' +
     bgroup('Pending documents', groups.pending, 'pending') +
@@ -1706,6 +1738,14 @@ function openBuyerForm(row){
     if (f.type === 'date'){
       return '<div class="field' + full + '" data-key="' + esc(f.key) + '" data-orig="' + esc(val) + '"><label>' + label + '</label>' +
         '<input id="bfmf' + i + '" type="date" value="' + esc(sheetDateToIso(val)) + '">' +
+        '<span class="err"></span></div>';
+    }
+    if (f.type === 'turnover'){
+      return '<div class="field' + full + '" data-key="' + esc(f.key) + '"><label>' + label + '</label>' +
+        '<div style="display:flex;align-items:center;gap:6px">' +
+          '<span style="font-size:16px;font-weight:700;color:var(--buyer-ink);flex:none;line-height:40px">₹</span>' +
+          '<input id="bfmf' + i + '" type="text" value="' + esc(val) + '" placeholder="e.g. 2.5 Cr  or  50 L" autocomplete="off" style="flex:1">' +
+        '</div>' +
         '<span class="err"></span></div>';
     }
     return '<div class="field' + full + '" data-key="' + esc(f.key) + '"><label>' + label + '</label>' +
@@ -1904,6 +1944,14 @@ function openForm(row){
       /* data-orig keeps the sheet's raw value so an unparseable date is never lost */
       return '<div class="field' + full + '" data-key="' + esc(f.key) + '" data-orig="' + esc(val) + '"><label>' + label + '</label>' +
         '<input id="mf' + i + '" type="date" value="' + esc(sheetDateToIso(val)) + '">' +
+        '<span class="err"></span></div>';
+    }
+    if (f.type === 'turnover'){
+      return '<div class="field' + full + '" data-key="' + esc(f.key) + '"><label>' + label + '</label>' +
+        '<div style="display:flex;align-items:center;gap:6px">' +
+          '<span style="font-size:16px;font-weight:700;color:var(--ink-2);flex:none;line-height:40px">₹</span>' +
+          '<input id="mf' + i + '" type="text" value="' + esc(val) + '" placeholder="e.g. 2.5 Cr  or  50 L" autocomplete="off" style="flex:1">' +
+        '</div>' +
         '<span class="err"></span></div>';
     }
     var listAttr = '', listHtml = '';
