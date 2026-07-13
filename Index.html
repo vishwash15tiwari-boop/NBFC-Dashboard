@@ -296,9 +296,12 @@
   .tbl tbody tr{cursor:pointer;transition:background .12s}
   .tbl tbody tr:hover{background:var(--rk-green-tint-2)}
   .tbl tbody tr:last-child td{border-bottom:none}
-  .cell-name{font-weight:600}
+  .cell-name{font-weight:600;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
   .cell-sub{font-size:11.5px;color:var(--ink-3);margin-top:1px}
   .gst{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+  .tv-tag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:.01em;flex-shrink:0}
+  .tv-tag.seller{background:var(--rk-green-tint);color:var(--rk-green-ink)}
+  .tv-tag.buyer{background:var(--buyer-tint);color:var(--buyer-ink)}
   .prog-cell{display:flex;align-items:center;gap:10px;min-width:150px}
   .prog-cell .track{flex:1}
   .prog-cell span{font-size:12px;font-weight:700;min-width:40px;text-align:right;color:var(--ink-2)}
@@ -1456,10 +1459,8 @@ function renderSellers(){
   var fe = $('fltEntity').value, fr = $('fltRegion').value, fs = $('fltStatus').value;
   var regionHeader = $('fltRegion').dataset.header;
 
-  var hasTurnover = !!fieldByType.turnover;
   $('sellersHead').innerHTML = '<tr><th>#</th><th>Seller</th><th>GST</th><th>Entity type</th>' +
-    (hasTurnover ? '<th>Turnover</th>' : '') +
-    '<th>Completion</th><th>Pending</th><th></th></tr>';
+    '<th>Turnover</th><th>Completion</th><th>Pending</th><th></th></tr>';
 
   var rows = D.sellers.filter(function(s){
     if (fe && (s.meta[fieldByType.entity] || '') !== fe) return false;
@@ -1481,13 +1482,14 @@ function renderSellers(){
   $('sellersBody').innerHTML = rows.length ? rows.map(function(s){
     var nm = nameHeader ? s.meta[nameHeader] : ('Row ' + s.row);
     var sub = subFields.map(function(f){ return s.meta[f.key]; }).filter(Boolean).join(' · ');
-    var tv = hasTurnover ? formatTurnover(s.meta[fieldByType.turnover]) : '';
+    var tv = fieldByType.turnover ? formatTurnover(s.meta[fieldByType.turnover]) : '';
     return '<tr onclick="openDetail(' + s.row + ')">' +
       '<td style="color:var(--ink-3)">' + esc(s.serial) + '</td>' +
-      '<td><div class="cell-name">' + esc(nm) + '</div>' + (sub ? '<div class="cell-sub">' + esc(sub) + '</div>' : '') + '</td>' +
+      '<td><div class="cell-name">' + esc(nm) + (tv ? '<span class="tv-tag seller">' + esc(tv) + '</span>' : '') + '</div>' +
+        (sub ? '<div class="cell-sub">' + esc(sub) + '</div>' : '') + '</td>' +
       '<td class="gst">' + esc(s.meta[fieldByType.gst] || '—') + '</td>' +
       '<td>' + esc(s.meta[fieldByType.entity] || '—') + '</td>' +
-      (hasTurnover ? '<td style="font-weight:600;color:var(--rk-green-ink);font-variant-numeric:tabular-nums">' + esc(tv || '—') + '</td>' : '') +
+      '<td style="font-weight:600;color:var(--rk-green-ink);font-variant-numeric:tabular-nums">' + esc(tv || '—') + '</td>' +
       '<td><div class="prog-cell"><div class="track"><div class="fill" style="width:' + s.completion + '%"></div></div><span>' + pct(s.completion) + '</span></div></td>' +
       '<td>' + (s.pending
           ? '<span class="chip warn">' + s.pending + ' pending</span>'
@@ -1495,7 +1497,7 @@ function renderSellers(){
       '<td onclick="event.stopPropagation();openForm(' + s.row + ')">' +
         '<span class="row-edit" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></span></td>' +
     '</tr>';
-  }).join('') : '<tr><td colspan="' + (hasTurnover ? 8 : 7) + '" class="empty-cell">No sellers match the current filters.</td></tr>';
+  }).join('') : '<tr><td colspan="8" class="empty-cell">No sellers match the current filters.</td></tr>';
 }
 
 /* ═══════════════════════════ Buyers view ═══════════════════════════════ */
@@ -1519,10 +1521,8 @@ function renderBuyers(){
   var fe = $('fltBuyerEntity').value;
   var fs = $('fltBuyerStatus').value;
 
-  var hasBuyerTurnover = !!buyerFieldByType.turnover;
   $('buyersHead').innerHTML = '<tr><th>#</th><th>Buyer</th><th>Entity type</th>' +
-    (hasBuyerTurnover ? '<th>Turnover</th>' : '') +
-    '<th>Completion</th><th>Pending</th><th></th></tr>';
+    '<th>Turnover</th><th>Completion</th><th>Pending</th><th></th></tr>';
 
   var rows = DB.buyers.filter(function(b){
     if (fe && DB.entityHeader && (b.meta[DB.entityHeader]||'') !== fe) return false;
@@ -1541,17 +1541,17 @@ function renderBuyers(){
     var nm = buyerNameHeader ? b.meta[buyerNameHeader] : ('Row '+b.row);
     var sub = subFields.map(function(f){ return b.meta[f.key]; }).filter(Boolean).join(' · ');
     var entityVal = DB.entityHeader ? (b.meta[DB.entityHeader]||'—') : '—';
-    var btv = hasBuyerTurnover ? formatTurnover(b.meta[buyerFieldByType.turnover]) : '';
+    var btv = buyerFieldByType.turnover ? formatTurnover(b.meta[buyerFieldByType.turnover]) : '';
     return '<tr onclick="openBuyerDetail('+b.row+')" style="cursor:pointer">' +
       '<td style="color:var(--ink-3)">'+esc(b.serial)+'</td>'+
-      '<td><div class="cell-name">'+esc(nm)+'</div>'+(sub?'<div class="cell-sub">'+esc(sub)+'</div>':'')+'</td>'+
+      '<td><div class="cell-name">'+esc(nm)+(btv?'<span class="tv-tag buyer">'+esc(btv)+'</span>':'')+'</div>'+(sub?'<div class="cell-sub">'+esc(sub)+'</div>':'')+'</td>'+
       '<td>'+esc(entityVal)+'</td>'+
-      (hasBuyerTurnover ? '<td style="font-weight:600;color:var(--buyer-ink);font-variant-numeric:tabular-nums">'+esc(btv||'—')+'</td>' : '')+
+      '<td style="font-weight:600;color:var(--buyer-ink);font-variant-numeric:tabular-nums">'+esc(btv||'—')+'</td>'+
       '<td><div class="prog-cell"><div class="track"><div class="fill" style="width:'+b.completion+'%;background:var(--buyer)"></div></div><span>'+pct(b.completion)+'</span></div></td>'+
       '<td>'+(b.pending?'<span class="chip warn">'+b.pending+' pending</span>':'<span class="chip ok">Complete</span>')+'</td>'+
       '<td></td>'+
     '</tr>';
-  }).join('') : '<tr><td colspan="' + (hasBuyerTurnover ? 7 : 6) + '" class="empty-cell">No buyers match the current filters.</td></tr>';
+  }).join('') : '<tr><td colspan="7" class="empty-cell">No buyers match the current filters.</td></tr>';
 }
 
 /* ═══════════════════════════ Matrix view ═══════════════════════════════ */
