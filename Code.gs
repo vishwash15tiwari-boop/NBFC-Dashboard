@@ -37,9 +37,12 @@ var CONFIG = {
 
   // Tab discovery: matched by name first, then by header signature, then by
   // position (0-based index) as a last resort.
-  TRACKER: { name: 'Seller_NBFC Tracker', index: 3, signature: ['seller business name', 'pending document'] },
+  // maxCol caps how far right the tab is read (1-based). Columns beyond it are
+  // ignored on read and never touched on write, so scratch/helper columns to the
+  // right of the tracker never leak into KPIs, cards, the matrix, or form saves.
+  TRACKER: { name: 'Seller_NBFC Tracker', index: 3, signature: ['seller business name', 'pending document'], maxCol: 27 }, // through column AA
   REQUIREMENT: { name: 'Seller Requirement', index: 2, signature: ['documents', 'proprietor'] },
-  BUYER: { name: 'Buyer_NBFC Tracker', index: 4, signature: ['buyer business name', 'pending document'] },
+  BUYER: { name: 'Buyer_NBFC Tracker', index: 4, signature: ['buyer business name', 'pending document'], maxCol: 26 }, // through column Z
 
   APP_TITLE: 'Recykal · NBFC Document Tracker',
   PROP_BACKEND_ID: 'BACKEND_SHEET_ID'
@@ -287,8 +290,11 @@ function matchEntityColumn_(matrix, entityType) {
  * Nothing about the structure is assumed beyond the presence of the
  * "Pending Document" header the sheet already has.
  */
-function readTrackerLayout_(sh) {
+function readTrackerLayout_(sh, maxCol) {
   var lastCol = sh.getLastColumn();
+  // Honour the per-tab column cap (e.g. seller through AA, buyer through Z) so
+  // anything to the right of it is excluded from the layout entirely.
+  if (maxCol && maxCol > 0 && maxCol < lastCol) lastCol = maxCol;
   var headers = sh.getRange(1, 1, 1, lastCol).getDisplayValues()[0]
     .map(function (h) { return String(h).trim(); });
   var pendingIdx = -1, i;
@@ -298,7 +304,8 @@ function readTrackerLayout_(sh) {
     }
   }
   if (pendingIdx === -1) {
-    throw new Error('The tracker tab has no "Pending Document" column — the sheet structure has changed.');
+    throw new Error('The tracker tab has no "Pending Document" column within the first ' + lastCol +
+      ' columns — the sheet structure or the column cap has changed.');
   }
   var serialIdx = 0;
   var metaIdx = [];
@@ -310,7 +317,7 @@ function readTrackerLayout_(sh) {
   for (i = pendingIdx + 1; i < headers.length; i++) {
     if (headers[i]) docIdx.push(i);
   }
-  return { headers: headers, serialIdx: serialIdx, metaIdx: metaIdx, pendingIdx: pendingIdx, docIdx: docIdx };
+  return { headers: headers, colCount: lastCol, serialIdx: serialIdx, metaIdx: metaIdx, pendingIdx: pendingIdx, docIdx: docIdx };
 }
 
 /**
@@ -382,7 +389,7 @@ function getBuyerEntityKey_(entityType) {
 function getBuyerData_(ss) {
   try {
     var tracker = findSheet_(ss, CONFIG.BUYER);
-    var layout = readTrackerLayout_(tracker);
+    var layout = readTrackerLayout_(tracker, CONFIG.BUYER.maxCol);
 
     var buyerNameHeaderKey = null;
     layout.metaIdx.forEach(function (idx) {
@@ -413,7 +420,7 @@ function getBuyerData_(ss) {
     var buyers = [];
 
     if (lastRow > 1) {
-      var dataRange = tracker.getRange(2, 1, lastRow - 1, tracker.getLastColumn());
+      var dataRange = tracker.getRange(2, 1, lastRow - 1, layout.colCount);
       var values = dataRange.getDisplayValues();
       var allNotes = dataRange.getNotes();
       values.forEach(function (row, i) {
@@ -810,7 +817,7 @@ function deriveBuyerListsFromTracker_(buyers, nameHeader, metaFields) {
 function getInitialData() {
   var ss = getSpreadsheet_();
   var tracker = findSheet_(ss, CONFIG.TRACKER);
-  var layout = readTrackerLayout_(tracker);
+  var layout = readTrackerLayout_(tracker, CONFIG.TRACKER.maxCol);
   var matrix = readRequirementMatrix_(ss);
 
   var docs = layout.docIdx.map(function (idx) {
@@ -829,7 +836,7 @@ function getInitialData() {
   var optionValues = {}; // distinct existing values per meta header, for form suggestions
 
   if (lastRow > 1) {
-    var dataRange = tracker.getRange(2, 1, lastRow - 1, tracker.getLastColumn());
+    var dataRange = tracker.getRange(2, 1, lastRow - 1, layout.colCount);
     var values = dataRange.getDisplayValues();
     var allNotes = dataRange.getNotes();
     values.forEach(function (row, i) {
@@ -965,7 +972,7 @@ function saveSeller(payload) {
   try {
     var ss = getSpreadsheet_();
     var tracker = findSheet_(ss, CONFIG.TRACKER);
-    var layout = readTrackerLayout_(tracker);
+    var layout = readTrackerLayout_(tracker, CONFIG.TRACKER.maxCol);
     var matrix = readRequirementMatrix_(ss);
 
     var meta = payload.meta || {};
@@ -988,7 +995,7 @@ function saveSeller(payload) {
     if (gstHeader) meta[gstHeader] = gst;
 
     var lastRow = tracker.getLastRow();
-    var lastCol = tracker.getLastColumn();
+    var lastCol = layout.colCount; // capped width — never read past the tab's maxCol
     var existing = lastRow > 1
       ? tracker.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues()
       : [];
@@ -1028,8 +1035,8 @@ function saveSeller(payload) {
       tracker.insertColumnBefore(layout.pendingIdx + 1); // insert right before "Pending Documents"
       tracker.getRange(1, layout.pendingIdx + 1).setValue('Annual Turnover');
       meta['Annual Turnover'] = tvSubmitted;
-      layout = readTrackerLayout_(tracker);
-      lastCol = tracker.getLastColumn();
+      layout = readTrackerLayout_(tracker, CONFIG.TRACKER.maxCol);
+      lastCol = layout.colCount;
       existing = lastRow > 1 ? tracker.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues() : [];
     }
 
@@ -1133,7 +1140,7 @@ function saveBuyer(payload) {
   try {
     var ss = getSpreadsheet_();
     var tracker = findSheet_(ss, CONFIG.BUYER);
-    var layout = readTrackerLayout_(tracker);
+    var layout = readTrackerLayout_(tracker, CONFIG.BUYER.maxCol);
 
     var meta = payload.meta || {};
     var statuses = payload.statuses || {};
@@ -1150,7 +1157,7 @@ function saveBuyer(payload) {
     if (nameHeader && !name) throw new Error('Buyer business name is required.');
 
     var lastRow = tracker.getLastRow();
-    var lastCol = tracker.getLastColumn();
+    var lastCol = layout.colCount; // capped width — never read past the tab's maxCol
     var existing = lastRow > 1
       ? tracker.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues()
       : [];
@@ -1178,8 +1185,8 @@ function saveBuyer(payload) {
       tracker.insertColumnBefore(layout.pendingIdx + 1);
       tracker.getRange(1, layout.pendingIdx + 1).setValue('Annual Turnover');
       meta['Annual Turnover'] = tvSubmittedB;
-      layout = readTrackerLayout_(tracker);
-      lastCol = tracker.getLastColumn();
+      layout = readTrackerLayout_(tracker, CONFIG.BUYER.maxCol);
+      lastCol = layout.colCount;
       existing = lastRow > 1 ? tracker.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues() : [];
     }
 
@@ -1308,10 +1315,10 @@ function uploadDocument(payload) {
     if (payload.row) {
       var ss = getSpreadsheet_();
       tracker = findSheet_(ss, CONFIG.TRACKER);
-      layout = readTrackerLayout_(tracker);
+      layout = readTrackerLayout_(tracker, CONFIG.TRACKER.maxCol);
       targetRow = Number(payload.row);
       if (targetRow < 2) throw new Error('Invalid row number.');
-      var rowData = tracker.getRange(targetRow, 1, 1, tracker.getLastColumn()).getDisplayValues()[0];
+      var rowData = tracker.getRange(targetRow, 1, 1, layout.colCount).getDisplayValues()[0];
       layout.metaIdx.forEach(function (idx) {
         var h = layout.headers[idx];
         if (!sellerName && normKey_(h).indexOf('name') !== -1) sellerName = String(rowData[idx]).trim();
