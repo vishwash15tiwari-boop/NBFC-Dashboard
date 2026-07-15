@@ -470,8 +470,16 @@ function getSellerListCounts_() {
   try {
     var ss = SpreadsheetApp.openById(SELLER_LIST_FILE_ID);
     var sheets = ss.getSheets();
-    var plasticSheet = sheets[1]; // tab 2 (0-based index 1)
-    var metalSheet   = sheets[2]; // tab 3 (0-based index 2)
+    // Find sheets by name keyword first; fall back to positional index
+    function findSheet(keyword, fallbackIndex) {
+      var kw = keyword.toLowerCase();
+      for (var i = 0; i < sheets.length; i++) {
+        if (sheets[i].getName().toLowerCase().indexOf(kw) !== -1) return sheets[i];
+      }
+      return sheets[fallbackIndex] || null;
+    }
+    var plasticSheet = findSheet('plastic', 1);
+    var metalSheet   = findSheet('metal',   2);
     function readNames(sheet) {
       if (!sheet) return [];
       var lastRow = sheet.getLastRow();
@@ -539,11 +547,17 @@ function getSellerListCounts_() {
     }
     var ps = readNames(plasticSheet);
     var ms = readNames(metalSheet);
+    function cleanLabel(sheet, fallback) {
+      if (!sheet) return fallback;
+      var n = sheet.getName();
+      // Use the tab name only when it looks meaningful (not a default "Sheet#" name)
+      return /^sheet\d+$/i.test(n.trim()) ? fallback : n;
+    }
     return {
       plastic:        ps.length,
       metal:          ms.length,
-      plasticName:    plasticSheet ? plasticSheet.getName() : 'Plastic',
-      metalName:      metalSheet   ? metalSheet.getName()   : 'Metal',
+      plasticName:    cleanLabel(plasticSheet, 'Plastic Sellers'),
+      metalName:      cleanLabel(metalSheet,   'Metal Sellers'),
       plasticSellers: ps,
       metalSellers:   ms
     };
@@ -566,8 +580,16 @@ function getBuyerListCounts_() {
     }
     var ss = SpreadsheetApp.openById(BUYER_LIST_FILE_ID);
     var sheets = ss.getSheets();
-    var plasticSheet = sheets[1]; // tab 2 (0-based index 1)
-    var metalSheet   = sheets[2]; // tab 3 (0-based index 2)
+    // Find sheets by name keyword first; fall back to positional index
+    function findSheet(keyword, fallbackIndex) {
+      var kw = keyword.toLowerCase();
+      for (var i = 0; i < sheets.length; i++) {
+        if (sheets[i].getName().toLowerCase().indexOf(kw) !== -1) return sheets[i];
+      }
+      return sheets[fallbackIndex] || null;
+    }
+    var plasticSheet = findSheet('plastic', 1);
+    var metalSheet   = findSheet('metal',   2);
     function readNames(sheet) {
       if (!sheet) return [];
       var lastRow = sheet.getLastRow();
@@ -623,11 +645,16 @@ function getBuyerListCounts_() {
     }
     var pb = readNames(plasticSheet);
     var mb = readNames(metalSheet);
+    function cleanLabel(sheet, fallback) {
+      if (!sheet) return fallback;
+      var n = sheet.getName();
+      return /^sheet\d+$/i.test(n.trim()) ? fallback : n;
+    }
     return {
       plastic:      pb.length,
       metal:        mb.length,
-      plasticName:  plasticSheet ? plasticSheet.getName() : 'Plastic',
-      metalName:    metalSheet   ? metalSheet.getName()   : 'Metal',
+      plasticName:  cleanLabel(plasticSheet, 'Plastic Buyers'),
+      metalName:    cleanLabel(metalSheet,   'Metal Buyers'),
       plasticBuyers: pb,
       metalBuyers:   mb
     };
