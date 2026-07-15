@@ -665,6 +665,15 @@ function getBuyerListCounts_() {
 }
 
 /**
+ * Fetches seller list counts from the secondary workbook. Called separately from
+ * getInitialData() so the dashboard can render immediately without waiting for the
+ * extra SpreadsheetApp.openById() round trip.
+ */
+function getListCounts() {
+  return getSellerListCounts_();
+}
+
+/**
  * When BUYER_LIST_FILE_ID is not configured, derive plastic/metal buyer counts
  * by scanning each buyer's meta values for the keywords "plastic" / "metal".
  * This uses the buyer tracker rows already loaded by getBuyerData_().
@@ -803,7 +812,10 @@ function getInitialData() {
     if (!covered) entityOptions[label] = true;
   });
 
-  var sellerLists = getSellerListCounts_();
+  // Seller list counts are fetched separately by getListCounts() to avoid
+  // blocking the initial render on a second SpreadsheetApp.openById() call.
+  var sellerLists = { plastic: 0, metal: 0, plasticName: 'Plastic Sellers',
+                      metalName: 'Metal Sellers', plasticSellers: [], metalSellers: [] };
   var buyerData = getBuyerData_(ss);
   var buyerLists = getBuyerListCounts_();
   // If the buyer list workbook isn't configured, derive counts from tracker rows
