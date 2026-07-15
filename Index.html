@@ -107,58 +107,37 @@
   input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
   ::selection{background:var(--rk-green-tint);color:var(--rk-green-ink)}
 
-  /* ── App layout ─────────────────────────────────────────────────────── */
-  .app-layout{display:flex;min-height:100vh}
-
-  /* ── Sidebar ────────────────────────────────────────────────────────── */
-  .sidebar{
-    width:var(--sidebar-w);flex:none;
-    position:fixed;top:0;left:0;bottom:0;
-    background:var(--card);border-right:1px solid var(--line);
-    display:flex;flex-direction:column;z-index:40;overflow:hidden;
+  /* ── Topbar: brand + nav tabs + actions in one row ─────────────────── */
+  .topbar{
+    position:sticky;top:0;z-index:40;display:flex;align-items:center;
+    height:52px;padding:0 20px;gap:0;
+    background:var(--card);border-bottom:1px solid var(--line);
   }
-  .sidebar-brand{
-    padding:22px 20px 18px;display:flex;align-items:center;gap:11px;
-    border-bottom:1px solid var(--line);flex:none;
+  .topbar-brand{
+    display:flex;align-items:center;gap:10px;
+    padding-right:20px;border-right:1px solid var(--line);flex:none;
   }
-  .brand-mark{width:34px;height:34px;flex:none}
-  .brand-name{font-size:14px;font-weight:700;letter-spacing:-.02em;color:var(--ink);line-height:1.2}
+  .brand-mark{width:30px;height:30px;flex:none}
+  .brand-name{font-size:13.5px;font-weight:700;letter-spacing:-.02em;color:var(--ink);line-height:1.2}
   .brand-dot-com{color:var(--rk-green)}
-  .brand-sub{font-size:10px;color:var(--ink-3);font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:1px}
-  .sidebar-nav-section{flex:1;overflow-y:auto;padding:12px}
-  .sidebar-foot{padding:14px 16px;border-top:1px solid var(--line);flex:none}
-  .sync{font-size:11px;color:var(--ink-3);line-height:1.5}
+  .brand-sub{font-size:9.5px;color:var(--ink-3);font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:1px}
+  .topbar-spacer{flex:1;min-width:8px}
+  .topbar-div{width:1px;height:20px;background:var(--line);flex:none;margin:0 6px}
+  .sync{font-size:11.5px;color:var(--ink-3);line-height:1.5;white-space:nowrap}
   .sync b{color:var(--ink-2);font-weight:600}
 
-  /* Sidebar nav (id=segNav) */
-  nav#segNav{display:flex;flex-direction:column;gap:2px}
+  /* Nav tabs */
+  nav#segNav{display:flex;align-items:stretch;height:52px;margin-left:6px}
   nav#segNav button{
-    display:flex;align-items:center;gap:10px;width:100%;
-    padding:9px 12px;border-radius:8px;font-size:13.5px;font-weight:500;
-    color:var(--ink-3);text-align:left;transition:all .18s var(--ease);position:relative;
+    display:flex;align-items:center;gap:7px;height:100%;padding:0 15px;
+    font-size:13px;font-weight:500;color:var(--ink-3);
+    border-bottom:2px solid transparent;border-radius:0;
+    transition:all .15s var(--ease);white-space:nowrap;
   }
-  nav#segNav button:hover{background:var(--surface);color:var(--ink-2)}
-  nav#segNav button.on{
-    background:var(--rk-green-tint);color:var(--rk-green-ink);font-weight:600;
-  }
-  nav#segNav button.on::before{
-    content:'';position:absolute;left:0;top:20%;bottom:20%;
-    width:3px;background:var(--rk-green);border-radius:0 2px 2px 0;
-  }
-  nav#segNav button svg{flex:none;opacity:.7}
+  nav#segNav button svg{flex:none;opacity:.65}
+  nav#segNav button:hover{color:var(--ink);background:var(--surface)}
+  nav#segNav button.on{color:var(--rk-green-ink);border-bottom-color:var(--rk-green);font-weight:600}
   nav#segNav button.on svg{opacity:1}
-
-  /* ── Main content area ──────────────────────────────────────────────── */
-  .main-wrap{margin-left:var(--sidebar-w);flex:1;min-width:0;display:flex;flex-direction:column}
-
-  /* ── Topbar (actions only) ──────────────────────────────────────────── */
-  .topbar{
-    position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;
-    padding:12px 28px;background:rgba(250,249,246,.92);
-    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-    border-bottom:1px solid var(--line);flex:none;
-  }
-  .topbar-spacer{flex:1}
 
   /* ── Buttons ────────────────────────────────────────────────────────── */
   .icon-btn{
@@ -197,8 +176,7 @@
   @keyframes spin{to{transform:rotate(360deg)}}
 
   /* ── Shell / content wrapper ────────────────────────────────────────── */
-  .shell{max-width:1200px;margin:0 auto;padding:24px 28px 56px}
-  /* Hide legacy seg-nav class (nav moved to sidebar) */
+  .shell{max-width:1300px;margin:0 auto;padding:16px 20px 40px}
   .seg-nav{display:none}
   .view{display:none;animation:fadeUp .2s var(--ease)}
   .view.on{display:block}
@@ -218,32 +196,32 @@
   .card-h .hint{font-size:11px;color:var(--ink-3);font-weight:400}
 
   /* ── KPIs ───────────────────────────────────────────────────────────── */
-  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:10px}
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:8px}
   .kpi{
-    padding:16px 18px 14px;display:flex;flex-direction:column;gap:2px;
+    padding:12px 16px 10px;display:flex;flex-direction:column;gap:2px;
     position:relative;overflow:hidden;
     transition:box-shadow .2s var(--ease),transform .2s var(--ease);
   }
   .kpi:not(.hero):hover{transform:translateY(-1px);box-shadow:var(--shadow-md)}
-  .kpi .lbl{font-size:10px;font-weight:600;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase}
-  .kpi .val{font-size:26px;font-weight:700;letter-spacing:-.03em;line-height:1.15}
-  .kpi .sub{font-size:11px;color:var(--ink-3)}
+  .kpi .lbl{font-size:9.5px;font-weight:600;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase}
+  .kpi .val{font-size:22px;font-weight:700;letter-spacing:-.03em;line-height:1.2}
+  .kpi .sub{font-size:10.5px;color:var(--ink-3)}
   .kpi.hero{
     background:linear-gradient(135deg,#04331C 0%,#065F32 58%,#0B7A41 100%);
-    border-color:transparent;color:#fff;padding-right:84px;
+    border-color:transparent;color:#fff;padding-right:76px;
   }
   .kpi.hero .lbl{color:rgba(255,255,255,.68)}
   .kpi.hero .sub{color:rgba(255,255,255,.6)}
-  .kpi.hero .val{color:#fff}
-  .kpi-ring{position:absolute;right:10px;top:50%;transform:translateY(-50%)}
-  .kpi-accent{width:20px;height:2px;border-radius:1px;margin-bottom:7px}
+  .kpi.hero .val{color:#fff;font-size:26px}
+  .kpi-ring{position:absolute;right:8px;top:50%;transform:translateY(-50%)}
+  .kpi-accent{width:18px;height:2px;border-radius:1px;margin-bottom:6px}
 
-  /* ── Overview layout ────────────────────────────────────────────────── */
-  .ov-top{display:grid;grid-template-columns:1fr 300px;gap:14px;align-items:start;margin-bottom:0}
+  /* ── Overview layout — 3-column cards below KPIs ────────────────────── */
+  .ov-top{display:grid;grid-template-columns:1fr 240px 1fr;gap:12px;align-items:start;margin-top:12px}
   .ov-attn{min-height:0}
   .ov-breakdown{min-height:0}
-  .grid-2{display:grid;grid-template-columns:1.45fr 1fr;gap:14px;align-items:start}
-  .stack{display:grid;gap:14px}
+  .grid-2{display:grid;grid-template-columns:1.45fr 1fr;gap:12px;align-items:start}
+  .stack{display:grid;gap:12px}
 
   /* ── Document bars ──────────────────────────────────────────────────── */
   .docbars{padding:6px 16px 14px;display:grid;grid-template-columns:1fr 1fr 1fr;column-gap:8px}
@@ -671,35 +649,31 @@
 
   /* ── Responsive ─────────────────────────────────────────────────────── */
   @media (max-width:1100px){
-    .ov-top{grid-template-columns:1fr 260px}
+    .ov-top{grid-template-columns:1fr 220px}
     .docbars{grid-template-columns:1fr 1fr}
   }
-  @media (max-width:1020px){
-    :root{--sidebar-w:200px}
-    .kpis{grid-template-columns:repeat(2,1fr)}
+  @media (max-width:900px){
+    .kpis{grid-template-columns:repeat(3,1fr)}
     .kpi.hero{grid-column:1/-1}
-    .ov-top{grid-template-columns:1fr}
-    .attn{grid-template-columns:1fr 1fr}
+    .ov-top{grid-template-columns:1fr 1fr}
     .docbars{grid-template-columns:1fr 1fr}
     .grid-2{grid-template-columns:1fr}
   }
   @media (max-width:768px){
-    .sidebar{
-      width:100%;height:auto;position:sticky;top:0;
-      flex-direction:row;overflow-x:auto;
-      border-right:none;border-bottom:1px solid var(--line);z-index:40;
-    }
-    .sidebar-brand{border-bottom:none;border-right:1px solid var(--line);flex:none;padding:14px 16px}
-    .sidebar-nav-section{display:flex;flex-direction:row;padding:8px;overflow-x:auto}
-    nav#segNav{flex-direction:row;gap:2px}
-    nav#segNav button.on::before{display:none}
-    .sidebar-foot{display:none}
-    .main-wrap{margin-left:0}
-    .shell{padding:16px 16px 48px}
-    .topbar{padding:10px 16px}
+    .topbar{height:auto;flex-wrap:wrap;padding:10px 16px;gap:8px}
+    .topbar-brand{border-right:none;padding-right:0}
+    nav#segNav{height:auto;width:100%;overflow-x:auto;border-bottom:1px solid var(--line);margin-left:0;padding-bottom:2px}
+    nav#segNav button{height:36px;padding:0 12px;font-size:12px}
+    .topbar-spacer{display:none}
+    .topbar-div{display:none}
+    .sync{font-size:11px}
+    .shell{padding:12px 12px 40px}
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .ov-top{grid-template-columns:1fr}
+    .attn{grid-template-columns:1fr 1fr}
   }
   @media (max-width:640px){
-    .kpis{grid-template-columns:1fr 1fr;gap:10px}
+    .kpis{grid-template-columns:1fr 1fr;gap:8px}
     .attn{grid-template-columns:1fr}
     .docbars{grid-template-columns:1fr}
     .fgrid{grid-template-columns:1fr}
@@ -709,7 +683,7 @@
 
   /* ── Dark mode component overrides ──────────────────────────────────── */
   @media (prefers-color-scheme:dark){
-    .topbar{background:rgba(26,25,23,.92)}
+    nav#segNav button.on{background:none}
     .drawer-f{background:rgba(26,25,23,.95)}
     .tbl th{background:var(--card)}
     .matrix thead th{background:var(--card)}
@@ -735,7 +709,6 @@
     .btn-ghost{background:var(--card);border-color:var(--line)}
     .btn-ghost:hover{background:rgba(255,255,255,.06)}
     .search input,.field input,.field select,select.flt{background:var(--card);border-color:var(--line)}
-    .sidebar{background:var(--card)}
   }
   :root[data-theme="dark"] .topbar{background:rgba(26,25,23,.92)}
   :root[data-theme="dark"] .drawer-f{background:rgba(26,25,23,.95)}
@@ -744,7 +717,7 @@
   :root[data-theme="dark"] .matrix tbody th{background:var(--card)}
   :root[data-theme="dark"] .seg,
   :root[data-theme="dark"] .card-tabs{background:rgba(255,255,255,.06)}
-  :root[data-theme="dark"] nav#segNav button.on{background:rgba(0,166,81,.15);color:rgba(232,248,239,.9)}
+  :root[data-theme="dark"] nav#segNav button.on{background:none;color:rgba(232,248,239,.9);border-bottom-color:var(--rk-green)}
   :root[data-theme="dark"] .seg button.on-rec,
   :root[data-theme="dark"] .seg button.on-pen,
   :root[data-theme="dark"] .seg button.on-na,
@@ -763,7 +736,6 @@
   :root[data-theme="dark"] .field input,
   :root[data-theme="dark"] .field select,
   :root[data-theme="dark"] select.flt{background:var(--card);border-color:var(--line)}
-  :root[data-theme="light"] .topbar{background:rgba(250,249,246,.92)}
   :root[data-theme="light"] .drawer-f{background:rgba(250,249,246,.95)}
 
   @media (prefers-reduced-motion:reduce){
@@ -783,216 +755,208 @@
   </div>
 </div>
 
-<!-- ─── App layout ────────────────────────────────────────────────────────── -->
-<div class="app-layout">
-
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <svg class="brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true">
-        <rect width="36" height="36" rx="8.5" fill="#00A651"/>
-        <path stroke="white" stroke-width="2.4" stroke-linecap="butt" fill="none" d="M20.3,10.9 A7.5,7.5 0 0,1 25.3,19.6"/>
-        <polygon fill="white" points="24.5,21.8 26.9,20.2 24.6,18.9"/>
-        <path stroke="white" stroke-width="2.4" stroke-linecap="butt" fill="none" d="M23.0,23.6 A7.5,7.5 0 0,1 13.0,23.6"/>
-        <polygon fill="white" points="11.5,21.8 11.6,24.6 13.9,23.3"/>
-        <path stroke="white" stroke-width="2.4" stroke-linecap="butt" fill="none" d="M10.7,19.6 A7.5,7.5 0 0,1 15.7,10.9"/>
-        <polygon fill="white" points="18.0,10.5 15.5,9.2 15.5,11.8"/>
-      </svg>
-      <div>
-        <div class="brand-name">Recykal<span class="brand-dot-com">.com</span></div>
-        <div class="brand-sub">NBFC Tracker</div>
-      </div>
+<!-- ─── Topbar: brand + nav + actions ─────────────────────────────────────── -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <svg class="brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+      <rect width="36" height="36" rx="8.5" fill="#00A651"/>
+      <path stroke="white" stroke-width="2.4" stroke-linecap="butt" fill="none" d="M20.3,10.9 A7.5,7.5 0 0,1 25.3,19.6"/>
+      <polygon fill="white" points="24.5,21.8 26.9,20.2 24.6,18.9"/>
+      <path stroke="white" stroke-width="2.4" stroke-linecap="butt" fill="none" d="M23.0,23.6 A7.5,7.5 0 0,1 13.0,23.6"/>
+      <polygon fill="white" points="11.5,21.8 11.6,24.6 13.9,23.3"/>
+      <path stroke="white" stroke-width="2.4" stroke-linecap="butt" fill="none" d="M10.7,19.6 A7.5,7.5 0 0,1 15.7,10.9"/>
+      <polygon fill="white" points="18.0,10.5 15.5,9.2 15.5,11.8"/>
+    </svg>
+    <div>
+      <div class="brand-name">Recykal<span class="brand-dot-com">.com</span></div>
+      <div class="brand-sub">NBFC Tracker</div>
     </div>
-    <div class="sidebar-nav-section">
-      <nav id="segNav">
-        <button data-view="overview" class="on">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          Overview
-        </button>
-        <button data-view="sellers">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          Sellers
-        </button>
-        <button data-view="buyers">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-          Buyers
-        </button>
-        <button data-view="matrix">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
-          Document Matrix
-        </button>
-      </nav>
+  </div>
+  <nav id="segNav">
+    <button data-view="overview" class="on">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Overview
+    </button>
+    <button data-view="sellers">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Sellers
+    </button>
+    <button data-view="buyers">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      Buyers
+    </button>
+    <button data-view="matrix">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+      Document Matrix
+    </button>
+  </nav>
+  <div class="topbar-spacer"></div>
+  <span class="sync" id="syncLabel"></span>
+  <div class="topbar-div"></div>
+  <button class="icon-btn" id="refreshBtn" title="Refresh from Google Sheet">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+    Refresh
+  </button>
+  <a class="icon-btn" id="sheetLink" target="_blank" rel="noopener" style="display:none;margin-left:4px">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+    Sheet
+  </a>
+  <div class="topbar-div"></div>
+  <button class="btn-primary" id="addSellerBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    Add Seller
+  </button>
+  <button class="btn-primary" id="addBuyerBtn" style="background:var(--buyer);box-shadow:0 1px 3px rgba(24,73,214,.28)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    Add Buyer
+  </button>
+</header>
+
+<div class="shell">
+
+  <!-- loading skeleton -->
+  <div id="loading">
+    <div class="kpis">
+      <div class="skeleton" style="height:82px"></div>
+      <div class="skeleton" style="height:82px"></div>
+      <div class="skeleton" style="height:82px"></div>
+      <div class="skeleton" style="height:82px"></div>
+      <div class="skeleton" style="height:82px"></div>
     </div>
-    <div class="sidebar-foot">
-      <span class="sync" id="syncLabel"></span>
+    <div class="kpis" style="margin-top:8px">
+      <div class="skeleton" style="height:82px"></div>
+      <div class="skeleton" style="height:82px"></div>
+      <div class="skeleton" style="height:82px"></div>
+      <div class="skeleton" style="height:82px"></div>
+      <div class="skeleton" style="height:82px"></div>
     </div>
-  </aside>
+    <div class="grid-2" style="margin-top:12px">
+      <div class="skeleton" style="height:360px"></div>
+      <div class="skeleton" style="height:360px"></div>
+    </div>
+  </div>
 
-  <!-- Main content -->
-  <div class="main-wrap">
+  <!-- fatal error -->
+  <div id="fatal" class="card state-box" style="display:none">
+    <h3>Couldn't load the tracker</h3>
+    <p id="fatalMsg"></p>
+    <button class="btn-primary" onclick="boot()" style="margin:0 auto">Try again</button>
+  </div>
 
-    <!-- Topbar: actions only -->
-    <header class="topbar">
-      <div class="topbar-spacer"></div>
-      <button class="icon-btn" id="refreshBtn" title="Refresh from Google Sheet">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
-        <span>Refresh</span>
-      </button>
-      <a class="icon-btn" id="sheetLink" target="_blank" rel="noopener" style="display:none">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
-        Sheet
-      </a>
-      <button class="btn-primary" id="addSellerBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-        Add Seller
-      </button>
-      <button class="btn-primary" id="addBuyerBtn" style="background:var(--buyer);box-shadow:0 1px 3px rgba(24,73,214,.28)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-        Add Buyer
-      </button>
-    </header>
+  <div id="app" style="display:none">
 
-    <div class="shell">
-
-      <!-- loading skeleton -->
-      <div id="loading">
-        <div class="kpis">
-          <div class="skeleton" style="height:96px"></div>
-          <div class="skeleton" style="height:96px"></div>
-          <div class="skeleton" style="height:96px"></div>
-          <div class="skeleton" style="height:96px"></div>
-          <div class="skeleton" style="height:96px"></div>
+    <!-- ─── Overview ──────────────────────────────────────────────────── -->
+    <section class="view on" id="view-overview">
+      <div class="section-hd">Sellers</div>
+      <div class="kpis" id="kpis"></div>
+      <div class="section-hd buyer" style="margin-top:10px">Buyers</div>
+      <div class="kpis" id="kpis-buyer"></div>
+      <div class="ov-top">
+        <div class="card ov-attn">
+          <div class="card-h">
+            <h3>Needs attention</h3>
+            <div class="card-tabs" id="attnTabs">
+              <button data-ct="seller" class="on" onclick="switchAttn('seller')">Sellers</button>
+              <button data-ct="buyer" onclick="switchAttn('buyer')">Buyers</button>
+            </div>
+          </div>
+          <div class="attn" id="attnList"></div>
+          <div class="attn" id="attnListBuyer" style="display:none"></div>
         </div>
-        <div class="grid-2" style="margin-top:14px">
-          <div class="skeleton" style="height:420px"></div>
-          <div class="skeleton" style="height:420px"></div>
+        <div class="card ov-breakdown">
+          <div class="card-h">
+            <h3>Portfolio breakdown</h3>
+            <div class="card-tabs" id="facetTabs">
+              <button data-ct="seller" class="on" onclick="switchFacets('seller')">Sellers</button>
+              <button data-ct="buyer" onclick="switchFacets('buyer')">Buyers</button>
+            </div>
+          </div>
+          <div class="facets" id="facets"></div>
+          <div class="facets" id="facets-buyer" style="display:none"></div>
         </div>
-      </div>
-
-      <!-- fatal error -->
-      <div id="fatal" class="card state-box" style="display:none">
-        <h3>Couldn't load the tracker</h3>
-        <p id="fatalMsg"></p>
-        <button class="btn-primary" onclick="boot()" style="margin:0 auto">Try again</button>
-      </div>
-
-      <div id="app" style="display:none">
-
-        <!-- ─── Overview ─────────────────────────────────────────────── -->
-        <section class="view on" id="view-overview">
-          <div class="section-hd">Sellers</div>
-          <div class="kpis" id="kpis"></div>
-          <div class="section-hd buyer">Buyers</div>
-          <div class="kpis" id="kpis-buyer"></div>
-          <div class="ov-top" style="margin-top:14px">
-            <div class="card ov-attn">
-              <div class="card-h">
-                <h3>Needs attention</h3>
-                <div class="card-tabs" id="attnTabs">
-                  <button data-ct="seller" class="on" onclick="switchAttn('seller')">Sellers</button>
-                  <button data-ct="buyer" onclick="switchAttn('buyer')">Buyers</button>
-                </div>
-              </div>
-              <div class="attn" id="attnList"></div>
-              <div class="attn" id="attnListBuyer" style="display:none"></div>
-            </div>
-            <div class="card ov-breakdown">
-              <div class="card-h">
-                <h3>Portfolio breakdown</h3>
-                <div class="card-tabs" id="facetTabs">
-                  <button data-ct="seller" class="on" onclick="switchFacets('seller')">Sellers</button>
-                  <button data-ct="buyer" onclick="switchFacets('buyer')">Buyers</button>
-                </div>
-              </div>
-              <div class="facets" id="facets"></div>
-              <div class="facets" id="facets-buyer" style="display:none"></div>
-            </div>
-          </div>
-          <div class="card" style="margin-top:14px">
-            <div class="card-h">
-              <h3>Document collection status</h3>
-              <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-                <div class="legend" style="padding:0">
-                  <span><i style="background:var(--rk-green)"></i>Received</span>
-                  <span><i style="background:var(--amber)"></i>Pending</span>
-                  <span><i style="background:var(--line-2)"></i>N/A</span>
-                </div>
-                <span class="hint">sorted by most pending</span>
-                <div class="card-tabs" id="docBarsTabs">
-                  <button data-ct="seller" class="on" onclick="switchDocBars('seller')">Sellers</button>
-                  <button data-ct="buyer" onclick="switchDocBars('buyer')">Buyers</button>
-                </div>
-              </div>
-            </div>
-            <div class="docbars" id="docBars"></div>
-            <div class="docbars" id="docBarsBuyer" style="display:none"></div>
-          </div>
-        </section>
-
-        <!-- ─── Sellers ──────────────────────────────────────────────── -->
-        <section class="view" id="view-sellers">
-          <div class="toolbar">
-            <div class="search">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-              <input id="q" type="search" placeholder="Search seller, GST, region…" autocomplete="off">
-            </div>
-            <select class="flt" id="fltEntity"><option value="">All entity types</option></select>
-            <select class="flt" id="fltRegion"><option value="">All regions</option></select>
-            <select class="flt" id="fltStatus">
-              <option value="">All statuses</option>
-              <option value="complete">Complete</option>
-              <option value="pending">Has pending docs</option>
-            </select>
-          </div>
-          <div class="card tbl-wrap">
-            <table class="tbl">
-              <thead id="sellersHead"></thead>
-              <tbody id="sellersBody"></tbody>
-            </table>
-          </div>
-        </section>
-
-        <!-- ─── Buyers ───────────────────────────────────────────────── -->
-        <section class="view" id="view-buyers">
-          <div class="toolbar">
-            <div class="search">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-              <input id="qBuyer" type="search" placeholder="Search buyer, GST, region…" autocomplete="off">
-            </div>
-            <select class="flt" id="fltBuyerEntity"><option value="">All entity types</option></select>
-            <select class="flt" id="fltBuyerStatus">
-              <option value="">All statuses</option>
-              <option value="complete">Complete</option>
-              <option value="pending">Has pending docs</option>
-            </select>
-          </div>
-          <div class="card tbl-wrap">
-            <table class="tbl">
-              <thead id="buyersHead"></thead>
-              <tbody id="buyersBody"></tbody>
-            </table>
-          </div>
-        </section>
-
-        <!-- ─── Matrix ───────────────────────────────────────────────── -->
-        <section class="view" id="view-matrix">
-          <div class="card">
-            <div class="card-h" style="padding-bottom:12px">
-              <h3>Seller × document matrix</h3>
+        <div class="card">
+          <div class="card-h">
+            <h3>Document status</h3>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
               <div class="legend" style="padding:0">
                 <span><i style="background:var(--rk-green)"></i>Received</span>
                 <span><i style="background:var(--amber)"></i>Pending</span>
-                <span><i style="border:1.5px solid var(--gray-dot);background:transparent"></i>NA</span>
+                <span><i style="background:var(--line-2)"></i>N/A</span>
+              </div>
+              <div class="card-tabs" id="docBarsTabs">
+                <button data-ct="seller" class="on" onclick="switchDocBars('seller')">Sellers</button>
+                <button data-ct="buyer" onclick="switchDocBars('buyer')">Buyers</button>
               </div>
             </div>
-            <div class="matrix-wrap"><table class="matrix" id="matrixTable"></table></div>
           </div>
-        </section>
+          <div class="docbars" id="docBars" style="grid-template-columns:1fr 1fr;column-gap:6px"></div>
+          <div class="docbars" id="docBarsBuyer" style="display:none;grid-template-columns:1fr 1fr;column-gap:6px"></div>
+        </div>
+      </div>
+    </section>
 
-      </div><!-- #app -->
-    </div><!-- .shell -->
-  </div><!-- .main-wrap -->
-</div><!-- .app-layout -->
+    <!-- ─── Sellers ───────────────────────────────────────────────────── -->
+    <section class="view" id="view-sellers">
+      <div class="toolbar">
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="q" type="search" placeholder="Search seller, GST, region…" autocomplete="off">
+        </div>
+        <select class="flt" id="fltEntity"><option value="">All entity types</option></select>
+        <select class="flt" id="fltRegion"><option value="">All regions</option></select>
+        <select class="flt" id="fltStatus">
+          <option value="">All statuses</option>
+          <option value="complete">Complete</option>
+          <option value="pending">Has pending docs</option>
+        </select>
+      </div>
+      <div class="card tbl-wrap">
+        <table class="tbl">
+          <thead id="sellersHead"></thead>
+          <tbody id="sellersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ─── Buyers ────────────────────────────────────────────────────── -->
+    <section class="view" id="view-buyers">
+      <div class="toolbar">
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="qBuyer" type="search" placeholder="Search buyer, GST, region…" autocomplete="off">
+        </div>
+        <select class="flt" id="fltBuyerEntity"><option value="">All entity types</option></select>
+        <select class="flt" id="fltBuyerStatus">
+          <option value="">All statuses</option>
+          <option value="complete">Complete</option>
+          <option value="pending">Has pending docs</option>
+        </select>
+      </div>
+      <div class="card tbl-wrap">
+        <table class="tbl">
+          <thead id="buyersHead"></thead>
+          <tbody id="buyersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ─── Matrix ────────────────────────────────────────────────────── -->
+    <section class="view" id="view-matrix">
+      <div class="card">
+        <div class="card-h" style="padding-bottom:12px">
+          <h3>Seller × document matrix</h3>
+          <div class="legend" style="padding:0">
+            <span><i style="background:var(--rk-green)"></i>Received</span>
+            <span><i style="background:var(--amber)"></i>Pending</span>
+            <span><i style="border:1.5px solid var(--gray-dot);background:transparent"></i>NA</span>
+          </div>
+        </div>
+        <div class="matrix-wrap"><table class="matrix" id="matrixTable"></table></div>
+      </div>
+    </section>
+
+  </div><!-- #app -->
+</div><!-- .shell -->
 
 <!-- ─── Seller detail drawer ─────────────────────────────────────────────── -->
 <div class="scrim" id="scrim"></div>
