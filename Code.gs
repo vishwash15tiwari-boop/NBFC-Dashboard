@@ -665,6 +665,55 @@ function getBuyerListCounts_() {
 }
 
 /**
+ * When BUYER_LIST_FILE_ID is not configured, derive plastic/metal buyer counts
+ * by scanning each buyer's meta values for the keywords "plastic" / "metal".
+ * This uses the buyer tracker rows already loaded by getBuyerData_().
+ */
+function deriveBuyerListsFromTracker_(buyers, nameHeader, metaFields) {
+  // Prefer a dedicated material/category/type column if one exists
+  var materialKey = null;
+  if (metaFields) {
+    metaFields.forEach(function (f) {
+      if (materialKey) return;
+      var n = f.key.toLowerCase().replace(/[^a-z]/g, '');
+      if (n.indexOf('material') !== -1 || n === 'category' || n === 'type' ||
+          n === 'sector' || n.indexOf('commodity') !== -1) {
+        materialKey = f.key;
+      }
+    });
+  }
+
+  var plasticBuyers = [], metalBuyers = [];
+  buyers.forEach(function (b) {
+    var name = nameHeader ? (b.meta[nameHeader] || '') : '';
+    if (!name) name = 'Row ' + b.row;
+
+    var isPlastic = false, isMetal = false;
+    if (materialKey) {
+      var val = (b.meta[materialKey] || '').toLowerCase();
+      isPlastic = /plastic/i.test(val);
+      isMetal   = /metal/i.test(val);
+    } else {
+      // Scan all meta values when no dedicated column is found
+      var vals = Object.keys(b.meta).map(function (k) { return b.meta[k]; });
+      isPlastic = vals.some(function (v) { return /plastic/i.test(v); });
+      isMetal   = vals.some(function (v) { return /metal/i.test(v); });
+    }
+    if (isPlastic) plasticBuyers.push(name);
+    if (isMetal)   metalBuyers.push(name);
+  });
+
+  return {
+    plastic:       plasticBuyers.length,
+    metal:         metalBuyers.length,
+    plasticName:   'Plastic Buyers',
+    metalName:     'Metal Buyers',
+    plasticBuyers: plasticBuyers,
+    metalBuyers:   metalBuyers
+  };
+}
+
+/**
  * Everything the front end needs, in one round trip:
  * layout, requirement matrix, per-document applicability, and every seller
  * row with parsed statuses and completion aggregates.
@@ -756,7 +805,12 @@ function getInitialData() {
 
   var sellerLists = getSellerListCounts_();
   var buyerData = getBuyerData_(ss);
-  buyerData.buyerLists = getBuyerListCounts_();
+  var buyerLists = getBuyerListCounts_();
+  // If the buyer list workbook isn't configured, derive counts from tracker rows
+  if (buyerLists.error && buyerData.buyers && buyerData.buyers.length > 0) {
+    buyerLists = deriveBuyerListsFromTracker_(buyerData.buyers, buyerData.nameHeader, buyerData.metaFields);
+  }
+  buyerData.buyerLists = buyerLists;
   return {
     ok: true,
     sheetUrl: ss.getUrl(),
