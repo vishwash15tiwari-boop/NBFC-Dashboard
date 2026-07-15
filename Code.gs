@@ -680,40 +680,89 @@ function getListCounts() {
 }
 
 /**
- * When BUYER_LIST_FILE_ID is not configured, derive plastic/metal buyer counts
- * by scanning each buyer's meta values for the keywords "plastic" / "metal".
- * This uses the buyer tracker rows already loaded by getBuyerData_().
+ * Derives plastic/metal buyer classification from the Buyer_NBFC Tracker rows
+ * already loaded by getBuyerData_(). This is the primary source for buyer KPI
+ * counts — no separate BUYER_LIST_FILE_ID workbook is needed.
+ *
+ * Detection order:
+ *  1. Explicit "plastic" / "metal" boolean columns in the header (e.g. "Is Plastic")
+ *  2. A dedicated material/category/type/commodity/segment/product column whose
+ *     cell values contain the material keyword
+ *  3. Scan of all meta values for material keywords (fallback)
+ *  4. Buyer's own business name (last resort)
+ *
+ * Returns { plastic, metal, plasticName, metalName, plasticBuyers, metalBuyers,
+ *           hasSplit, totalBuyers }. hasSplit is true only when at least one
+ *           buyer was classified into plastic or metal.
  */
 function deriveBuyerListsFromTracker_(buyers, nameHeader, metaFields) {
-  // Prefer a dedicated material/category/type column if one exists
-  var materialKey = null;
+  var PLASTIC_RE = /plastic|pp\b|hdpe|ldpe|pet\b|pvc/i;
+  var METAL_RE   = /metal|steel|ferrous|iron\b|alumin|copper|zinc|brass|scrap/i;
+
+  // 1 — Explicit plastic / metal column headers (e.g. "Is Plastic Buyer")
+  var plasticColKey = null, metalColKey = null;
   if (metaFields) {
-    metaFields.forEach(function (f) {
+    metaFields.forEach(function(f) {
+      var n = f.key.toLowerCase().replace(/[^a-z]/g, '');
+      if (!plasticColKey && n.indexOf('plastic') !== -1) plasticColKey = f.key;
+      if (!metalColKey && (n.indexOf('metal') !== -1 || n.indexOf('ferrous') !== -1)) metalColKey = f.key;
+    });
+  }
+
+  // 2 — General material / category / segment / commodity / product / type column
+  var materialKey = null;
+  if (!plasticColKey && !metalColKey && metaFields) {
+    metaFields.forEach(function(f) {
       if (materialKey) return;
       var n = f.key.toLowerCase().replace(/[^a-z]/g, '');
-      if (n.indexOf('material') !== -1 || n === 'category' || n === 'type' ||
-          n === 'sector' || n.indexOf('commodity') !== -1) {
+      if (n.indexOf('material') !== -1 || n.indexOf('category') !== -1 ||
+          n.indexOf('commodity') !== -1 || n.indexOf('product') !== -1 ||
+          n.indexOf('segment') !== -1   || n.indexOf('industry') !== -1 ||
+          n.indexOf('buyertype') !== -1 || n === 'type' || n === 'sector') {
         materialKey = f.key;
       }
     });
   }
 
   var plasticBuyers = [], metalBuyers = [];
-  buyers.forEach(function (b) {
-    var name = nameHeader ? (b.meta[nameHeader] || '') : '';
+  buyers.forEach(function(b) {
+    // Resolve best display name for this buyer
+    var name = nameHeader ? String(b.meta[nameHeader] || '').trim() : '';
+    if (!name) {
+      Object.keys(b.meta).forEach(function(k) {
+        if (!name && k.toLowerCase().indexOf('name') !== -1) name = String(b.meta[k] || '').trim();
+      });
+    }
     if (!name) name = 'Row ' + b.row;
 
     var isPlastic = false, isMetal = false;
-    if (materialKey) {
-      var val = (b.meta[materialKey] || '').toLowerCase();
-      isPlastic = /plastic/i.test(val);
-      isMetal   = /metal/i.test(val);
+
+    if (plasticColKey || metalColKey) {
+      // Explicit boolean-style column (Yes/No or contains keyword)
+      if (plasticColKey) {
+        var pv = String(b.meta[plasticColKey] || '').toLowerCase().trim();
+        isPlastic = pv === 'yes' || pv === 'y' || pv === 'true' || pv === '1' || PLASTIC_RE.test(pv);
+      }
+      if (metalColKey) {
+        var mv = String(b.meta[metalColKey] || '').toLowerCase().trim();
+        isMetal = mv === 'yes' || mv === 'y' || mv === 'true' || mv === '1' || METAL_RE.test(mv);
+      }
+    } else if (materialKey) {
+      var val = String(b.meta[materialKey] || '').toLowerCase();
+      if (/both|all/i.test(val)) { isPlastic = true; isMetal = true; }
+      else { isPlastic = PLASTIC_RE.test(val); isMetal = METAL_RE.test(val); }
     } else {
-      // Scan all meta values when no dedicated column is found
-      var vals = Object.keys(b.meta).map(function (k) { return b.meta[k]; });
-      isPlastic = vals.some(function (v) { return /plastic/i.test(v); });
-      isMetal   = vals.some(function (v) { return /metal/i.test(v); });
+      // 3 — Scan all meta values
+      var allVals = Object.keys(b.meta).map(function(k) { return String(b.meta[k]); });
+      isPlastic = allVals.some(function(v) { return PLASTIC_RE.test(v); });
+      isMetal   = allVals.some(function(v) { return METAL_RE.test(v); });
+      // 4 — Buyer name itself as absolute last resort
+      if (!isPlastic && !isMetal) {
+        isPlastic = PLASTIC_RE.test(name);
+        isMetal   = METAL_RE.test(name);
+      }
     }
+
     if (isPlastic) plasticBuyers.push(name);
     if (isMetal)   metalBuyers.push(name);
   });
@@ -724,7 +773,9 @@ function deriveBuyerListsFromTracker_(buyers, nameHeader, metaFields) {
     plasticName:   'Plastic Buyers',
     metalName:     'Metal Buyers',
     plasticBuyers: plasticBuyers,
-    metalBuyers:   metalBuyers
+    metalBuyers:   metalBuyers,
+    hasSplit:      plasticBuyers.length > 0 || metalBuyers.length > 0,
+    totalBuyers:   buyers.length
   };
 }
 
@@ -820,10 +871,17 @@ function getInitialData() {
 
   var sellerLists = getSellerListCounts_();
   var buyerData = getBuyerData_(ss);
-  var buyerLists = getBuyerListCounts_();
-  // If the buyer list workbook isn't configured, derive counts from tracker rows
-  if (buyerLists.error && buyerData.buyers && buyerData.buyers.length > 0) {
+  // Buyer plastic/metal counts always come from the Buyer_NBFC Tracker tab.
+  // getBuyerListCounts_() (separate workbook) is only used as a supplement when
+  // the tracker itself has no buyers (e.g. the tab is empty or missing).
+  var buyerLists;
+  if (buyerData.buyers && buyerData.buyers.length > 0) {
     buyerLists = deriveBuyerListsFromTracker_(buyerData.buyers, buyerData.nameHeader, buyerData.metaFields);
+  } else if (BUYER_LIST_FILE_ID !== 'REPLACE_WITH_BUYER_LIST_FILE_ID') {
+    buyerLists = getBuyerListCounts_();
+  } else {
+    buyerLists = { plastic: 0, metal: 0, plasticName: 'Plastic Buyers', metalName: 'Metal Buyers',
+                   plasticBuyers: [], metalBuyers: [], hasSplit: false, totalBuyers: 0 };
   }
   buyerData.buyerLists = buyerLists;
   return {
