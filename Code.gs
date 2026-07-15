@@ -47,22 +47,25 @@ var CONFIG = {
 
 /* ─────────────── Buyer document requirement matrix (hardcoded) ─────────── */
 
+/* Buyer document requirement matrix.
+   Columns: Private Limited (pvt) | Partnership (ptn) | Limited (ltd)
+   Source: Buyer Requirement tab — updated to match the actual sheet exactly.  */
 var BUYER_REQ_MATRIX = [
-  { doc: 'Audited Financials (Last 2 years)',            pvt: true,  ptn: true,  ltd: true  },
-  { doc: 'Provisional Financials (Current Year)',        pvt: true,  ptn: true,  ltd: true  },
-  { doc: 'ITR (Last year)',                              pvt: true,  ptn: true,  ltd: true  },
-  { doc: 'GST Returns (12 months)',                      pvt: true,  ptn: true,  ltd: true  },
-  { doc: 'Bank Statement (1 year)',                      pvt: true,  ptn: true,  ltd: true  },
-  { doc: 'CIBIL Consent',                               pvt: true,  ptn: true,  ltd: true  },
-  { doc: 'Shareholding Pattern',                         pvt: true,  ptn: false, ltd: true  },
-  { doc: 'Partnership Deed',                             pvt: false, ptn: true,  ltd: false },
-  { doc: 'Debtor Ageing',                               pvt: true,  ptn: true,  ltd: true  },
-  { doc: 'Creditor Ageing',                             pvt: true,  ptn: true,  ltd: true  },
-  { doc: 'Sanction Letter of all Loans',                pvt: true,  ptn: true,  ltd: true  },
-  { doc: 'Stock Statement',                              pvt: true,  ptn: true,  ltd: true  },
-  { doc: 'MSME Certificate (If applicable)',             pvt: true,  ptn: true,  ltd: true  },
-  { doc: 'GST Certificate',                              pvt: true,  ptn: true,  ltd: true  },
-  { doc: 'Entity PAN',                                   pvt: true,  ptn: true,  ltd: true  }
+  { doc: 'Audited Financials (Last 2 years)',                    pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'Provisional Financials (Current Year)',                pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'ITR (Last year)',                                      pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'GST Returns (12 months)',                              pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'Bank Statement (1 year)',                              pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'CIBIL Consent',                                       pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'Shareholding Pattern',                                 pvt: true,  ptn: false, ltd: true  },
+  { doc: 'Partnership Deed',                                     pvt: false, ptn: true,  ltd: false },
+  { doc: 'Debtor Ageing (0-30, 30-90, 90-180, 180+ )',          pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'Creditor Ageing (0-30, 30-90, 90-180, 180+ )',        pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'Sanction Letter of all Loans',                        pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'Stock Statement',                                      pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'MSME Certificate (If applicable)',                     pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'GST Certificate',                                      pvt: true,  ptn: true,  ltd: true  },
+  { doc: 'Entity PAN',                                           pvt: true,  ptn: true,  ltd: true  }
 ];
 var BUYER_ENTITY_COLS = ['Private Limited', 'Partnership', 'Limited'];
 
@@ -254,16 +257,21 @@ function matchRequirementRow_(matrix, trackerDocHeader) {
 /**
  * Maps a stored entity type (e.g. "Partnership Firm", "Private Limited
  * Company") to the matching requirement column (e.g. "Partnership",
- * "Private Limited"), preferring the longest label so "Private Limited
- * Company" resolves to "Private Limited" and not "Limited".
+ * "Private Limited").
+ *
+ * Priority: exact match > longest partial-containment match.
+ * This prevents "Limited" (entity type) from resolving to "Private Limited"
+ * (column) just because "privatelimited" is longer and contains "limited".
  */
 function matchEntityColumn_(matrix, entityType) {
   var e = normKey_(entityType);
   if (!e) return null;
-  var best = null, bestLen = 0;
+  var best = null, bestLen = 0, exactFound = false;
   matrix.entityColumns.forEach(function (label) {
     var n = normKey_(label);
-    if ((e.indexOf(n) !== -1 || n.indexOf(e) !== -1) && n.length > bestLen) {
+    if (n === e) {
+      if (!exactFound || n.length > bestLen) { best = label; bestLen = n.length; exactFound = true; }
+    } else if (!exactFound && (e.indexOf(n) !== -1 || n.indexOf(e) !== -1) && n.length > bestLen) {
       best = label; bestLen = n.length;
     }
   });
@@ -305,12 +313,22 @@ function readTrackerLayout_(sh) {
   return { headers: headers, serialIdx: serialIdx, metaIdx: metaIdx, pendingIdx: pendingIdx, docIdx: docIdx };
 }
 
-/** Detects an input affordance for a meta column from its header name only. */
+/**
+ * Detects the logical type of a meta column from its header name.
+ * Used to drive both form field rendering and entity-type applicability.
+ * Entity detection is broad to cover the many ways a column may be named
+ * in the wild (Entity Type, Type of Entity, Company Type, Organisation Type…).
+ */
 function metaFieldType_(header) {
   var n = normKey_(header);
-  if (n.indexOf('gst') !== -1) return 'gst';
+  if (n.indexOf('gst') !== -1 && n.indexOf('return') === -1 && n.indexOf('certificate') === -1) return 'gst';
   if (n.indexOf('date') !== -1) return 'date';
-  if (n.indexOf('entitytype') !== -1 || n.indexOf('businesstype') !== -1) return 'entity';
+  if (n.indexOf('entitytype') !== -1 || n.indexOf('businesstype') !== -1 ||
+      n.indexOf('typeofentity') !== -1 || n.indexOf('typeofbusiness') !== -1 ||
+      n.indexOf('typeoforganis') !== -1 || n.indexOf('organisationtype') !== -1 ||
+      n.indexOf('organizationtype') !== -1 || n.indexOf('companytype') !== -1 ||
+      n.indexOf('entitycategory') !== -1 || n.indexOf('businesscategory') !== -1 ||
+      n === 'entity' || n === 'entitycategory') return 'entity';
   if (n.indexOf('turnover') !== -1 || n === 'annualrevenue' || n === 'revenue') return 'turnover';
   return 'text';
 }
@@ -339,12 +357,17 @@ function matchBuyerRequirement_(docHeader) {
   return best;
 }
 
-/** Maps an entity type string to the pvt / ptn / ltd key in BUYER_REQ_MATRIX. */
+/**
+ * Maps a buyer's entity type string to the pvt / ptn / ltd key in
+ * BUYER_REQ_MATRIX.  Order matters — "Private Limited" must match pvt before
+ * the trailing "limited" would match ltd.
+ */
 function getBuyerEntityKey_(entityType) {
   var e = normKey_(entityType);
   if (!e) return null;
   if (e.indexOf('private') !== -1 || e.indexOf('pvt') !== -1) return 'pvt';
-  if (e.indexOf('partner') !== -1) return 'ptn';
+  // LLP (Limited Liability Partnership) is treated as Partnership
+  if (e.indexOf('partner') !== -1 || e === 'llp' || e.indexOf('liabilitypartner') !== -1) return 'ptn';
   if (e.indexOf('limited') !== -1 || e.indexOf('ltd') !== -1) return 'ltd';
   return null;
 }
