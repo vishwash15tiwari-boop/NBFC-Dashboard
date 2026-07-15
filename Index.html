@@ -119,7 +119,6 @@
   }
   .brand-mark{width:30px;height:30px;flex:none}
   .brand-name{font-size:13.5px;font-weight:700;letter-spacing:-.02em;color:var(--ink);line-height:1.2}
-  .brand-dot-com{color:var(--rk-green)}
   .brand-sub{font-size:9.5px;color:var(--ink-3);font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:1px}
   .topbar-spacer{flex:1;min-width:8px}
   .topbar-div{width:1px;height:20px;background:var(--line);flex:none;margin:0 6px}
@@ -759,16 +758,15 @@
 <header class="topbar">
   <div class="topbar-brand">
     <svg class="brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true">
-      <rect width="36" height="36" rx="8.5" fill="#00A651"/>
-      <path stroke="white" stroke-width="2.4" stroke-linecap="butt" fill="none" d="M20.3,10.9 A7.5,7.5 0 0,1 25.3,19.6"/>
-      <polygon fill="white" points="24.5,21.8 26.9,20.2 24.6,18.9"/>
-      <path stroke="white" stroke-width="2.4" stroke-linecap="butt" fill="none" d="M23.0,23.6 A7.5,7.5 0 0,1 13.0,23.6"/>
-      <polygon fill="white" points="11.5,21.8 11.6,24.6 13.9,23.3"/>
-      <path stroke="white" stroke-width="2.4" stroke-linecap="butt" fill="none" d="M10.7,19.6 A7.5,7.5 0 0,1 15.7,10.9"/>
-      <polygon fill="white" points="18.0,10.5 15.5,9.2 15.5,11.8"/>
+      <rect width="36" height="36" rx="7.5" fill="#111111"/>
+      <!-- Recykal mark: two interlocking curved wings in 180° rotational symmetry -->
+      <!-- Wing 1: upper-right, tip at top-center, sweeps clockwise to lower-right -->
+      <path fill="white" d="M18 4C24.5 4 30.5 8.5 32 15C33.5 21.5 31 28.5 26.5 32C24 34 21 34.5 18.5 33C16.5 32 16.5 29.5 18.5 27C20.5 24.5 23 21.5 23.5 18C24 13 22 7.5 18 4Z"/>
+      <!-- Wing 2: lower-left, 180° rotation of wing 1 -->
+      <path fill="white" d="M18 32C11.5 32 5.5 27.5 4 21C2.5 14.5 5 7.5 9.5 4C12 2 15 1.5 17.5 3C19.5 4 19.5 6.5 17.5 9C15.5 11.5 13 14.5 12.5 18C12 23 14 28.5 18 32Z"/>
     </svg>
     <div>
-      <div class="brand-name">Recykal<span class="brand-dot-com">.com</span></div>
+      <div class="brand-name">recykal</div>
       <div class="brand-sub">NBFC Tracker</div>
     </div>
   </div>
