@@ -467,6 +467,10 @@ function getBuyerData_(ss) {
  * still succeed.
  */
 function getSellerListCounts_() {
+  // Cache for 30 minutes so the second spreadsheet open only happens once per session.
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get('slCounts');
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
   try {
     var ss = SpreadsheetApp.openById(SELLER_LIST_FILE_ID);
     var sheets = ss.getSheets();
@@ -553,7 +557,7 @@ function getSellerListCounts_() {
       // Use the tab name only when it looks meaningful (not a default "Sheet#" name)
       return /^sheet\d+$/i.test(n.trim()) ? fallback : n;
     }
-    return {
+    var result = {
       plastic:        ps.length,
       metal:          ms.length,
       plasticName:    cleanLabel(plasticSheet, 'Plastic Sellers'),
@@ -561,6 +565,8 @@ function getSellerListCounts_() {
       plasticSellers: ps,
       metalSellers:   ms
     };
+    try { cache.put('slCounts', JSON.stringify(result), 1800); } catch (ce) {}
+    return result;
   } catch (e) {
     return { plastic: 0, metal: 0, plasticName: 'Plastic', metalName: 'Metal',
              plasticSellers: [], metalSellers: [], error: String(e.message) };
@@ -812,10 +818,7 @@ function getInitialData() {
     if (!covered) entityOptions[label] = true;
   });
 
-  // Seller list counts are fetched separately by getListCounts() to avoid
-  // blocking the initial render on a second SpreadsheetApp.openById() call.
-  var sellerLists = { plastic: 0, metal: 0, plasticName: 'Plastic Sellers',
-                      metalName: 'Metal Sellers', plasticSellers: [], metalSellers: [] };
+  var sellerLists = getSellerListCounts_();
   var buyerData = getBuyerData_(ss);
   var buyerLists = getBuyerListCounts_();
   // If the buyer list workbook isn't configured, derive counts from tracker rows

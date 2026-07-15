@@ -1229,29 +1229,11 @@ function boot(){
   $('fatal').style.display = 'none';
   $('app').style.display = 'none';
   $('loading').style.display = 'block';
-  // Fire both calls simultaneously. getInitialData() is fast (no extra file open).
-  // getListCounts() opens the seller list workbook in parallel; its result patches
-  // the seller KPI tiles once it arrives without re-rendering the whole page.
-  var listPromise = run('getListCounts');
-  run('getInitialData').then(function(data){
-    onData(data);
-    listPromise.then(function(sl){ patchSellerLists(sl); }).catch(function(){});
-  }).catch(function(err){
+  run('getInitialData').then(onData).catch(function(err){
     $('loading').style.display = 'none';
     $('fatalMsg').textContent = (err && err.message) ? err.message : String(err);
     $('fatal').style.display = 'block';
   });
-}
-
-function patchSellerLists(sl){
-  if (!D || !sl) return;
-  D.sellerLists = sl;
-  var totalList = (sl.plastic || 0) + (sl.metal || 0);
-  // Update hero seller KPI tile values in place
-  var kv0 = $('kv0'), kv1 = $('kv1'), kv2 = $('kv2');
-  if (kv0){ animCount(kv0, totalList); kv0.closest('.kpi').querySelector('.sub').textContent = 'Plastic: ' + (sl.plastic||0) + ' · Metal: ' + (sl.metal||0); }
-  if (kv1){ animCount(kv1, sl.plastic||0); var t1 = kv1.closest('.kpi'); if(t1){ t1.querySelector('.lbl').textContent = 'Plastic sellers'; t1.querySelector('.sub').textContent = sl.plasticName || 'Plastic category'; } }
-  if (kv2){ animCount(kv2, sl.metal||0);   var t2 = kv2.closest('.kpi'); if(t2){ t2.querySelector('.lbl').textContent = 'Metal sellers';   t2.querySelector('.sub').textContent = sl.metalName   || 'Metal category'; } }
 }
 
 function onData(data){
@@ -1284,10 +1266,8 @@ function onData(data){
 function refresh(quiet){
   var btn = $('refreshBtn');
   btn.disabled = true; btn.style.opacity = .55;
-  var listPromise = run('getListCounts');
   return run('getInitialData').then(function(d){
     onData(d);
-    listPromise.then(function(sl){ patchSellerLists(sl); }).catch(function(){});
     if (!quiet) toast('Refreshed from Google Sheet');
   }).catch(function(err){
     if (!quiet) toast((err && err.message) || 'Refresh failed', 'err');
