@@ -254,8 +254,12 @@
   .hero-band::before{
     content:'';position:absolute;inset:0;pointer-events:none;
     background:
-      radial-gradient(560px 260px at 10% -12%,rgba(61,220,132,.14),transparent 70%),
-      radial-gradient(560px 260px at 90% -12%,rgba(125,171,255,.14),transparent 70%);
+      radial-gradient(680px 320px at 10% -14%,rgba(61,220,132,.22),transparent 70%),
+      radial-gradient(680px 320px at 90% -14%,rgba(125,171,255,.22),transparent 70%);
+  }
+  .hero-band::after{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(115deg,transparent 32%,rgba(255,255,255,.04) 46%,transparent 58%);
   }
   .hero-sep{background:rgba(255,255,255,.09);margin:4px 0}
   .hero-half{position:relative;padding-right:28px;min-width:0}
@@ -275,26 +279,31 @@
   }
   .hh-main:hover .hh-big{opacity:.85}
   .hh-sub{font-size:12.5px;color:rgba(255,255,255,.5);margin-top:9px;letter-spacing:-.005em}
+  .hh-stats{display:flex;gap:16px;margin-top:13px;font-size:11.5px;font-weight:500;color:rgba(255,255,255,.62);font-variant-numeric:tabular-nums;flex-wrap:wrap}
+  .hh-stats i{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:.5px}
   .hh-ring{position:relative;flex:none}
+  .hero-half .hh-ring svg{filter:drop-shadow(0 0 18px rgba(61,220,132,.42))}
+  .hero-half.buyer .hh-ring svg{filter:drop-shadow(0 0 18px rgba(125,171,255,.42))}
   .hh-ring-lbl{
     position:absolute;inset:0;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:0;
   }
-  .hh-ring-lbl b{font-size:16px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
-  .hh-ring-lbl span{font-size:8px;font-weight:600;color:rgba(255,255,255,.48);letter-spacing:.07em;text-transform:uppercase;margin-top:1px}
+  .hh-ring-lbl b{font-size:20px;font-weight:700;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+  .hh-ring-lbl span{font-size:8.5px;font-weight:600;color:rgba(255,255,255,.5);letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
   .hh-pills{display:flex;gap:9px;margin-top:20px;flex-wrap:wrap}
   .hh-pill{
     flex:1;min-width:84px;display:flex;flex-direction:column;gap:0;align-items:flex-start;
-    background:rgba(255,255,255,.07);border-radius:14px;padding:11px 14px 10px;
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+    background:rgba(255,255,255,.09);border-radius:14px;padding:11px 15px 10px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);
     transition:background .18s var(--ease),transform .18s var(--ease);
     color:#fff;text-align:left;
   }
-  .hh-pill:not([disabled]):hover{background:rgba(255,255,255,.13);transform:translateY(-1px)}
+  .hh-pill:not([disabled]):hover{background:rgba(255,255,255,.15);transform:translateY(-1px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
   .hh-pill:not([disabled]):active{transform:translateY(0)}
   .hh-pill[disabled]{cursor:default;opacity:.6}
-  .hh-pill b{font-size:20px;font-weight:700;letter-spacing:-.035em;font-variant-numeric:tabular-nums;line-height:1.15}
-  .hh-pill span{font-size:10.5px;color:rgba(255,255,255,.55);font-weight:500;margin-top:2px;letter-spacing:-.005em}
+  .hh-pill b{font-size:22px;font-weight:700;letter-spacing:-.04em;font-variant-numeric:tabular-nums;line-height:1.15}
+  .hh-pill span{font-size:10.5px;color:rgba(255,255,255,.58);font-weight:500;margin-top:3px;letter-spacing:-.005em}
+  .hh-pill span i{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:.5px}
 
   /* ── Overview layout ────────────────────────────────────────────────── */
   .ov-grid{display:grid;grid-template-columns:1.06fr .94fr;gap:14px;align-items:start;margin-top:16px}
@@ -1436,17 +1445,21 @@ function renderOverview(){
         '<div class="hh-eyebrow"><i style="background:#3DDC84"></i>Sellers</div>' +
         '<div class="hh-big" id="kv0">' + totalList + '</div>' +
         '<div class="hh-sub">giving documents to NBFC</div>' +
+        '<div class="hh-stats">' +
+          '<span><i style="background:#3DDC84"></i>' + t.received + ' received</span>' +
+          '<span><i style="background:#F59E0B"></i>' + t.pending + ' pending</span>' +
+        '</div>' +
       '</div>' +
-      '<div class="hh-ring">' + ringSvg(t.completion, 96, 7, 'rgba(255,255,255,.13)', '#3DDC84') +
+      '<div class="hh-ring">' + ringSvg(t.completion, 112, 8, 'rgba(255,255,255,.16)', '#3DDC84') +
         '<div class="hh-ring-lbl"><b>' + Math.round(t.completion) + '%</b><span>received</span></div>' +
       '</div>' +
     '</div>' +
     '<div class="hh-pills">' +
-      hhPill('kv1', sl.plastic, 'Plastic', 'sellers-plastic', sl.plasticName || '') +
-      hhPill('kv2', sl.metal, 'Metal', 'sellers-metal', sl.metalName || '') +
-      hhPill('kv3', t.sellers, 'In tracker', 'sellers-tracked', '') +
+      hhPill('kv1', sl.plastic, 'Plastic', 'sellers-plastic', sl.plasticName || '', '#3DDC84') +
+      hhPill('kv2', sl.metal, 'Metal', 'sellers-metal', sl.metalName || '', '#B9C6D2') +
+      hhPill('kv3', t.sellers, 'In tracker', 'sellers-tracked', '', 'rgba(255,255,255,.4)') +
       hhPill('kv4', t.complete, 'Completed', 'sellers-complete',
-             t.sellers ? Math.round(t.complete/t.sellers*100) + '% done' : '') +
+             t.sellers ? Math.round(t.complete/t.sellers*100) + '% done' : '', '#3DDC84') +
     '</div>';
   animCount($('kv0'), totalList); animCount($('kv1'), sl.plastic);
   animCount($('kv2'), sl.metal); animCount($('kv3'), t.sellers); animCount($('kv4'), t.complete);
@@ -1468,17 +1481,21 @@ function renderOverview(){
         '<div class="hh-eyebrow"><i style="background:#7DABFF"></i>Buyers</div>' +
         '<div class="hh-big" id="bkv0">' + bListTotal + '</div>' +
         '<div class="hh-sub">giving documents to NBFC</div>' +
+        '<div class="hh-stats">' +
+          '<span><i style="background:#7DABFF"></i>' + bt.received + ' received</span>' +
+          '<span><i style="background:#F59E0B"></i>' + bt.pending + ' pending</span>' +
+        '</div>' +
       '</div>' +
-      '<div class="hh-ring">' + ringSvg(bt.completion, 96, 7, 'rgba(255,255,255,.13)', '#7DABFF') +
+      '<div class="hh-ring">' + ringSvg(bt.completion, 112, 8, 'rgba(255,255,255,.16)', '#7DABFF') +
         '<div class="hh-ring-lbl"><b>' + Math.round(bt.completion) + '%</b><span>received</span></div>' +
       '</div>' +
     '</div>' +
     '<div class="hh-pills">' +
-      hhPill('bkv1', blHasSplit ? bl.plastic : '—', 'Plastic', blHasSplit ? 'buyers-plastic' : null, plasticSub) +
-      hhPill('bkv2', blHasSplit ? bl.metal : '—', 'Metal', blHasSplit ? 'buyers-metal' : null, metalSub) +
-      hhPill('bkv3', bTotal, 'In tracker', 'buyers-total', '') +
+      hhPill('bkv1', blHasSplit ? bl.plastic : '—', 'Plastic', blHasSplit ? 'buyers-plastic' : null, plasticSub, '#3DDC84') +
+      hhPill('bkv2', blHasSplit ? bl.metal : '—', 'Metal', blHasSplit ? 'buyers-metal' : null, metalSub, '#B9C6D2') +
+      hhPill('bkv3', bTotal, 'In tracker', 'buyers-total', '', 'rgba(255,255,255,.4)') +
       hhPill('bkv4', bt.complete, 'Completed', 'buyers-complete',
-             bTotal ? Math.round(bt.complete/bTotal*100) + '% done' : '') +
+             bTotal ? Math.round(bt.complete/bTotal*100) + '% done' : '', '#7DABFF') +
     '</div>';
   animCount($('bkv0'), bListTotal);
   if (blHasSplit){ animCount($('bkv1'), bl.plastic); animCount($('bkv2'), bl.metal); }
@@ -1616,13 +1633,13 @@ function switchDocBars(section){
 }
 
 /* One stat pill inside the hero band. kind=null renders an inert pill. */
-function hhPill(id, val, lbl, kind, title){
+function hhPill(id, val, lbl, kind, title, dot){
   var idAttr = id ? ' id="' + id + '"' : '';
   var clickAttr = kind ? ' onclick="openKpi(\'' + kind + '\')"' : ' disabled';
   var titleAttr = title ? ' title="' + esc(title) + '"' : '';
   return '<button type="button" class="hh-pill"' + clickAttr + titleAttr + '>' +
     '<b' + idAttr + '>' + String(val == null ? '—' : val) + '</b>' +
-    '<span>' + esc(lbl) + '</span></button>';
+    '<span>' + (dot ? '<i style="background:' + dot + '"></i>' : '') + esc(lbl) + '</span></button>';
 }
 
 /* ═══════════════════════════ Sellers view ══════════════════════════════ */
