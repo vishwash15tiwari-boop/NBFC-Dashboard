@@ -1105,14 +1105,21 @@
     <section class="view" id="view-matrix">
       <div class="card">
         <div class="card-h" style="padding-bottom:12px">
-          <h3>Seller × document matrix</h3>
-          <div class="legend" style="padding:0">
-            <span><i style="background:var(--rk-green)"></i>Received</span>
-            <span><i style="background:var(--amber)"></i>Pending</span>
-            <span><i style="border:1.5px solid var(--gray-dot);background:transparent"></i>NA</span>
+          <h3>Document matrix</h3>
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <div class="legend" style="padding:0">
+              <span><i style="background:var(--rk-green)"></i>Received</span>
+              <span><i style="background:var(--amber)"></i>Pending</span>
+              <span><i style="border:1.5px solid var(--gray-dot);background:transparent"></i>NA</span>
+            </div>
+            <div class="card-tabs" id="matrixTabs">
+              <button data-ct="seller" class="on" onclick="switchMatrix('seller')">Sellers</button>
+              <button data-ct="buyer" onclick="switchMatrix('buyer')">Buyers</button>
+            </div>
           </div>
         </div>
-        <div class="matrix-wrap"><table class="matrix" id="matrixTable"></table></div>
+        <div class="matrix-wrap" id="matrixWrapSeller"><table class="matrix" id="matrixTable"></table></div>
+        <div class="matrix-wrap" id="matrixWrapBuyer" style="display:none"><table class="matrix" id="matrixTableBuyer"></table></div>
       </div>
     </section>
 
@@ -1772,15 +1779,16 @@ function renderBuyers(){
 
 /* ═══════════════════════════ Matrix view ═══════════════════════════════ */
 
-function renderMatrix(){
-  var head = '<thead><tr><th>Seller</th>' + D.docs.map(function(d){
+/* Shared: entity × document status grid for any rows/docs pair. */
+function buildMatrix(rows, docsArr, nHeader, openFn, colLabel, emptyMsg){
+  var head = '<thead><tr><th>' + colLabel + '</th>' + docsArr.map(function(d){
     return '<th title="' + esc(d.key) + '">' + esc(docShort(d.key)) + '</th>';
   }).join('') + '</tr></thead>';
 
-  var body = '<tbody>' + D.sellers.map(function(s){
-    var nm = nameHeader ? s.meta[nameHeader] : ('Row ' + s.row);
-    return '<tr><th onclick="openDetail(' + s.row + ')" style="cursor:pointer" title="' + esc(nm) + '">' + esc(nm) + '</th>' +
-      D.docs.map(function(d){
+  var body = '<tbody>' + rows.map(function(s){
+    var nm = nHeader ? s.meta[nHeader] : ('Row ' + s.row);
+    return '<tr><th onclick="' + openFn + '(' + s.row + ')" style="cursor:pointer" title="' + esc(nm) + '">' + esc(nm) + '</th>' +
+      docsArr.map(function(d){
         var cell = s.docs[d.key] || {status:'pending', raw:'', note:''};
         var cls = cell.status === 'received' ? 'rec' : cell.status === 'na' ? 'na' : 'pen';
         var tipTxt = '<b>' + esc(nm) + '</b><br>' + esc(d.key) + '<br><span class="t-sub">' +
@@ -1790,8 +1798,23 @@ function renderMatrix(){
       }).join('') + '</tr>';
   }).join('') + '</tbody>';
 
-  $('matrixTable').innerHTML = D.sellers.length ? head + body
-    : head + '<tbody><tr><td colspan="' + (D.docs.length+1) + '" class="empty-cell">No sellers yet — add the first one.</td></tr></tbody>';
+  return rows.length ? head + body
+    : head + '<tbody><tr><td colspan="' + (docsArr.length+1) + '" class="empty-cell">' + emptyMsg + '</td></tr></tbody>';
+}
+
+function renderMatrix(){
+  $('matrixTable').innerHTML = buildMatrix(
+    D.sellers, D.docs, nameHeader, 'openDetail', 'Seller', 'No sellers yet — add the first one.');
+  $('matrixTableBuyer').innerHTML = DB
+    ? buildMatrix(DB.buyers, DB.docs || [], buyerNameHeader, 'openBuyerDetail', 'Buyer', 'No buyers yet — add the first one.')
+    : '<thead><tr><th>Buyer</th></tr></thead><tbody><tr><td class="empty-cell">Buyer_NBFC Tracker tab not found or empty.</td></tr></tbody>';
+}
+
+function switchMatrix(section){
+  var isBuyer = section === 'buyer';
+  $('matrixWrapSeller').style.display = isBuyer ? 'none' : '';
+  $('matrixWrapBuyer').style.display = isBuyer ? '' : 'none';
+  $('matrixTabs').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.ct === section); });
 }
 
 /* ═══════════════════════ Seller detail drawer ══════════════════════════ */
