@@ -26,10 +26,12 @@ var CONFIG = {
   // One entry per NBFC tracker tab.
   // maxCol caps how far right the tab is read so scratch columns to the right
   // never pollute KPIs, cards, the matrix, or form saves.
+  // docStartCol / docEndCol (1-indexed) restrict which columns are treated as
+  // document-status columns — L=12 through AA=27.
   NBFC_TABS: [
-    { id: 'billmart',  name: 'Billmart',   maxCol: 40 },
-    { id: 'capitalxb', name: 'Capital XB', maxCol: 40 },
-    { id: 'strideone', name: 'StrideOne',  maxCol: 40 },
+    { id: 'billmart',  name: 'Billmart',   maxCol: 40, docStartCol: 12, docEndCol: 27 },
+    { id: 'capitalxb', name: 'Capital XB', maxCol: 40, docStartCol: 12, docEndCol: 27 },
+    { id: 'strideone', name: 'StrideOne',  maxCol: 40, docStartCol: 12, docEndCol: 27 },
   ],
 
   // Optional: entity-type → document applicability matrix tab.
@@ -213,7 +215,7 @@ function matchEntityColumn_(matrix, entityType) {
 
 /* ─────────────────────────── Tracker layout ─────────────────────────── */
 
-function readTrackerLayout_(sh, maxCol) {
+function readTrackerLayout_(sh, maxCol, docStartCol, docEndCol) {
   var lastCol = sh.getLastColumn();
   if (maxCol && maxCol > 0 && maxCol < lastCol) lastCol = maxCol;
   var headers = sh.getRange(1, 1, 1, lastCol).getDisplayValues()[0]
@@ -232,9 +234,17 @@ function readTrackerLayout_(sh, maxCol) {
     if (i === serialIdx) continue;
     if (headers[i]) metaIdx.push(i);
   }
+  // Only include doc columns within the L:AA window (1-indexed docStartCol to docEndCol).
+  // When no window is configured, all non-empty columns after pendingIdx qualify.
   var docIdx = [];
   for (i = pendingIdx + 1; i < headers.length; i++) {
-    if (headers[i]) docIdx.push(i);
+    if (!headers[i]) continue;
+    var col1 = i + 1; // 1-indexed column number
+    if (docStartCol && docEndCol) {
+      if (col1 >= docStartCol && col1 <= docEndCol) docIdx.push(i);
+    } else {
+      docIdx.push(i);
+    }
   }
   return { headers: headers, colCount: lastCol, serialIdx: serialIdx, metaIdx: metaIdx, pendingIdx: pendingIdx, docIdx: docIdx };
 }
@@ -262,7 +272,7 @@ function metaFieldType_(header) {
 function getNbfcData_(ss, tabCfg, matrix) {
   try {
     var sh = findSheet_(ss, tabCfg);
-    var layout = readTrackerLayout_(sh, tabCfg.maxCol);
+    var layout = readTrackerLayout_(sh, tabCfg.maxCol, tabCfg.docStartCol, tabCfg.docEndCol);
 
     var nameHeaderKey = null, entityHeaderKey = null;
     layout.metaIdx.forEach(function (idx) {
@@ -440,7 +450,7 @@ function saveEntry(nbfcId, payload) {
   try {
     var ss = getSpreadsheet_();
     var sh = findSheet_(ss, tabCfg);
-    var layout = readTrackerLayout_(sh, tabCfg.maxCol);
+    var layout = readTrackerLayout_(sh, tabCfg.maxCol, tabCfg.docStartCol, tabCfg.docEndCol);
     var matrix = readRequirementMatrix_(ss);
 
     var meta = payload.meta || {};
@@ -627,7 +637,7 @@ function uploadDocument(payload) {
     if (payload.row) {
       var ss = getSpreadsheet_();
       sh = findSheet_(ss, tabCfg);
-      layout = readTrackerLayout_(sh, tabCfg.maxCol);
+      layout = readTrackerLayout_(sh, tabCfg.maxCol, tabCfg.docStartCol, tabCfg.docEndCol);
       targetRow = Number(payload.row);
       if (targetRow < 2) throw new Error('Invalid row number.');
       var rowData = sh.getRange(targetRow, 1, 1, layout.colCount).getDisplayValues()[0];
