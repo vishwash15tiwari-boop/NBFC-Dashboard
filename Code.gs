@@ -156,7 +156,7 @@ function parseStatus_(raw) {
 //
 // Applicability by category (confirmed requirements):
 //   Proprietorship  — N/A: Partnership Deed, MOA/AOA/COI, Shareholding Details
-//   Partnership     — N/A: Debt Profile, MOA/AOA/COI
+//   Partnership     — N/A: MOA/AOA/COI
 //   Private Limited — N/A: Partnership Deed
 //
 var ENTITY_DOC_RULES = [
@@ -167,7 +167,6 @@ var ENTITY_DOC_RULES = [
   ['certificateofincorporat', ['proprietorship', 'partnership']],
   ['shareholdingdetail',      ['proprietorship']],
   ['shareholdingpattern',     ['proprietorship']],
-  ['debtprofile',             ['partnership']],
 ];
 
 /**
