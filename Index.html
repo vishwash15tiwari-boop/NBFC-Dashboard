@@ -168,14 +168,14 @@
 
   /* ── Buttons ────────────────────────────────────────────────────────── */
   .icon-btn{
-    display:inline-flex;align-items:center;justify-content:center;gap:6px;
-    height:32px;padding:0 13px;border-radius:980px;border:none;
-    background:var(--fill);font-size:12.5px;font-weight:500;color:var(--ink);
-    transition:all .18s var(--ease);text-decoration:none;white-space:nowrap;letter-spacing:-.01em;
+    display:inline-flex;align-items:center;justify-content:center;
+    width:34px;height:34px;padding:0;border-radius:50%;border:none;
+    background:var(--fill);color:var(--ink);flex:none;
+    transition:all .18s var(--ease);text-decoration:none;
   }
   .icon-btn:hover{background:var(--fill-2)}
-  .icon-btn:active{transform:scale(.97)}
-  .icon-btn svg{width:13.5px;height:13.5px}
+  .icon-btn:active{transform:scale(.94)}
+  .icon-btn svg{width:15px;height:15px}
   .btn-primary{
     display:inline-flex;align-items:center;justify-content:center;gap:6px;
     height:36px;padding:0 18px;
@@ -227,59 +227,81 @@
   .card-h h3{font-size:15px;font-weight:600;letter-spacing:-.02em;color:var(--ink)}
   .card-h .hint{font-size:11.5px;color:var(--ink-3);font-weight:400}
 
-  /* ── KPIs ───────────────────────────────────────────────────────────── */
-  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:12px}
-  .kpi{
-    padding:18px 20px 16px;display:flex;flex-direction:column;gap:2px;
-    position:relative;overflow:hidden;
-    transition:box-shadow .25s var(--ease),transform .25s var(--ease);
+  /* ── Hero band — the command strip ──────────────────────────────────── */
+  .hero-band{
+    display:grid;grid-template-columns:1fr 1px 1fr;
+    background:linear-gradient(170deg,#242428 0%,#131315 45%,#000 100%);
+    border-radius:26px;padding:26px 30px 24px;position:relative;overflow:hidden;
+    box-shadow:0 2px 10px rgba(0,0,0,.16),0 20px 52px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.07);
+    color:#fff;
   }
-  .kpi:not(.hero):hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
-  .kpi-accent{display:none}
-  .kpi .lbl{
-    font-size:11.5px;font-weight:500;color:var(--ink-3);
-    letter-spacing:-.005em;margin-bottom:8px;line-height:1.35;
+  .hero-band::before{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(560px 260px at 10% -12%,rgba(61,220,132,.14),transparent 70%),
+      radial-gradient(560px 260px at 90% -12%,rgba(125,171,255,.14),transparent 70%);
   }
-  .kpi .val{
-    font-size:32px;font-weight:700;letter-spacing:-.045em;line-height:1.05;
+  .hero-sep{background:rgba(255,255,255,.09);margin:4px 0}
+  .hero-half{position:relative;padding-right:28px;min-width:0}
+  .hero-half.buyer{padding-right:0;padding-left:28px}
+  .hh-main{display:flex;align-items:center;justify-content:space-between;gap:20px;cursor:pointer;border-radius:14px}
+  .hh-info{min-width:0}
+  .hh-eyebrow{
+    display:flex;align-items:center;gap:7px;
+    font-size:12px;font-weight:600;color:rgba(255,255,255,.62);
+    letter-spacing:.01em;margin-bottom:8px;
+  }
+  .hh-eyebrow i{width:7px;height:7px;border-radius:50%;display:inline-block;flex:none}
+  .hh-big{
+    font-size:64px;font-weight:700;letter-spacing:-.055em;line-height:.95;
     font-variant-numeric:tabular-nums;
+    transition:opacity .15s;
   }
-  .kpi .sub{font-size:11.5px;color:var(--ink-3);margin-top:6px;letter-spacing:-.005em}
-  /* Hero — the black card */
-  .kpi.hero{
-    background:linear-gradient(155deg,#2A2A2D 0%,#1A1A1C 45%,#000 100%);
-    color:#fff;padding-right:88px;
-    box-shadow:0 2px 10px rgba(0,0,0,.18),0 14px 36px rgba(0,0,0,.22);
+  .hh-main:hover .hh-big{opacity:.85}
+  .hh-sub{font-size:12.5px;color:rgba(255,255,255,.5);margin-top:9px;letter-spacing:-.005em}
+  .hh-ring{position:relative;flex:none}
+  .hh-ring-lbl{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:0;
   }
-  .kpi.hero .lbl{color:rgba(255,255,255,.55)}
-  .kpi.hero .sub{color:rgba(255,255,255,.45)}
-  .kpi.hero .val{color:#fff;font-size:36px}
-  .kpi-ring{position:absolute;right:14px;top:50%;transform:translateY(-50%)}
-  .kpi.hero.buyer-hero{background:linear-gradient(155deg,#2A2A2D 0%,#1A1A1C 45%,#000 100%)}
+  .hh-ring-lbl b{font-size:16px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .hh-ring-lbl span{font-size:8px;font-weight:600;color:rgba(255,255,255,.48);letter-spacing:.07em;text-transform:uppercase;margin-top:1px}
+  .hh-pills{display:flex;gap:9px;margin-top:20px;flex-wrap:wrap}
+  .hh-pill{
+    flex:1;min-width:84px;display:flex;flex-direction:column;gap:0;align-items:flex-start;
+    background:rgba(255,255,255,.07);border-radius:14px;padding:11px 14px 10px;
+    transition:background .18s var(--ease),transform .18s var(--ease);
+    color:#fff;text-align:left;
+  }
+  .hh-pill:not([disabled]):hover{background:rgba(255,255,255,.13);transform:translateY(-1px)}
+  .hh-pill:not([disabled]):active{transform:translateY(0)}
+  .hh-pill[disabled]{cursor:default;opacity:.6}
+  .hh-pill b{font-size:20px;font-weight:700;letter-spacing:-.035em;font-variant-numeric:tabular-nums;line-height:1.15}
+  .hh-pill span{font-size:10.5px;color:rgba(255,255,255,.55);font-weight:500;margin-top:2px;letter-spacing:-.005em}
 
   /* ── Overview layout ────────────────────────────────────────────────── */
-  .ov-top{display:grid;grid-template-columns:1fr 250px 1fr;gap:14px;align-items:start;margin-top:16px}
+  .ov-grid{display:grid;grid-template-columns:1.06fr .94fr;gap:14px;align-items:start;margin-top:16px}
   .ov-attn{min-height:0}
   .ov-breakdown{min-height:0}
   .grid-2{display:grid;grid-template-columns:1.45fr 1fr;gap:14px;align-items:start}
   .stack{display:grid;gap:14px}
 
   /* ── Document bars ──────────────────────────────────────────────────── */
-  .docbars{padding:8px 18px 16px;display:grid;grid-template-columns:1fr 1fr 1fr;column-gap:10px}
+  .docbars{padding:8px 18px 18px;display:grid;grid-template-columns:1fr;row-gap:2px}
   .docbar{
-    display:grid;grid-template-columns:minmax(96px,.9fr) 1.6fr 52px;
-    gap:9px;align-items:center;padding:6px 7px;border-radius:8px;
+    display:grid;grid-template-columns:minmax(120px,.9fr) 1.5fr 56px;
+    gap:12px;align-items:center;padding:8px 9px;border-radius:9px;
     transition:background .15s;
     animation:fadeSlideUp .3s var(--ease) both;
     animation-delay:calc(var(--db-i,0)*30ms);
   }
   .docbar:hover{background:var(--fill)}
-  .docbar .name{font-size:11.5px;font-weight:500;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+  .docbar .name{font-size:12px;font-weight:500;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
   .docbar.has-pen .name{color:var(--ink);font-weight:600}
-  .strack{height:5px;border-radius:3px;overflow:hidden;display:flex;background:var(--fill)}
+  .strack{height:6px;border-radius:3px;overflow:hidden;display:flex;background:var(--fill)}
   .strack .s-rec{background:var(--rk-green);height:100%;border-radius:3px 0 0 3px;min-width:0;transition:flex .6s var(--ease-out)}
   .strack .s-pen{background:var(--amber);opacity:.9;height:100%;min-width:0;transition:flex .6s var(--ease-out) .05s}
-  .dstat{font-size:10.5px;font-weight:600;text-align:right;white-space:nowrap;line-height:1.3;font-variant-numeric:tabular-nums}
+  .dstat{font-size:11px;font-weight:600;text-align:right;white-space:nowrap;line-height:1.3;font-variant-numeric:tabular-nums}
   .dstat.pen{color:var(--amber-ink)}
   .dstat.ok{color:var(--rk-green-ink)}
   .dstat.muted{color:var(--ink-3);font-weight:400}
@@ -344,7 +366,7 @@
   .attn-tv-val.empty{background:var(--fill);color:var(--ink-3);font-weight:400}
 
   /* ── Portfolio breakdown (facets) ───────────────────────────────────── */
-  .facets{padding:10px 18px 18px;display:grid;gap:16px}
+  .facets{padding:10px 18px 18px;display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
   .facet h4{font-size:11px;font-weight:600;color:var(--ink-3);letter-spacing:-.005em;margin-bottom:8px}
   .facet-row{display:flex;flex-direction:column;gap:6px}
   .facet-chip{
@@ -357,8 +379,12 @@
   .facet-chip b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
   .facet-bar{height:3px;border-radius:2px;background:var(--rk-green);margin-top:4px;transition:width .5s var(--ease-out)}
 
-  /* ── Toolbar / filters ──────────────────────────────────────────────── */
-  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  /* ── Toolbar / filters (lives inside the table card) ────────────────── */
+  .toolbar{
+    display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+    padding:14px 16px;border-bottom:1px solid var(--line-2);
+  }
+  .tbl-count{margin-left:auto;font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap;padding-right:2px}
   .search{position:relative;flex:1;min-width:220px;max-width:340px}
   .search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--ink-3)}
   .search input{
@@ -381,7 +407,7 @@
   select.flt:hover{background-color:var(--fill-2)}
 
   /* ── Sellers / Buyers table ─────────────────────────────────────────── */
-  .tbl-wrap{overflow-x:auto;border-radius:var(--radius)}
+  .tbl-wrap{overflow-x:auto;border-radius:0 0 var(--radius) var(--radius)}
   table.tbl{width:100%;border-collapse:collapse;min-width:820px}
   .tbl th{
     text-align:left;font-size:11.5px;font-weight:500;color:var(--ink-3);
@@ -475,7 +501,11 @@
   .x-btn svg{width:13px;height:13px}
 
   /* ── Detail drawer body ─────────────────────────────────────────────── */
-  .detail-hero{display:flex;align-items:center;gap:18px;padding:4px 0 18px}
+  .detail-hero{
+    display:flex;align-items:center;gap:20px;
+    background:var(--surface);border-radius:16px;
+    padding:16px 20px;margin-bottom:6px;
+  }
   .detail-hero .nums{display:flex;gap:24px}
   .dh-num .v{font-size:22px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
   .dh-num .k{font-size:10.5px;color:var(--ink-3);font-weight:500;margin-top:1px;letter-spacing:-.005em}
@@ -638,19 +668,7 @@
   .doc-file-rm{font-size:15px;line-height:1;color:var(--ink-3);padding:0 2px;cursor:pointer;border-radius:4px;transition:color .1s}
   .doc-file-rm:hover{color:#FF453A}
 
-  /* ── Clickable KPI tiles ────────────────────────────────────────────── */
-  .kpi.click{cursor:pointer;user-select:none}
-  .kpi.click:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
-  .kpi.click:active{transform:translateY(0);opacity:.95}
-  .kpi.hero.click:hover{transform:translateY(-2px)}
-  .kpi-go{
-    position:absolute;right:12px;bottom:12px;width:20px;height:20px;
-    border-radius:50%;display:flex;align-items:center;justify-content:center;
-    background:var(--fill);transition:background .15s;flex:none;color:var(--ink-2);
-  }
-  .kpi.click:hover .kpi-go{background:var(--fill-2)}
-  .kpi.hero .kpi-go{background:rgba(255,255,255,.16);color:#fff}
-  .kpi.hero.click:hover .kpi-go{background:rgba(255,255,255,.28)}
+  /* ── KPI drill-down drawer ──────────────────────────────────────────── */
   #kpiDrawer{width:min(480px,calc(100vw - 24px))}
   .ks-sum{
     display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:8px;
@@ -667,20 +685,6 @@
   .ks-name{font-size:13px;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em}
   .ks-sub{font-size:11px;color:var(--ink-3);margin-top:1px}
   .ks-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:none;min-width:90px}
-
-  /* ── Section headers — iOS large-title style ────────────────────────── */
-  .section-hd{
-    display:flex;align-items:center;gap:10px;
-    font-size:21px;font-weight:700;letter-spacing:-.03em;
-    color:var(--ink);margin:6px 2px 12px;
-  }
-  .section-hd::before,.section-hd::after{content:none}
-  .section-hd::before{
-    content:'';flex:none;width:8px;height:8px;border-radius:50%;
-    background:var(--rk-green);
-  }
-  .section-hd.buyer{color:var(--ink)}
-  .section-hd.buyer::before{background:var(--buyer)}
 
   /* ── Card-level tab switcher — mini segmented ───────────────────────── */
   .card-tabs{display:inline-flex;background:var(--fill);border-radius:8px;padding:2px;gap:1px;margin-left:auto}
@@ -703,15 +707,15 @@
 
   /* ── Responsive ─────────────────────────────────────────────────────── */
   @media (max-width:1100px){
-    .ov-top{grid-template-columns:1fr 220px}
-    .docbars{grid-template-columns:1fr 1fr}
     nav#segNav button{padding:0 10px}
+    .hh-big{font-size:52px}
   }
   @media (max-width:900px){
-    .kpis{grid-template-columns:repeat(3,1fr)}
-    .kpi.hero{grid-column:1/-1}
-    .ov-top{grid-template-columns:1fr 1fr}
-    .docbars{grid-template-columns:1fr 1fr}
+    .hero-band{grid-template-columns:1fr;padding:24px 24px 22px}
+    .hero-sep{height:1px;margin:20px 0;width:100%}
+    .hero-half{padding-right:0}
+    .hero-half.buyer{padding-left:0}
+    .ov-grid{grid-template-columns:1fr}
     .grid-2{grid-template-columns:1fr}
   }
   @media (max-width:768px){
@@ -723,14 +727,12 @@
     .topbar-div{display:none}
     .sync{font-size:11px}
     .shell{padding:14px 14px 44px}
-    .kpis{grid-template-columns:repeat(2,1fr)}
-    .ov-top{grid-template-columns:1fr}
     .attn{grid-template-columns:1fr 1fr}
-    .section-hd{font-size:19px}
+    .hh-big{font-size:46px}
   }
   @media (max-width:640px){
-    .kpis{grid-template-columns:1fr 1fr;gap:10px}
     .attn{grid-template-columns:1fr}
+    .facets{grid-template-columns:1fr}
     .docbars{grid-template-columns:1fr}
     .fgrid{grid-template-columns:1fr}
     .drawer{top:0;right:0;bottom:0;width:100vw;border-radius:0;transform:translateX(calc(100% + 140px))}
@@ -751,11 +753,10 @@
     .seg button.on-rec{color:#8CE8AE}
     .seg button.on-pen{color:#FFD60A}
     .seg button.on-na{color:#fff}
-    .kpi.hero{
-      background:linear-gradient(155deg,#2E2E31 0%,#1E1E20 45%,#0A0A0B 100%);
-      box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),0 2px 10px rgba(0,0,0,.4);
+    .hero-band{
+      background:linear-gradient(170deg,#2C2C30 0%,#18181B 45%,#050506 100%);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),inset 0 1px 0 rgba(255,255,255,.1),0 2px 10px rgba(0,0,0,.4);
     }
-    .kpi.hero.buyer-hero{background:linear-gradient(155deg,#2E2E31 0%,#1E1E20 45%,#0A0A0B 100%)}
     .attn-card{background:rgba(255,255,255,.05)}
     .attn-card:hover{background:rgba(0,166,81,.13)}
     .facet-chip{background:rgba(255,255,255,.05)}
@@ -772,6 +773,7 @@
     .doc-chk{background:rgba(255,214,10,.1);color:#FFD60A}
     .attn-card:hover .doc-chk{background:rgba(255,214,10,.14)}
     .doc-field{background:rgba(255,255,255,.045)}
+    .detail-hero{background:rgba(255,255,255,.05)}
     .upload-btn:hover{background:rgba(48,209,88,.16);color:#30D158}
     .drive-link{background:rgba(48,209,88,.15);color:#30D158}
     .drive-link:hover{background:rgba(48,209,88,.24)}
@@ -801,10 +803,9 @@
   :root[data-theme="dark"] .seg button.on-rec{color:#8CE8AE}
   :root[data-theme="dark"] .seg button.on-pen{color:#FFD60A}
   :root[data-theme="dark"] .seg button.on-na{color:#fff}
-  :root[data-theme="dark"] .kpi.hero,
-  :root[data-theme="dark"] .kpi.hero.buyer-hero{
-    background:linear-gradient(155deg,#2E2E31 0%,#1E1E20 45%,#0A0A0B 100%);
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),0 2px 10px rgba(0,0,0,.4);
+  :root[data-theme="dark"] .hero-band{
+    background:linear-gradient(170deg,#2C2C30 0%,#18181B 45%,#050506 100%);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),inset 0 1px 0 rgba(255,255,255,.1),0 2px 10px rgba(0,0,0,.4);
   }
   :root[data-theme="dark"] .attn-card{background:rgba(255,255,255,.05)}
   :root[data-theme="dark"] .attn-card:hover{background:rgba(0,166,81,.13)}
@@ -822,6 +823,7 @@
   :root[data-theme="dark"] .attn-cnt{background:rgba(255,214,10,.14);color:#FFD60A}
   :root[data-theme="dark"] .doc-chk{background:rgba(255,214,10,.1);color:#FFD60A}
   :root[data-theme="dark"] .doc-field{background:rgba(255,255,255,.045)}
+  :root[data-theme="dark"] .detail-hero{background:rgba(255,255,255,.05)}
   :root[data-theme="dark"] .upload-btn:hover{background:rgba(48,209,88,.16);color:#30D158}
   :root[data-theme="dark"] .drive-link{background:rgba(48,209,88,.15);color:#30D158}
   :root[data-theme="dark"] .doc-file-row{background:rgba(48,209,88,.13)}
@@ -850,10 +852,9 @@
   :root[data-theme="light"] .seg button.on-rec{background:#fff;color:var(--rk-green-ink)}
   :root[data-theme="light"] .seg button.on-pen{background:#fff;color:var(--amber-ink)}
   :root[data-theme="light"] .seg button.on-na{background:#fff;color:var(--ink)}
-  :root[data-theme="light"] .kpi.hero,
-  :root[data-theme="light"] .kpi.hero.buyer-hero{
-    background:linear-gradient(155deg,#2A2A2D 0%,#1A1A1C 45%,#000 100%);
-    box-shadow:0 2px 10px rgba(0,0,0,.18),0 14px 36px rgba(0,0,0,.22);
+  :root[data-theme="light"] .hero-band{
+    background:linear-gradient(170deg,#242428 0%,#131315 45%,#000 100%);
+    box-shadow:0 2px 10px rgba(0,0,0,.16),0 20px 52px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.07);
   }
   :root[data-theme="light"] .attn-card{background:var(--surface)}
   :root[data-theme="light"] .attn-card:hover{background:var(--rk-green-tint-2)}
@@ -871,6 +872,7 @@
   :root[data-theme="light"] .attn-cnt{background:var(--amber-tint);color:var(--amber-ink)}
   :root[data-theme="light"] .doc-chk{background:rgba(245,158,11,.10);color:var(--amber-ink)}
   :root[data-theme="light"] .doc-field{background:var(--surface)}
+  :root[data-theme="light"] .detail-hero{background:var(--surface)}
   :root[data-theme="light"] .drive-link{background:var(--rk-green-tint);color:var(--rk-green-ink)}
   :root[data-theme="light"] .doc-file-row{background:var(--rk-green-tint)}
   :root[data-theme="light"] .doc-file-link{color:var(--rk-green-ink)}
@@ -931,13 +933,11 @@
   <div class="topbar-spacer"></div>
   <span class="sync" id="syncLabel"></span>
   <div class="topbar-div"></div>
-  <button class="icon-btn" id="refreshBtn" title="Refresh from Google Sheet">
+  <button class="icon-btn" id="refreshBtn" title="Refresh from Google Sheet" aria-label="Refresh from Google Sheet">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
-    Refresh
   </button>
-  <a class="icon-btn" id="sheetLink" target="_blank" rel="noopener" style="display:none;margin-left:4px">
+  <a class="icon-btn" id="sheetLink" target="_blank" rel="noopener" title="Open the Google Sheet" aria-label="Open the Google Sheet" style="display:none;margin-left:6px">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
-    Sheet
   </a>
   <div class="topbar-div"></div>
   <button class="btn-primary" id="addSellerBtn">
@@ -954,23 +954,10 @@
 
   <!-- loading skeleton -->
   <div id="loading">
-    <div class="kpis">
-      <div class="skeleton" style="height:118px"></div>
-      <div class="skeleton" style="height:118px"></div>
-      <div class="skeleton" style="height:118px"></div>
-      <div class="skeleton" style="height:118px"></div>
-      <div class="skeleton" style="height:118px"></div>
-    </div>
-    <div class="kpis" style="margin-top:8px">
-      <div class="skeleton" style="height:118px"></div>
-      <div class="skeleton" style="height:118px"></div>
-      <div class="skeleton" style="height:118px"></div>
-      <div class="skeleton" style="height:118px"></div>
-      <div class="skeleton" style="height:118px"></div>
-    </div>
-    <div class="grid-2" style="margin-top:12px">
-      <div class="skeleton" style="height:360px"></div>
-      <div class="skeleton" style="height:360px"></div>
+    <div class="skeleton" style="height:212px;border-radius:26px"></div>
+    <div class="ov-grid" style="margin-top:16px">
+      <div class="skeleton" style="height:430px"></div>
+      <div class="skeleton" style="height:430px"></div>
     </div>
   </div>
 
@@ -985,11 +972,13 @@
 
     <!-- ─── Overview ──────────────────────────────────────────────────── -->
     <section class="view on" id="view-overview">
-      <div class="section-hd">Sellers</div>
-      <div class="kpis" id="kpis"></div>
-      <div class="section-hd buyer" style="margin-top:10px">Buyers</div>
-      <div class="kpis" id="kpis-buyer"></div>
-      <div class="ov-top">
+      <div class="hero-band">
+        <div class="hero-half" id="heroSeller"></div>
+        <div class="hero-sep"></div>
+        <div class="hero-half buyer" id="heroBuyer"></div>
+      </div>
+      <div class="ov-grid">
+        <div class="stack">
         <div class="card ov-attn">
           <div class="card-h">
             <h3>Needs attention</h3>
@@ -1012,6 +1001,8 @@
           <div class="facets" id="facets"></div>
           <div class="facets" id="facets-buyer" style="display:none"></div>
         </div>
+        </div><!-- /left stack -->
+        <div class="stack">
         <div class="card">
           <div class="card-h">
             <h3>Document status</h3>
@@ -1027,14 +1018,16 @@
               </div>
             </div>
           </div>
-          <div class="docbars" id="docBars" style="grid-template-columns:1fr 1fr;column-gap:6px"></div>
-          <div class="docbars" id="docBarsBuyer" style="display:none;grid-template-columns:1fr 1fr;column-gap:6px"></div>
+          <div class="docbars" id="docBars"></div>
+          <div class="docbars" id="docBarsBuyer" style="display:none"></div>
         </div>
+        </div><!-- /right stack -->
       </div>
     </section>
 
     <!-- ─── Sellers ───────────────────────────────────────────────────── -->
     <section class="view" id="view-sellers">
+      <div class="card">
       <div class="toolbar">
         <div class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -1047,17 +1040,20 @@
           <option value="complete">Complete</option>
           <option value="pending">Has pending docs</option>
         </select>
+        <span class="tbl-count" id="sellersCount"></span>
       </div>
-      <div class="card tbl-wrap">
+      <div class="tbl-wrap">
         <table class="tbl">
           <thead id="sellersHead"></thead>
           <tbody id="sellersBody"></tbody>
         </table>
       </div>
+      </div>
     </section>
 
     <!-- ─── Buyers ────────────────────────────────────────────────────── -->
     <section class="view" id="view-buyers">
+      <div class="card">
       <div class="toolbar">
         <div class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -1069,12 +1065,14 @@
           <option value="complete">Complete</option>
           <option value="pending">Has pending docs</option>
         </select>
+        <span class="tbl-count" id="buyersCount"></span>
       </div>
-      <div class="card tbl-wrap">
+      <div class="tbl-wrap">
         <table class="tbl">
           <thead id="buyersHead"></thead>
           <tbody id="buyersBody"></tbody>
         </table>
+      </div>
       </div>
     </section>
 
@@ -1415,23 +1413,29 @@ function renderOverview(){
   var sl = D.sellerLists || {plastic: 0, metal: 0, plasticName: 'Plastic', metalName: 'Metal'};
   var totalList = sl.plastic + sl.metal;
 
-  /* ── Seller KPIs ── */
-  $('kpis').innerHTML =
-    '<div class="card kpi hero click" onclick="openKpi(\'sellers-total\')">' +
-      '<span class="lbl">Sellers giving docs to NBFC</span>' +
-      '<span class="val" id="kv0">' + totalList + '</span>' +
-      '<span class="sub">Plastic: ' + sl.plastic + ' · Metal: ' + sl.metal + '</span>' +
-      '<span class="kpi-ring">' + ringSvg(t.completion, 60, 6, 'rgba(255,255,255,.22)', '#3DDC84') + '</span>' +
-      KPI_GO +
+  /* ── Hero band — Sellers half ── */
+  $('heroSeller').innerHTML =
+    '<div class="hh-main" onclick="openKpi(\'sellers-total\')" role="button" tabindex="0">' +
+      '<div class="hh-info">' +
+        '<div class="hh-eyebrow"><i style="background:#3DDC84"></i>Sellers</div>' +
+        '<div class="hh-big" id="kv0">' + totalList + '</div>' +
+        '<div class="hh-sub">giving documents to NBFC</div>' +
+      '</div>' +
+      '<div class="hh-ring">' + ringSvg(t.completion, 96, 7, 'rgba(255,255,255,.13)', '#3DDC84') +
+        '<div class="hh-ring-lbl"><b>' + Math.round(t.completion) + '%</b><span>received</span></div>' +
+      '</div>' +
     '</div>' +
-    kpiTile('Plastic sellers', sl.plastic, sl.plasticName || 'Plastic category', 'var(--rk-green)', 'kv1', 'sellers-plastic') +
-    kpiTile('Metal sellers', sl.metal, sl.metalName || 'Metal category', 'var(--rk-green)', 'kv2', 'sellers-metal') +
-    kpiTile('In tracker', t.sellers, t.sellers + ' seller' + (t.sellers===1?'':'s') + ' being tracked', 'var(--rk-green)', 'kv3', 'sellers-tracked') +
-    kpiTile('Completed', t.complete, t.sellers ? Math.round(t.complete/t.sellers*100)+'% done' : 'no sellers yet', 'var(--rk-green)', 'kv4', 'sellers-complete');
+    '<div class="hh-pills">' +
+      hhPill('kv1', sl.plastic, 'Plastic', 'sellers-plastic', sl.plasticName || '') +
+      hhPill('kv2', sl.metal, 'Metal', 'sellers-metal', sl.metalName || '') +
+      hhPill('kv3', t.sellers, 'In tracker', 'sellers-tracked', '') +
+      hhPill('kv4', t.complete, 'Completed', 'sellers-complete',
+             t.sellers ? Math.round(t.complete/t.sellers*100) + '% done' : '') +
+    '</div>';
   animCount($('kv0'), totalList); animCount($('kv1'), sl.plastic);
   animCount($('kv2'), sl.metal); animCount($('kv3'), t.sellers); animCount($('kv4'), t.complete);
 
-  /* ── Buyer KPIs (sourced from Buyer_NBFC Tracker tab) ── */
+  /* ── Hero band — Buyers half (Buyer_NBFC Tracker) ── */
   var bTotal = bt.buyers;
   var bl = (DB && DB.buyerLists) ? DB.buyerLists
           : {plastic:0, metal:0, plasticName:'Plastic Buyers', metalName:'Metal Buyers',
@@ -1442,19 +1446,24 @@ function renderOverview(){
                  : (bTotal > 0 ? 'No material column detected in tracker' : 'No buyers in tracker yet');
   var metalSub   = blHasSplit ? (bl.metalName || 'Metal Buyers')
                  : (bTotal > 0 ? 'No material column detected in tracker' : 'No buyers in tracker yet');
-  var buyerKpisHtml =
-    '<div class="card kpi hero buyer-hero click" onclick="openKpi(\'buyers-total\')">' +
-      '<span class="lbl">Buyers giving docs to NBFC</span>' +
-      '<span class="val" id="bkv0">' + bListTotal + '</span>' +
-      '<span class="sub">' + (blHasSplit ? 'Plastic: ' + bl.plastic + ' · Metal: ' + bl.metal : bTotal + ' in Buyer_NBFC Tracker') + '</span>' +
-      '<span class="kpi-ring">' + ringSvg(bt.completion, 60, 6, 'rgba(255,255,255,.22)', '#93C5FD') + '</span>' +
-      KPI_GO +
+  $('heroBuyer').innerHTML =
+    '<div class="hh-main" onclick="openKpi(\'buyers-total\')" role="button" tabindex="0">' +
+      '<div class="hh-info">' +
+        '<div class="hh-eyebrow"><i style="background:#7DABFF"></i>Buyers</div>' +
+        '<div class="hh-big" id="bkv0">' + bListTotal + '</div>' +
+        '<div class="hh-sub">giving documents to NBFC</div>' +
+      '</div>' +
+      '<div class="hh-ring">' + ringSvg(bt.completion, 96, 7, 'rgba(255,255,255,.13)', '#7DABFF') +
+        '<div class="hh-ring-lbl"><b>' + Math.round(bt.completion) + '%</b><span>received</span></div>' +
+      '</div>' +
     '</div>' +
-    kpiTileBlue('Plastic buyers', blHasSplit ? bl.plastic : '—', plasticSub, 'bkv1', blHasSplit ? 'buyers-plastic' : null) +
-    kpiTileBlue('Metal buyers',   blHasSplit ? bl.metal   : '—', metalSub,   'bkv2', blHasSplit ? 'buyers-metal'   : null) +
-    kpiTileBlue('In tracker', bTotal, bTotal + ' buyer' + (bTotal===1?'':'s') + ' being tracked', 'bkv3', 'buyers-total') +
-    kpiTileBlue('Completed', bt.complete, bTotal ? Math.round(bt.complete/bTotal*100)+'% done' : 'no buyers yet', 'bkv4', 'buyers-complete');
-  $('kpis-buyer').innerHTML = buyerKpisHtml;
+    '<div class="hh-pills">' +
+      hhPill('bkv1', blHasSplit ? bl.plastic : '—', 'Plastic', blHasSplit ? 'buyers-plastic' : null, plasticSub) +
+      hhPill('bkv2', blHasSplit ? bl.metal : '—', 'Metal', blHasSplit ? 'buyers-metal' : null, metalSub) +
+      hhPill('bkv3', bTotal, 'In tracker', 'buyers-total', '') +
+      hhPill('bkv4', bt.complete, 'Completed', 'buyers-complete',
+             bTotal ? Math.round(bt.complete/bTotal*100) + '% done' : '') +
+    '</div>';
   animCount($('bkv0'), bListTotal);
   if (blHasSplit){ animCount($('bkv1'), bl.plastic); animCount($('bkv2'), bl.metal); }
   animCount($('bkv3'), bTotal);
@@ -1597,25 +1606,14 @@ function switchDocBars(section){
   $('docBarsTabs').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.ct === section); });
 }
 
-var KPI_GO = '<span class="kpi-go" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5h6M5.5 2.5 8 5l-2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
-
-function kpiTile(lbl, val, sub, accent, id, kind){
+/* One stat pill inside the hero band. kind=null renders an inert pill. */
+function hhPill(id, val, lbl, kind, title){
   var idAttr = id ? ' id="' + id + '"' : '';
-  var clickAttr = kind ? ' onclick="openKpi(\'' + kind + '\')"' : '';
-  var clickCls = kind ? ' click' : '';
-  return '<div class="card kpi' + clickCls + '"' + clickAttr + '><div class="kpi-accent" style="background:' + accent + '"></div>' +
-    '<span class="lbl">' + esc(lbl) + '</span>' +
-    '<span class="val"' + idAttr + '>' + String(val == null ? '—' : val) + '</span>' +
-    '<span class="sub">' + esc(sub) + '</span>' + (kind ? KPI_GO : '') + '</div>';
-}
-function kpiTileBlue(lbl, val, sub, id, kind){
-  var idAttr = id ? ' id="' + id + '"' : '';
-  var clickAttr = kind ? ' onclick="openKpi(\'' + kind + '\')"' : '';
-  var clickCls = kind ? ' click' : '';
-  return '<div class="card kpi' + clickCls + '"' + clickAttr + '><div class="kpi-accent" style="background:var(--buyer)"></div>' +
-    '<span class="lbl" style="color:var(--buyer-ink)">' + esc(lbl) + '</span>' +
-    '<span class="val"' + idAttr + ' style="color:var(--buyer-ink)">' + String(val == null ? '—' : val) + '</span>' +
-    '<span class="sub">' + esc(sub) + '</span>' + (kind ? KPI_GO : '') + '</div>';
+  var clickAttr = kind ? ' onclick="openKpi(\'' + kind + '\')"' : ' disabled';
+  var titleAttr = title ? ' title="' + esc(title) + '"' : '';
+  return '<button type="button" class="hh-pill"' + clickAttr + titleAttr + '>' +
+    '<b' + idAttr + '>' + String(val == null ? '—' : val) + '</b>' +
+    '<span>' + esc(lbl) + '</span></button>';
 }
 
 /* ═══════════════════════════ Sellers view ══════════════════════════════ */
@@ -1669,7 +1667,7 @@ function renderSellers(){
     var tv = fieldByType.turnover ? formatTurnover(s.meta[fieldByType.turnover]) : '';
     return '<tr onclick="openDetail(' + s.row + ')">' +
       '<td style="color:var(--ink-3)">' + esc(s.serial) + '</td>' +
-      '<td><div class="cell-name">' + esc(nm) + (tv ? '<span class="tv-tag seller">' + esc(tv) + '</span>' : '') + '</div>' +
+      '<td><div class="cell-name">' + esc(nm) + '</div>' +
         (sub ? '<div class="cell-sub">' + esc(sub) + '</div>' : '') + '</td>' +
       '<td class="gst">' + esc(s.meta[fieldByType.gst] || '—') + '</td>' +
       '<td>' + esc(s.meta[fieldByType.entity] || '—') + '</td>' +
@@ -1682,6 +1680,10 @@ function renderSellers(){
         '<span class="row-edit" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></span></td>' +
     '</tr>';
   }).join('') : '<tr><td colspan="8" class="empty-cell">No sellers match the current filters.</td></tr>';
+  var sc = $('sellersCount');
+  if (sc) sc.textContent = rows.length === D.sellers.length
+    ? rows.length + ' seller' + (rows.length === 1 ? '' : 's')
+    : rows.length + ' of ' + D.sellers.length;
 }
 
 /* ═══════════════════════════ Buyers view ═══════════════════════════════ */
@@ -1728,7 +1730,7 @@ function renderBuyers(){
     var btv = buyerFieldByType.turnover ? formatTurnover(b.meta[buyerFieldByType.turnover]) : '';
     return '<tr onclick="openBuyerDetail('+b.row+')" style="cursor:pointer">' +
       '<td style="color:var(--ink-3)">'+esc(b.serial)+'</td>'+
-      '<td><div class="cell-name">'+esc(nm)+(btv?'<span class="tv-tag buyer">'+esc(btv)+'</span>':'')+'</div>'+(sub?'<div class="cell-sub">'+esc(sub)+'</div>':'')+'</td>'+
+      '<td><div class="cell-name">'+esc(nm)+'</div>'+(sub?'<div class="cell-sub">'+esc(sub)+'</div>':'')+'</td>'+
       '<td>'+esc(entityVal)+'</td>'+
       '<td>'+(btv?'<span class="tv-tag buyer">'+esc(btv)+'</span>':'<span style="color:var(--ink-3)">—</span>')+'</td>'+
       '<td><div class="prog-cell"><div class="track"><div class="fill" style="width:'+b.completion+'%;background:var(--buyer)"></div></div><span>'+pct(b.completion)+'</span></div></td>'+
@@ -1736,6 +1738,10 @@ function renderBuyers(){
       '<td></td>'+
     '</tr>';
   }).join('') : '<tr><td colspan="7" class="empty-cell">No buyers match the current filters.</td></tr>';
+  var bc = $('buyersCount');
+  if (bc) bc.textContent = rows.length === DB.buyers.length
+    ? rows.length + ' buyer' + (rows.length === 1 ? '' : 's')
+    : rows.length + ' of ' + DB.buyers.length;
 }
 
 /* ═══════════════════════════ Matrix view ═══════════════════════════════ */
