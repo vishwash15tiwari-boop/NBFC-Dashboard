@@ -3,30 +3,31 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   /* ═══════════════════════════════════════════════════════════════════════
-     Recykal NBFC — Apple system design language
-     SF Pro / Inter · Cool neutrals · Segmented controls · Frosted glass
-     Borderless floating cards · Black hero tiles · Pill buttons
+     Recykal · NBFC Document Tracker — Apple system design language
+     Read-only visibility dashboard · Three NBFC tabs (Billmart / Capital XB /
+     StrideOne) · Four clickable hero cards per tab with tabular drill-downs.
+     SF Pro / Inter · Cool neutrals · Segmented controls · Frosted glass ·
+     Borderless floating cards · Black hero band · Per-NBFC accent theming.
    ═══════════════════════════════════════════════════════════════════════ */
 
   /* ── Design tokens ─────────────────────────────────────────────────── */
   :root{
-    /* Brand — Seller (keep exact names; JS uses them inline) */
+    /* Status semantics — meaning, not brand (stay constant across NBFCs) */
     --rk-green:#00A651;
     --rk-green-deep:#008843;
     --rk-green-ink:#036B36;
     --rk-green-tint:#E4F6EC;
     --rk-green-tint-2:#F1FAF5;
-    /* Brand — Buyer */
-    --buyer:#1849D6;
-    --buyer-deep:#1238B0;
-    --buyer-ink:#12379E;
-    --buyer-tint:#EAF0FF;
-    --buyer-tint-2:#F4F7FF;
-    /* Status */
     --amber:#F59E0B;
     --amber-tint:#FFF6E0;
     --amber-ink:#7A4D06;
     --gray-dot:#C7C7CC;
+
+    /* NBFC brand accent — overwritten live by applyNbfcTheme(). Default = Billmart. */
+    --nc:#E85D04;
+    --nc-rgb:232,93,4;
+    --nc-ring:#FF8C4A;
+
     /* Typography — SF Pro on Apple hardware, Inter elsewhere */
     --font:-apple-system,BlinkMacSystemFont,'SF Pro Text','Inter','Helvetica Neue',Arial,sans-serif;
     /* Surfaces */
@@ -45,15 +46,11 @@
     --shadow-lg:0 8px 24px rgba(0,0,0,.10),0 28px 80px rgba(0,0,0,.16);
     /* Geometry */
     --radius:18px;
-    --sidebar-w:228px;
     /* Motion */
     --ease:cubic-bezier(.4,0,.2,1);
     --ease-out:cubic-bezier(0,0,.2,1);
     --drawer-open:cubic-bezier(.32,.72,0,1);
     --drawer-close:cubic-bezier(.4,0,1,1);
-    --spring-bounce:cubic-bezier(.4,0,.2,1);
-    --spring-gentle:cubic-bezier(.4,0,.2,1);
-    --spring-decel:cubic-bezier(.16,1,.3,1);
   }
 
   /* ── Dark mode tokens ───────────────────────────────────────────────── */
@@ -70,7 +67,6 @@
       --fill-2:rgba(120,120,128,.36);
       --gray-dot:#48484A;
       --rk-green-ink:#30D158;
-      --buyer-ink:#7DA2FF;
       --amber-ink:#FFD60A;
       --shadow-sm:0 1px 2px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.35);
       --shadow-md:0 2px 8px rgba(0,0,0,.5),0 10px 28px rgba(0,0,0,.5);
@@ -89,7 +85,6 @@
     --fill-2:rgba(120,120,128,.36);
     --gray-dot:#48484A;
     --rk-green-ink:#30D158;
-    --buyer-ink:#7DA2FF;
     --amber-ink:#FFD60A;
     --shadow-sm:0 1px 2px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.35);
     --shadow-md:0 2px 8px rgba(0,0,0,.5),0 10px 28px rgba(0,0,0,.5);
@@ -107,7 +102,6 @@
     --fill-2:rgba(120,120,128,.20);
     --gray-dot:#C7C7CC;
     --rk-green-ink:#036B36;
-    --buyer-ink:#12379E;
     --amber-ink:#7A4D06;
     --shadow-sm:0 1px 2px rgba(0,0,0,.04),0 2px 8px rgba(0,0,0,.04);
     --shadow-md:0 2px 8px rgba(0,0,0,.05),0 10px 28px rgba(0,0,0,.08);
@@ -135,7 +129,7 @@
   ::-webkit-scrollbar-thumb:hover{background-color:rgba(0,0,0,.34)}
   ::-webkit-scrollbar-corner{background:transparent}
   input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
-  ::selection{background:rgba(0,166,81,.22)}
+  ::selection{background:rgba(var(--nc-rgb),.22)}
 
   /* ── Topbar — frosted glass toolbar ─────────────────────────────────── */
   .topbar{
@@ -146,7 +140,7 @@
     -webkit-backdrop-filter:blur(24px) saturate(190%);
     border-bottom:1px solid var(--line-2);
   }
-  .topbar-brand{display:flex;align-items:center;gap:10px;padding-right:18px;flex:none}
+  .topbar-brand{display:flex;align-items:center;gap:10px;padding-right:16px;flex:none}
   .brand-logo{height:34px;width:auto;display:block;border-radius:8px;flex:none}
   .brand-sub{font-size:9.5px;color:var(--ink-3);font-weight:600;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
   .topbar-spacer{flex:1;min-width:8px}
@@ -154,26 +148,21 @@
   .sync{font-size:11.5px;color:var(--ink-3);line-height:1.5;white-space:nowrap}
   .sync b{color:var(--ink-2);font-weight:600}
 
-  /* Nav — Apple segmented control */
-  nav#segNav{
+  /* ── NBFC switcher — segmented control in the topbar ────────────────── */
+  nav#nbfcNav{
     display:flex;align-items:center;gap:2px;
-    background:var(--fill);border-radius:10px;padding:2px;
-    margin-left:4px;flex:none;
+    background:var(--fill);border-radius:11px;padding:3px;
+    margin-left:2px;flex:none;
   }
-  nav#segNav button{
-    display:flex;align-items:center;gap:6px;height:30px;padding:0 13px;
+  .nbfc-pill{
+    display:flex;align-items:center;gap:8px;height:32px;padding:0 15px;
     font-size:13px;font-weight:500;color:var(--ink-2);
-    border-radius:8px;
-    transition:all .18s var(--ease);white-space:nowrap;letter-spacing:-.01em;
+    border-radius:8px;transition:all .18s var(--ease);white-space:nowrap;letter-spacing:-.01em;
   }
-  nav#segNav button svg{flex:none;opacity:.55;transition:opacity .18s}
-  nav#segNav button:hover{color:var(--ink)}
-  nav#segNav button.on{
-    color:var(--ink);font-weight:600;
-    background:#fff;
-    box-shadow:0 0 0 .5px rgba(0,0,0,.04),0 1px 1px rgba(0,0,0,.06),0 2px 6px rgba(0,0,0,.08);
-  }
-  nav#segNav button.on svg{opacity:1;color:var(--rk-green)}
+  .nbfc-pill:hover{color:var(--ink)}
+  .nbfc-pill.on{color:#fff;font-weight:600}
+  .nbfc-dot{width:8px;height:8px;border-radius:50%;flex:none;transition:box-shadow .18s}
+  .nbfc-pill.on .nbfc-dot{background:#fff !important;box-shadow:0 0 0 2px rgba(255,255,255,.35)}
 
   /* ── Buttons ────────────────────────────────────────────────────────── */
   .icon-btn{
@@ -188,17 +177,14 @@
   .btn-primary{
     display:inline-flex;align-items:center;justify-content:center;gap:6px;
     height:36px;padding:0 18px;
-    border-radius:980px;background:var(--rk-green);color:#fff;
-    font-size:13px;font-weight:600;letter-spacing:-.01em;
-    box-shadow:0 1px 3px rgba(0,140,68,.25);
+    border-radius:980px;background:var(--nc);color:#fff;
+    font-size:13px;font-weight:600;letter-spacing:-.01em;text-decoration:none;
+    box-shadow:0 1px 3px rgba(var(--nc-rgb),.28);
     transition:all .2s var(--ease);white-space:nowrap;
   }
-  .btn-primary:hover{background:var(--rk-green-deep);box-shadow:0 3px 10px rgba(0,140,68,.32)}
+  .btn-primary:hover{filter:brightness(.94);box-shadow:0 3px 10px rgba(var(--nc-rgb),.34)}
   .btn-primary:active{transform:scale(.97)}
   .btn-primary svg{width:13.5px;height:13.5px}
-  .btn-primary[disabled]{opacity:.45;cursor:default;transform:none}
-  #addSellerBtn,#addBuyerBtn{height:32px;padding:0 14px;font-size:12.5px}
-  #addBuyerBtn{margin-left:8px}
   .btn-ghost{
     height:36px;padding:0 17px;border-radius:980px;border:none;
     background:var(--fill);font-size:13px;font-weight:500;
@@ -211,22 +197,13 @@
   @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   @keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
   @keyframes pendPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.25)}55%{box-shadow:0 0 0 4px rgba(245,158,11,0)}}
-  @keyframes barGrow{from{flex:0!important}to{}}
   @keyframes rot{to{transform:rotate(360deg)}}
   @keyframes shim{to{background-position:-200% 0}}
-  @keyframes spin{to{transform:rotate(360deg)}}
 
   /* ── Shell / content wrapper ────────────────────────────────────────── */
-  .shell{max-width:1320px;margin:0 auto;padding:24px 24px 56px}
-  .seg-nav{display:none}
+  .shell{max-width:1320px;margin:0 auto;padding:22px 24px 56px}
   .view{display:none}
-  .view.on{display:block}
-  .view.on > *{animation:fadeUp .5s var(--ease-out) both}
-  .view.on > *:nth-child(2){animation-delay:.06s}
-  .view.on > *:nth-child(3){animation-delay:.12s}
-  .ov-grid .stack .card{animation:fadeUp .55s var(--ease-out) both}
-  .ov-grid .stack:first-child .card:nth-child(2){animation-delay:.14s}
-  .ov-grid .stack:last-child .card{animation-delay:.08s}
+  .view.on{display:block;animation:fadeUp .4s var(--ease-out) both}
 
   /* ── Cards — borderless, floating ───────────────────────────────────── */
   .card{
@@ -243,73 +220,99 @@
   .card-h h3{font-size:15px;font-weight:600;letter-spacing:-.02em;color:var(--ink)}
   .card-h .hint{font-size:11.5px;color:var(--ink-3);font-weight:400}
 
-  /* ── Hero band — the command strip ──────────────────────────────────── */
-  .hero-band{
-    display:grid;grid-template-columns:1fr 1px 1fr;
+  /* ── NBFC hero band — identity strip ────────────────────────────────── */
+  .nbfc-hero{
+    display:flex;align-items:center;justify-content:space-between;gap:26px;
     background:linear-gradient(170deg,#242428 0%,#131315 45%,#000 100%);
-    border-radius:26px;padding:26px 30px 24px;position:relative;overflow:hidden;
-    box-shadow:0 2px 10px rgba(0,0,0,.16),0 20px 52px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.07);
+    border-radius:24px;padding:24px 30px;position:relative;overflow:hidden;
+    box-shadow:0 2px 10px rgba(0,0,0,.16),0 20px 52px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.07);
     color:#fff;
   }
-  .hero-band::before{
+  .nbfc-hero::before{
     content:'';position:absolute;inset:0;pointer-events:none;
     background:
-      radial-gradient(680px 320px at 10% -14%,rgba(61,220,132,.22),transparent 70%),
-      radial-gradient(680px 320px at 90% -14%,rgba(125,171,255,.22),transparent 70%);
+      radial-gradient(720px 340px at 8% -18%,rgba(var(--nc-rgb),.30),transparent 68%),
+      radial-gradient(620px 320px at 96% 120%,rgba(var(--nc-rgb),.16),transparent 66%);
   }
-  .hero-band::after{
+  .nbfc-hero::after{
     content:'';position:absolute;inset:0;pointer-events:none;
-    background:linear-gradient(115deg,transparent 32%,rgba(255,255,255,.04) 46%,transparent 58%);
+    background:linear-gradient(115deg,transparent 34%,rgba(255,255,255,.04) 47%,transparent 60%);
   }
-  .hero-sep{background:rgba(255,255,255,.09);margin:4px 0}
-  .hero-half{position:relative;padding-right:28px;min-width:0}
-  .hero-half.buyer{padding-right:0;padding-left:28px}
-  .hh-main{display:flex;align-items:center;justify-content:space-between;gap:20px;cursor:pointer;border-radius:14px}
-  .hh-info{min-width:0}
-  .hh-eyebrow{
-    display:flex;align-items:center;gap:7px;
-    font-size:12px;font-weight:600;color:rgba(255,255,255,.62);
-    letter-spacing:.01em;margin-bottom:8px;
+  .nh-info{position:relative;min-width:0}
+  .nh-eyebrow{
+    display:flex;align-items:center;gap:8px;
+    font-size:11.5px;font-weight:600;color:rgba(255,255,255,.6);
+    letter-spacing:.06em;text-transform:uppercase;margin-bottom:11px;
   }
-  .hh-eyebrow i{width:7px;height:7px;border-radius:50%;display:inline-block;flex:none}
-  .hh-big{
-    font-size:64px;font-weight:700;letter-spacing:-.055em;line-height:.95;
-    font-variant-numeric:tabular-nums;
-    transition:opacity .15s;
+  .nh-eyebrow i{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none;background:var(--nc-ring);box-shadow:0 0 12px rgba(var(--nc-rgb),.7)}
+  .nh-name{font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+  .nh-sub{font-size:13px;color:rgba(255,255,255,.52);margin-top:11px;letter-spacing:-.005em}
+  .nh-stats{display:flex;gap:20px;margin-top:16px;font-size:12px;font-weight:500;color:rgba(255,255,255,.66);font-variant-numeric:tabular-nums;flex-wrap:wrap}
+  .nh-stats i{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:.5px}
+  .nh-ring{position:relative;flex:none}
+  .nh-ring svg{filter:drop-shadow(0 0 20px rgba(var(--nc-rgb),.5))}
+  .nh-ring-lbl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .nh-ring-lbl b{font-size:26px;font-weight:700;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+  .nh-ring-lbl span{font-size:9px;font-weight:600;color:rgba(255,255,255,.55);letter-spacing:.09em;text-transform:uppercase;margin-top:3px}
+
+  /* ── KPI hero cards — clickable ─────────────────────────────────────── */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:14px}
+  .kpi{
+    text-align:left;background:var(--card);border-radius:var(--radius);
+    box-shadow:0 0 0 .5px var(--line-2),var(--shadow-sm);
+    padding:17px 18px 16px;display:flex;flex-direction:column;
+    cursor:pointer;position:relative;overflow:hidden;
+    transition:transform .22s var(--ease),box-shadow .25s var(--ease);
+    animation:fadeUp .5s var(--ease-out) both;
   }
-  .hh-main:hover .hh-big{opacity:.85}
-  .hh-sub{font-size:12.5px;color:rgba(255,255,255,.5);margin-top:9px;letter-spacing:-.005em}
-  .hh-stats{display:flex;gap:16px;margin-top:13px;font-size:11.5px;font-weight:500;color:rgba(255,255,255,.62);font-variant-numeric:tabular-nums;flex-wrap:wrap}
-  .hh-stats i{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:.5px}
-  .hh-ring{position:relative;flex:none}
-  .hero-half .hh-ring svg{filter:drop-shadow(0 0 18px rgba(61,220,132,.42))}
-  .hero-half.buyer .hh-ring svg{filter:drop-shadow(0 0 18px rgba(125,171,255,.42))}
-  .hh-ring-lbl{
-    position:absolute;inset:0;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:0;
+  .kpi::before{
+    content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:var(--kpi-accent,var(--fill-2));opacity:0;transition:opacity .22s var(--ease);
   }
-  .hh-ring-lbl b{font-size:20px;font-weight:700;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
-  .hh-ring-lbl span{font-size:8.5px;font-weight:600;color:rgba(255,255,255,.5);letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
-  .hh-pills{display:flex;gap:9px;margin-top:20px;flex-wrap:wrap}
-  .hh-pill{
-    flex:1;min-width:84px;display:flex;flex-direction:column;gap:0;align-items:flex-start;
-    background:rgba(255,255,255,.09);border-radius:14px;padding:11px 15px 10px;
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);
-    transition:background .18s var(--ease),transform .18s var(--ease);
-    color:#fff;text-align:left;
+  .kpi:hover{transform:translateY(-3px);box-shadow:0 0 0 .5px var(--line-2),var(--shadow-md)}
+  .kpi:hover::before{opacity:1}
+  .kpi:active{transform:translateY(-1px)}
+  .kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px}
+  .kpi-ico{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none}
+  .kpi-ico svg{width:19px;height:19px}
+  .kpi-chev{color:var(--ink-3);opacity:.45;transition:transform .2s var(--ease),opacity .2s;flex:none}
+  .kpi-chev svg{width:16px;height:16px}
+  .kpi:hover .kpi-chev{opacity:.9;transform:translateX(3px)}
+  .kpi-num{font-size:40px;font-weight:700;letter-spacing:-.045em;line-height:1;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .kpi-label{font-size:14px;font-weight:600;margin-top:10px;letter-spacing:-.02em;color:var(--ink)}
+  .kpi-sub{font-size:12px;color:var(--ink-3);margin-top:3px;letter-spacing:-.005em;line-height:1.4}
+  /* tone: total (brand) */
+  .kpi-total{--kpi-accent:var(--nc)}
+  .kpi-total .kpi-ico{background:rgba(var(--nc-rgb),.12);color:var(--nc)}
+  /* tone: phase 0 (slate/neutral) */
+  .kpi-phase0{--kpi-accent:#8E8E93}
+  .kpi-phase0 .kpi-ico{background:var(--fill);color:var(--ink-2)}
+  /* tone: pending (amber) */
+  .kpi-pending{--kpi-accent:var(--amber)}
+  .kpi-pending .kpi-ico{background:var(--amber-tint);color:var(--amber-ink)}
+  .kpi-pending .kpi-num{color:var(--amber-ink)}
+  /* tone: completed (green) */
+  .kpi-completed{--kpi-accent:var(--rk-green)}
+  .kpi-completed .kpi-ico{background:var(--rk-green-tint);color:var(--rk-green-ink)}
+  .kpi-completed .kpi-num{color:var(--rk-green-ink)}
+
+  /* ── Secondary view switcher ────────────────────────────────────────── */
+  .subnav{display:inline-flex;background:var(--fill);border-radius:11px;padding:3px;gap:2px;margin:20px 0 2px}
+  .subnav button{
+    display:flex;align-items:center;gap:7px;height:34px;padding:0 15px;
+    font-size:13px;font-weight:500;color:var(--ink-2);border-radius:8px;
+    transition:all .18s var(--ease);white-space:nowrap;letter-spacing:-.01em;
   }
-  .hh-pill:not([disabled]):hover{background:rgba(255,255,255,.15);transform:translateY(-1px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
-  .hh-pill:not([disabled]):active{transform:translateY(0)}
-  .hh-pill[disabled]{cursor:default;opacity:.6}
-  .hh-pill b{font-size:22px;font-weight:700;letter-spacing:-.04em;font-variant-numeric:tabular-nums;line-height:1.15}
-  .hh-pill span{font-size:10.5px;color:rgba(255,255,255,.58);font-weight:500;margin-top:3px;letter-spacing:-.005em}
-  .hh-pill span i{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:.5px}
+  .subnav button svg{width:14px;height:14px;opacity:.55;transition:opacity .18s;flex:none}
+  .subnav button:hover{color:var(--ink)}
+  .subnav button.on{
+    color:var(--ink);font-weight:600;background:var(--card);
+    box-shadow:0 0 0 .5px rgba(0,0,0,.04),0 1px 1px rgba(0,0,0,.06),0 2px 6px rgba(0,0,0,.08);
+  }
+  .subnav button.on svg{opacity:1;color:var(--nc)}
 
   /* ── Overview layout ────────────────────────────────────────────────── */
-  .ov-grid{display:grid;grid-template-columns:1.06fr .94fr;gap:14px;align-items:start;margin-top:16px}
-  .ov-attn{min-height:0}
-  .ov-breakdown{min-height:0}
-  .grid-2{display:grid;grid-template-columns:1.45fr 1fr;gap:14px;align-items:start}
+  .ov-grid{display:grid;grid-template-columns:1.06fr .94fr;gap:14px;align-items:start;margin-top:14px}
   .stack{display:grid;gap:14px}
 
   /* ── Document bars ──────────────────────────────────────────────────── */
@@ -331,8 +334,6 @@
   .dstat.pen{color:var(--amber-ink)}
   .dstat.ok{color:var(--rk-green-ink)}
   .dstat.muted{color:var(--ink-3);font-weight:400}
-  .track{height:5px;background:var(--fill);border-radius:3px;overflow:hidden;position:relative}
-  .fill{height:100%;background:var(--rk-green);border-radius:3px;transition:width .5s var(--ease-out)}
   .legend{display:flex;gap:14px;align-items:center;padding:0 18px 8px;font-size:11px;color:var(--ink-3);font-weight:400}
   .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:-1px}
 
@@ -345,22 +346,21 @@
     animation:fadeSlideUp .3s var(--ease) both;
   }
   .attn-card:hover{
-    background:var(--rk-green-tint-2);
+    background:rgba(var(--nc-rgb),.06);
     transform:translateY(-2px);box-shadow:var(--shadow-md);
   }
   .attn-card:active{transform:translateY(0)}
   .attn-head{display:flex;align-items:center;gap:10px}
   .avatar{
     width:34px;height:34px;border-radius:50%;
-    background:var(--rk-green-tint);color:var(--rk-green-ink);
+    background:rgba(var(--nc-rgb),.12);color:var(--nc);
     display:flex;align-items:center;justify-content:center;
     font-weight:700;font-size:11px;flex:none;letter-spacing:.01em;
   }
   .attn-info{flex:1;min-width:0}
   .attn-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;letter-spacing:-.015em}
   .attn-type{font-size:11.5px;color:var(--ink-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.005em}
-  .attn-tv-txt{color:var(--rk-green-ink);font-weight:600}
-  .attn-tv-txt.buyer{color:var(--buyer-ink)}
+  .attn-tv-txt{color:var(--nc);font-weight:600}
   .attn-cnt{
     flex:none;font-size:10.5px;font-weight:600;padding:4px 10px;border-radius:980px;
     background:var(--amber-tint);color:var(--amber-ink);
@@ -381,15 +381,20 @@
   .chip.warn{background:var(--amber-tint);color:var(--amber-ink)}
   .chip.ok{background:var(--rk-green-tint);color:var(--rk-green-ink)}
   .chip.mut{background:var(--fill);color:var(--ink-3)}
+  .chip.brand{background:rgba(var(--nc-rgb),.12);color:var(--nc)}
 
   /* ── Portfolio breakdown (facets) ───────────────────────────────────── */
   .facets{padding:10px 18px 18px;display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
   .facet h4{font-size:11px;font-weight:600;color:var(--ink-3);letter-spacing:-.005em;margin-bottom:8px}
   .facet-row{display:flex;flex-direction:column;gap:2px}
   .facet-chip{
-    position:relative;display:block;background:transparent;border:none;
-    padding:7px 2px 16px;font-size:12.5px;color:var(--ink-2);border-radius:0;
+    position:relative;display:flex;flex-direction:column;align-items:stretch;gap:4px;
+    background:transparent;border:none;padding:7px 2px 16px;font-size:12.5px;color:var(--ink-2);
+    width:100%;text-align:left;border-radius:8px;transition:background .15s;
   }
+  button.facet-chip{cursor:pointer}
+  button.facet-chip:hover{background:var(--fill)}
+  .facet-chip .fc-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .facet-chip::after{
     content:'';position:absolute;left:2px;right:2px;bottom:9px;height:4px;
     border-radius:2px;background:var(--fill);
@@ -397,10 +402,10 @@
   .facet-chip b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
   .facet-bar{
     position:absolute;left:2px;bottom:9px;z-index:1;height:4px;
-    border-radius:2px;background:var(--rk-green);transition:width .5s var(--ease-out);
+    border-radius:2px;background:var(--nc);transition:width .5s var(--ease-out);
   }
 
-  /* ── Toolbar / filters (lives inside the table card) ────────────────── */
+  /* ── Toolbar / filters (inside the table card) ──────────────────────── */
   .toolbar{
     display:flex;gap:10px;flex-wrap:wrap;align-items:center;
     padding:14px 16px;border-bottom:1px solid var(--line-2);
@@ -415,7 +420,7 @@
   }
   .search input::placeholder{color:var(--ink-3)}
   .search input:focus,select.flt:focus{
-    outline:none;background:var(--card);box-shadow:0 0 0 3.5px rgba(0,166,81,.22);
+    outline:none;background:var(--card);box-shadow:0 0 0 3.5px rgba(var(--nc-rgb),.22);
   }
   select.flt{
     height:38px;border:none;border-radius:11px;background-color:var(--fill);
@@ -427,9 +432,9 @@
   }
   select.flt:hover{background-color:var(--fill-2)}
 
-  /* ── Sellers / Buyers table ─────────────────────────────────────────── */
+  /* ── Entities table ─────────────────────────────────────────────────── */
   .tbl-wrap{overflow-x:auto;border-radius:0 0 var(--radius) var(--radius)}
-  table.tbl{width:100%;border-collapse:collapse;min-width:820px}
+  table.tbl{width:100%;border-collapse:collapse;min-width:760px}
   .tbl th{
     text-align:left;font-size:11.5px;font-weight:500;color:var(--ink-3);
     letter-spacing:-.005em;
@@ -438,7 +443,7 @@
   }
   .tbl td{padding:14px 18px;border-bottom:1px solid var(--line-2);font-size:13.5px;vertical-align:middle}
   .tbl tbody tr{cursor:pointer;transition:background .16s}
-  .tbl tbody tr:hover{background:var(--rk-green-tint-2)}
+  .tbl tbody tr:hover{background:rgba(var(--nc-rgb),.06)}
   .tbl tbody tr:last-child td{border-bottom:none}
   .cell-name{font-weight:600;display:flex;align-items:center;gap:6px;flex-wrap:wrap;letter-spacing:-.015em}
   .cell-sub{font-size:11.5px;color:var(--ink-3);margin-top:2px;font-weight:400;letter-spacing:-.005em}
@@ -446,23 +451,14 @@
     font-family:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace;
     font-size:12px;color:var(--ink-2);letter-spacing:.02em;
   }
-  .tv-tag{font-size:10.5px;font-weight:600;padding:2.5px 9px;border-radius:980px;white-space:nowrap;font-variant-numeric:tabular-nums;flex-shrink:0}
-  .tv-tag.seller{background:var(--rk-green);color:#fff}
-  .tv-tag.buyer{background:var(--buyer);color:#fff}
+  .tv-tag{font-size:10.5px;font-weight:600;padding:2.5px 9px;border-radius:980px;white-space:nowrap;font-variant-numeric:tabular-nums;flex-shrink:0;background:rgba(var(--nc-rgb),.12);color:var(--nc)}
   .prog-cell{display:flex;align-items:center;gap:10px;min-width:150px}
-  .prog-cell .track{flex:1}
+  .prog-cell .track{flex:1;height:5px;background:var(--fill);border-radius:3px;overflow:hidden;position:relative}
+  .prog-cell .track .fill{height:100%;background:var(--rk-green);border-radius:3px;transition:width .5s var(--ease-out)}
   .prog-cell span{font-size:12px;font-weight:600;min-width:40px;text-align:right;color:var(--ink-2);font-variant-numeric:tabular-nums}
-  .row-edit{
-    opacity:0;width:28px;height:28px;border-radius:50%;
-    display:inline-flex;align-items:center;justify-content:center;
-    color:var(--ink-3);transition:all .15s;
-  }
-  tr:hover .row-edit{opacity:1}
-  .row-edit:hover{background:var(--fill);color:var(--rk-green-ink)}
-  .row-edit svg{width:13px;height:13px}
 
   /* ── Matrix ─────────────────────────────────────────────────────────── */
-  .matrix-wrap{overflow:auto;max-height:560px;border-radius:var(--radius)}
+  .matrix-wrap{overflow:auto;max-height:600px;border-radius:var(--radius)}
   table.matrix{border-collapse:separate;border-spacing:0;min-width:100%}
   .matrix th,.matrix td{border-bottom:1px solid var(--line-2);white-space:nowrap}
   .matrix thead th{
@@ -477,10 +473,10 @@
   .matrix tbody th{
     position:sticky;left:0;z-index:2;background:var(--card);
     text-align:left;font-size:12.5px;font-weight:500;
-    padding:10px 18px;max-width:230px;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em;
+    padding:10px 18px;max-width:230px;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em;cursor:pointer;
   }
   .matrix td{text-align:center;padding:8px}
-  .matrix tbody tr:hover th,.matrix tbody tr:hover td{background:var(--rk-green-tint-2)}
+  .matrix tbody tr:hover th,.matrix tbody tr:hover td{background:rgba(var(--nc-rgb),.06)}
   .dot{display:inline-block;width:10px;height:10px;border-radius:50%}
   .dot.rec{background:var(--rk-green);box-shadow:0 0 0 3px rgba(0,166,81,.13)}
   .dot.pen{background:var(--amber);box-shadow:0 0 0 3px rgba(245,158,11,.14)}
@@ -501,14 +497,16 @@
     box-shadow:var(--shadow-lg);display:flex;flex-direction:column;
     overflow:hidden;
   }
+  #kpiDrawer{width:min(760px,calc(100vw - 24px))}
   .drawer.on{transform:none}
   .drawer-h{
     display:flex;align-items:flex-start;gap:12px;
     padding:22px 24px 16px;border-bottom:1px solid var(--line-2);
   }
   .drawer-h h2{font-size:18px;font-weight:700;letter-spacing:-.03em;line-height:1.3}
-  .drawer-h .meta-line{font-size:12px;color:var(--ink-3);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .drawer-h .meta-line{font-size:12px;color:var(--ink-3);margin-top:5px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .drawer-body{flex:1;overflow-y:auto;padding:20px 24px 28px}
+  #kpiDrBody{padding:6px 0 18px}
   .drawer-f{
     padding:14px 24px;border-top:1px solid var(--line-2);
     display:flex;gap:10px;justify-content:flex-end;
@@ -530,7 +528,7 @@
     background:var(--surface);border-radius:16px;
     padding:16px 20px;margin-bottom:6px;
   }
-  .detail-hero .nums{display:flex;gap:24px}
+  .detail-hero .nums{display:flex;gap:24px;flex-wrap:wrap}
   .dh-num .v{font-size:22px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
   .dh-num .k{font-size:10.5px;color:var(--ink-3);font-weight:500;margin-top:1px;letter-spacing:-.005em}
   .doc-group{margin-top:16px}
@@ -543,64 +541,22 @@
   .doc-item .di-ico{width:20px;height:20px;flex:none;display:flex;align-items:center;justify-content:center;margin-top:1px}
   .doc-item .di-name{font-size:13px;font-weight:500;color:var(--ink);letter-spacing:-.01em}
   .doc-item .di-note{font-size:12px;color:var(--ink-3);margin-top:2px;line-height:1.45}
+  .drive-link{
+    display:inline-flex;align-items:center;gap:4px;margin-top:5px;
+    font-size:11.5px;font-weight:500;color:var(--rk-green-ink);text-decoration:none;
+    padding:3px 10px;border-radius:980px;background:var(--rk-green-tint);transition:background .15s;
+  }
+  .drive-link:hover{background:rgba(0,166,81,.22)}
+  .drive-link svg{width:12px;height:12px;flex:none}
 
-  /* ── Form ───────────────────────────────────────────────────────────── */
-  .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  .field{display:flex;flex-direction:column;gap:6px}
-  .field.full{grid-column:1/-1}
-  .field label{font-size:12px;font-weight:500;color:var(--ink-2);letter-spacing:-.005em}
-  .field label .req{color:var(--amber)}
-  .field input,.field select{
-    height:40px;border:none;border-radius:11px;
-    padding:0 13px;background:var(--fill);font-size:13.5px;
-    transition:background .18s,box-shadow .18s;width:100%;
+  /* ── KPI drill-down summary bar ─────────────────────────────────────── */
+  .kpi-sumbar{
+    display:flex;gap:18px;flex-wrap:wrap;align-items:center;
+    padding:14px 24px;background:var(--surface);margin:0 0 2px;
+    font-size:12.5px;color:var(--ink-2);font-variant-numeric:tabular-nums;
   }
-  .field select{
-    appearance:none;
-    background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2386868B' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat:no-repeat;background-position:right 13px center;cursor:pointer;
-  }
-  .field input:focus,.field select:focus{
-    outline:none;background:var(--card);box-shadow:0 0 0 3.5px rgba(0,166,81,.22);
-  }
-  .field .err{font-size:11.5px;color:#FF453A;display:none}
-  .field.invalid input,.field.invalid select{box-shadow:0 0 0 3.5px rgba(255,69,58,.22);background:var(--card)}
-  .field.invalid .err{display:block}
-  .fsec{
-    margin:24px 0 12px;font-size:13.5px;font-weight:600;
-    letter-spacing:-.015em;color:var(--ink);display:flex;align-items:center;gap:10px;
-  }
-  .fsec::after{content:'';flex:1;height:1px;background:var(--line-2)}
-  .fsec .cnt{font-weight:400;color:var(--ink-3);font-size:12px;letter-spacing:-.005em}
-  .doc-field{
-    border:none;background:var(--surface);border-radius:12px;padding:12px 14px;
-    margin-bottom:10px;transition:all .18s var(--ease);
-  }
-  .doc-field.is-na{background:transparent;box-shadow:inset 0 0 0 1px var(--line-2)}
-  .doc-field-top{display:flex;align-items:center;gap:12px}
-  .doc-field .dname{flex:1;font-size:13px;font-weight:500;min-width:0;letter-spacing:-.01em}
-  .doc-field.is-na .dname{color:var(--ink-3)}
-  .doc-field .na-tag{font-size:11px;color:var(--ink-3);background:var(--fill);border-radius:980px;padding:3px 10px;font-weight:500;white-space:nowrap}
-  /* Received / Pending / NA — Apple segmented control */
-  .seg{display:inline-flex;background:var(--fill);border-radius:9px;padding:2px;flex:none;gap:1px}
-  .seg button{padding:5px 12px;border-radius:7px;font-size:12px;font-weight:500;color:var(--ink-2);transition:all .16s}
-  .seg button.on-rec{background:#fff;color:var(--rk-green-ink);font-weight:600;box-shadow:0 1px 1px rgba(0,0,0,.06),0 2px 6px rgba(0,0,0,.08)}
-  .seg button.on-pen{background:#fff;color:var(--amber-ink);font-weight:600;box-shadow:0 1px 1px rgba(0,0,0,.06),0 2px 6px rgba(0,0,0,.08)}
-  .seg button.on-na{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 1px rgba(0,0,0,.06),0 2px 6px rgba(0,0,0,.08)}
-  .note-in{margin-top:9px}
-  .note-in input{
-    width:100%;height:34px;border:none;border-radius:9px;
-    padding:0 11px;font-size:12.5px;background:var(--fill);
-    transition:background .18s,box-shadow .18s;
-  }
-  .note-in input:focus{outline:none;background:var(--card);box-shadow:0 0 0 3px rgba(0,166,81,.2)}
-  .note-toggle{font-size:11.5px;font-weight:500;color:var(--ink-3);margin-top:8px;padding:3px 6px;border-radius:7px;transition:all .15s}
-  .note-toggle:hover{color:var(--rk-green-ink);background:var(--fill)}
-  .form-alert{
-    display:none;background:rgba(255,69,58,.1);border:none;color:#D70015;
-    border-radius:11px;padding:11px 14px;font-size:12.5px;font-weight:500;margin-bottom:14px;
-  }
-  .form-alert.on{display:block}
+  .kpi-sumbar b{color:var(--ink);font-weight:700}
+  .kpi-sumbar i{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:0}
 
   /* ── Toast / spinner / states ───────────────────────────────────────── */
   .toast{
@@ -617,7 +573,6 @@
   .toast.ok svg{color:#30D158}
   .toast.err{background:rgba(120,20,14,.9)}
   .spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;animation:rot .7s linear infinite}
-  .spin.dark{border-color:rgba(0,0,0,.1);border-top-color:var(--rk-green)}
   .skeleton{
     border-radius:var(--radius);
     background:linear-gradient(100deg,var(--fill) 40%,var(--line-2) 50%,var(--fill) 60%);
@@ -625,7 +580,7 @@
   }
   .state-box{padding:64px 20px;text-align:center;color:var(--ink-3)}
   .state-box h3{color:var(--ink);font-size:16px;margin-bottom:6px;font-weight:600;letter-spacing:-.02em}
-  .state-box p{font-size:13px;max-width:420px;margin:0 auto 18px}
+  .state-box p{font-size:13px;max-width:440px;margin:0 auto 18px}
   .empty-cell{padding:40px;text-align:center;color:var(--ink-3);font-size:13px}
 
   /* ── Tooltip ────────────────────────────────────────────────────────── */
@@ -640,321 +595,129 @@
   .tip b{font-weight:600}
   .tip .t-sub{color:rgba(255,255,255,.62)}
 
-  /* ── Drive upload UI ────────────────────────────────────────────────── */
-  .upload-btn{
-    display:inline-flex;align-items:center;gap:5px;margin-top:6px;
-    padding:4px 11px;border-radius:980px;border:none;
-    background:var(--fill);color:var(--ink-2);font-size:11.5px;font-weight:500;
-    cursor:pointer;transition:all .15s;
-  }
-  .upload-btn:hover{color:var(--rk-green-ink);background:var(--rk-green-tint)}
-  .upload-btn svg{width:13px;height:13px;flex:none}
-  .drive-link{
-    display:inline-flex;align-items:center;gap:4px;margin-top:5px;
-    font-size:11.5px;font-weight:500;color:var(--rk-green-ink);text-decoration:none;
-    padding:3px 10px;border-radius:980px;
-    background:var(--rk-green-tint);
-    transition:background .15s;
-  }
-  .drive-link:hover{background:rgba(0,166,81,.22)}
-  .drive-link svg{width:12px;height:12px;flex:none}
-  #uploadOverlay{
-    display:none;position:fixed;inset:0;z-index:400;
-    background:rgba(0,0,0,.4);backdrop-filter:blur(10px) saturate(150%);-webkit-backdrop-filter:blur(10px) saturate(150%);
-    align-items:center;justify-content:center;flex-direction:column;gap:16px;
-  }
-  #uploadOverlay.on{display:flex}
-  .upload-card{
-    background:var(--card);border-radius:22px;padding:32px 40px 28px;
-    box-shadow:var(--shadow-lg);display:flex;flex-direction:column;
-    align-items:center;gap:14px;min-width:250px;text-align:center;
-  }
-  .upload-card .u-title{font-size:14.5px;font-weight:600;color:var(--ink);letter-spacing:-.015em}
-  .upload-card .u-sub{font-size:12px;color:var(--ink-3)}
-  .upload-spinner{
-    width:34px;height:34px;border-radius:50%;
-    border:3px solid var(--fill);border-top-color:var(--rk-green);
-    animation:spin .75s linear infinite;
-  }
-
-  /* ── Per-doc upload row ─────────────────────────────────────────────── */
-  .doc-field-btns{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px}
-  .doc-file-row{
-    display:flex;align-items:center;gap:6px;margin-top:6px;
-    padding:6px 10px;border-radius:9px;
-    background:var(--rk-green-tint);
-  }
-  .doc-file-link{
-    flex:1;font-size:11.5px;font-weight:500;color:var(--rk-green-ink);
-    text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;
-  }
-  .doc-file-link:hover{text-decoration:underline}
-  .doc-file-rm{font-size:15px;line-height:1;color:var(--ink-3);padding:0 2px;cursor:pointer;border-radius:4px;transition:color .1s}
-  .doc-file-rm:hover{color:#FF453A}
-
-  /* ── KPI drill-down drawer ──────────────────────────────────────────── */
-  #kpiDrawer{width:min(480px,calc(100vw - 24px))}
-  .ks-sum{
-    display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:8px;
-    padding:14px 16px;background:var(--surface);border-radius:14px;margin:14px 16px 6px;
-  }
-  .ks-num-v{font-size:22px;font-weight:700;letter-spacing:-.03em;line-height:1.2;text-align:center;font-variant-numeric:tabular-nums}
-  .ks-num-k{font-size:10.5px;font-weight:500;color:var(--ink-3);text-align:center;margin-top:2px;letter-spacing:-.005em}
-  .ks-section{margin:10px 16px 2px;font-size:11px;font-weight:600;color:var(--ink-3);letter-spacing:-.005em}
-  .ks-item{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:10px;transition:background .14s}
-  .ks-item.link{cursor:pointer}
-  .ks-item:hover{background:var(--fill)}
-  .ks-item.link:hover .ks-name{color:var(--rk-green-ink)}
-  .ks-idx{font-size:11px;font-weight:500;color:var(--ink-3);min-width:22px;text-align:right;flex:none;font-variant-numeric:tabular-nums}
-  .ks-name{font-size:13px;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em}
-  .ks-sub{font-size:11px;color:var(--ink-3);margin-top:1px}
-  .ks-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:none;min-width:90px}
-
-  /* ── Card-level tab switcher — mini segmented ───────────────────────── */
-  .card-tabs{display:inline-flex;background:var(--fill);border-radius:8px;padding:2px;gap:1px;margin-left:auto}
-  .card-tabs button{padding:4px 12px;border-radius:6px;font-size:11.5px;font-weight:500;color:var(--ink-2);transition:all .16s}
-  .card-tabs button.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 1px rgba(0,0,0,.06),0 2px 6px rgba(0,0,0,.08)}
-  .card-tabs button[data-ct="buyer"].on{color:var(--buyer-ink)}
-  .card-tabs button[data-ct="seller"].on{color:var(--rk-green-ink)}
-
-  /* ── Buyer avatar ───────────────────────────────────────────────────── */
-  .buyer-avatar{
-    width:32px;height:32px;border-radius:50%;
-    background:var(--buyer-tint);color:var(--buyer-ink);
-    display:inline-flex;align-items:center;justify-content:center;
-    font-weight:700;font-size:11px;flex:none;letter-spacing:0;
-  }
-
   /* ── Focus ──────────────────────────────────────────────────────────── */
-  :focus-visible{outline:2.5px solid rgba(0,166,81,.6);outline-offset:2px;border-radius:6px}
+  :focus-visible{outline:2.5px solid rgba(var(--nc-rgb),.6);outline-offset:2px;border-radius:6px}
   .btn-primary:focus-visible{outline-color:rgba(255,255,255,.8)}
 
   /* ── Responsive ─────────────────────────────────────────────────────── */
-  @media (max-width:1100px){
-    nav#segNav button{padding:0 10px}
-    .hh-big{font-size:52px}
-  }
-  @media (max-width:900px){
-    .hero-band{grid-template-columns:1fr;padding:24px 24px 22px}
-    .hero-sep{height:1px;margin:20px 0;width:100%}
-    .hero-half{padding-right:0}
-    .hero-half.buyer{padding-left:0}
+  @media (max-width:1000px){
+    .kpis{grid-template-columns:repeat(2,1fr)}
     .ov-grid{grid-template-columns:1fr}
-    .grid-2{grid-template-columns:1fr}
+    .nbfc-hero{flex-direction:column;align-items:flex-start;gap:20px}
   }
   @media (max-width:768px){
     .topbar{height:auto;flex-wrap:wrap;padding:10px 16px;gap:8px}
     .topbar-brand{padding-right:0}
-    nav#segNav{width:100%;overflow-x:auto;margin-left:0}
-    nav#segNav button{height:32px;padding:0 12px;font-size:12px}
+    nav#nbfcNav{width:100%;overflow-x:auto;margin-left:0}
     .topbar-spacer{display:none}
     .topbar-div{display:none}
     .sync{font-size:11px}
     .shell{padding:14px 14px 44px}
-    .attn{grid-template-columns:1fr 1fr}
-    .hh-big{font-size:46px}
+    .nh-name{font-size:30px}
   }
-  @media (max-width:640px){
+  @media (max-width:560px){
+    .kpis{grid-template-columns:1fr}
     .attn{grid-template-columns:1fr}
     .facets{grid-template-columns:1fr}
-    .docbars{grid-template-columns:1fr}
-    .fgrid{grid-template-columns:1fr}
     .drawer{top:0;right:0;bottom:0;width:100vw;border-radius:0;transform:translateX(calc(100% + 140px))}
-    .doc-field-top{flex-wrap:wrap}
+    .subnav{width:100%;overflow-x:auto}
   }
 
   /* ── Dark mode component overrides ──────────────────────────────────── */
   @media (prefers-color-scheme:dark){
-    ::selection{background:rgba(48,209,88,.4)}
+    ::selection{background:rgba(var(--nc-rgb),.4)}
     .topbar{background:rgba(10,10,10,.72)}
     .drawer-f{background:rgba(28,28,30,.85)}
-    nav#segNav button.on{background:#636366;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.32)}
-    nav#segNav button.on svg{color:#30D158}
-    .card-tabs button.on{background:#636366;color:#fff}
-    .card-tabs button[data-ct="buyer"].on{color:#B8CCFF}
-    .card-tabs button[data-ct="seller"].on{color:#8CE8AE}
-    .seg button.on-rec,.seg button.on-pen,.seg button.on-na{background:#636366;box-shadow:0 1px 3px rgba(0,0,0,.32)}
-    .seg button.on-rec{color:#8CE8AE}
-    .seg button.on-pen{color:#FFD60A}
-    .seg button.on-na{color:#fff}
-    .hero-band{
+    .subnav button.on{background:#636366;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.32)}
+    .subnav button.on svg{color:var(--nc-ring)}
+    .nbfc-hero{
       background:linear-gradient(170deg,#2C2C30 0%,#18181B 45%,#050506 100%);
       box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),inset 0 1px 0 rgba(255,255,255,.1),0 2px 10px rgba(0,0,0,.4);
     }
+    .kpi-phase0 .kpi-ico{color:var(--ink)}
     .attn-card{background:rgba(255,255,255,.05)}
-    .attn-card:hover{background:rgba(0,166,81,.13)}
-    .tbl tbody tr:hover{background:rgba(0,166,81,.09)}
-    .matrix tbody tr:hover th,.matrix tbody tr:hover td{background:rgba(0,166,81,.09)}
-    .ks-item:hover{background:rgba(255,255,255,.07)}
+    .attn-card:hover{background:rgba(var(--nc-rgb),.16)}
+    .tbl tbody tr:hover{background:rgba(var(--nc-rgb),.14)}
+    .matrix tbody tr:hover th,.matrix tbody tr:hover td{background:rgba(var(--nc-rgb),.14)}
     .doc-item:hover{background:rgba(255,255,255,.06)}
-    .avatar{background:rgba(48,209,88,.18);color:#30D158}
-    .buyer-avatar{background:rgba(125,162,255,.18);color:#7DA2FF}
     .chip.ok{background:rgba(48,209,88,.16);color:#30D158}
     .chip.warn{background:rgba(255,214,10,.14);color:#FFD60A}
+    .chip.mut{background:rgba(255,255,255,.08);color:var(--ink-2)}
     .attn-cnt{background:rgba(255,214,10,.14);color:#FFD60A}
-    .attn-tv-txt{color:#30D158}
-    .attn-tv-txt.buyer{color:#7DA2FF}
-    .doc-field{background:rgba(255,255,255,.045)}
+    .kpi-pending .kpi-ico{background:rgba(255,214,10,.14);color:#FFD60A}
+    .kpi-completed .kpi-ico{background:rgba(48,209,88,.16);color:#30D158}
     .detail-hero{background:rgba(255,255,255,.05)}
-    .upload-btn:hover{background:rgba(48,209,88,.16);color:#30D158}
+    .kpi-sumbar{background:rgba(255,255,255,.05)}
     .drive-link{background:rgba(48,209,88,.15);color:#30D158}
     .drive-link:hover{background:rgba(48,209,88,.24)}
-    .doc-file-row{background:rgba(48,209,88,.13)}
-    .doc-file-link{color:#30D158}
-    .form-alert{background:rgba(255,69,58,.16);color:#FF6961}
-    .field .err{color:#FF6961}
-    .ks-sum{background:rgba(255,255,255,.05)}
-    .upload-card{background:#1C1C1E}
     body{background:#000}
     ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border:3.5px solid transparent;background-clip:content-box}
     ::-webkit-scrollbar-thumb:hover{background-color:rgba(255,255,255,.36)}
-    .search input:focus,select.flt:focus,.field input:focus,.field select:focus{background:#2C2C2E;box-shadow:0 0 0 3.5px rgba(48,209,88,.32)}
-    .note-in input:focus{background:#2C2C2E;box-shadow:0 0 0 3px rgba(48,209,88,.3)}
-    .field.invalid input,.field.invalid select{background:#2C2C2E;box-shadow:0 0 0 3.5px rgba(255,69,58,.34)}
-    .tbl tbody tr:hover .cell-sub{color:var(--ink-2)}
+    .search input:focus,select.flt:focus{background:#2C2C2E;box-shadow:0 0 0 3.5px rgba(var(--nc-rgb),.4)}
   }
-  :root[data-theme="dark"] ::selection{background:rgba(48,209,88,.4)}
+  :root[data-theme="dark"] ::selection{background:rgba(var(--nc-rgb),.4)}
   :root[data-theme="dark"] .topbar{background:rgba(10,10,10,.72)}
   :root[data-theme="dark"] .drawer-f{background:rgba(28,28,30,.85)}
-  :root[data-theme="dark"] nav#segNav button.on{background:#636366;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.32)}
-  :root[data-theme="dark"] nav#segNav button.on svg{color:#30D158}
-  :root[data-theme="dark"] .card-tabs button.on{background:#636366;color:#fff}
-  :root[data-theme="dark"] .card-tabs button[data-ct="buyer"].on{color:#B8CCFF}
-  :root[data-theme="dark"] .card-tabs button[data-ct="seller"].on{color:#8CE8AE}
-  :root[data-theme="dark"] .seg button.on-rec,
-  :root[data-theme="dark"] .seg button.on-pen,
-  :root[data-theme="dark"] .seg button.on-na{background:#636366;box-shadow:0 1px 3px rgba(0,0,0,.32)}
-  :root[data-theme="dark"] .seg button.on-rec{color:#8CE8AE}
-  :root[data-theme="dark"] .seg button.on-pen{color:#FFD60A}
-  :root[data-theme="dark"] .seg button.on-na{color:#fff}
-  :root[data-theme="dark"] .hero-band{
+  :root[data-theme="dark"] .subnav button.on{background:#636366;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.32)}
+  :root[data-theme="dark"] .subnav button.on svg{color:var(--nc-ring)}
+  :root[data-theme="dark"] .nbfc-hero{
     background:linear-gradient(170deg,#2C2C30 0%,#18181B 45%,#050506 100%);
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),inset 0 1px 0 rgba(255,255,255,.1),0 2px 10px rgba(0,0,0,.4);
   }
+  :root[data-theme="dark"] .kpi-phase0 .kpi-ico{color:var(--ink)}
   :root[data-theme="dark"] .attn-card{background:rgba(255,255,255,.05)}
-  :root[data-theme="dark"] .attn-card:hover{background:rgba(0,166,81,.13)}
-  :root[data-theme="dark"] .tbl tbody tr:hover{background:rgba(0,166,81,.09)}
+  :root[data-theme="dark"] .attn-card:hover{background:rgba(var(--nc-rgb),.16)}
+  :root[data-theme="dark"] .tbl tbody tr:hover{background:rgba(var(--nc-rgb),.14)}
   :root[data-theme="dark"] .matrix tbody tr:hover th,
-  :root[data-theme="dark"] .matrix tbody tr:hover td{background:rgba(0,166,81,.09)}
-  :root[data-theme="dark"] .ks-item:hover{background:rgba(255,255,255,.07)}
+  :root[data-theme="dark"] .matrix tbody tr:hover td{background:rgba(var(--nc-rgb),.14)}
   :root[data-theme="dark"] .doc-item:hover{background:rgba(255,255,255,.06)}
-  :root[data-theme="dark"] .avatar{background:rgba(48,209,88,.18);color:#30D158}
-  :root[data-theme="dark"] .buyer-avatar{background:rgba(125,162,255,.18);color:#7DA2FF}
   :root[data-theme="dark"] .chip.ok{background:rgba(48,209,88,.16);color:#30D158}
   :root[data-theme="dark"] .chip.warn{background:rgba(255,214,10,.14);color:#FFD60A}
+  :root[data-theme="dark"] .chip.mut{background:rgba(255,255,255,.08);color:var(--ink-2)}
   :root[data-theme="dark"] .attn-cnt{background:rgba(255,214,10,.14);color:#FFD60A}
-  :root[data-theme="dark"] .attn-tv-txt{color:#30D158}
-  :root[data-theme="dark"] .attn-tv-txt.buyer{color:#7DA2FF}
-  :root[data-theme="dark"] .doc-field{background:rgba(255,255,255,.045)}
+  :root[data-theme="dark"] .kpi-pending .kpi-ico{background:rgba(255,214,10,.14);color:#FFD60A}
+  :root[data-theme="dark"] .kpi-completed .kpi-ico{background:rgba(48,209,88,.16);color:#30D158}
   :root[data-theme="dark"] .detail-hero{background:rgba(255,255,255,.05)}
-  :root[data-theme="dark"] .upload-btn:hover{background:rgba(48,209,88,.16);color:#30D158}
+  :root[data-theme="dark"] .kpi-sumbar{background:rgba(255,255,255,.05)}
   :root[data-theme="dark"] .drive-link{background:rgba(48,209,88,.15);color:#30D158}
-  :root[data-theme="dark"] .doc-file-row{background:rgba(48,209,88,.13)}
-  :root[data-theme="dark"] .doc-file-link{color:#30D158}
-  :root[data-theme="dark"] .form-alert{background:rgba(255,69,58,.16);color:#FF6961}
-  :root[data-theme="dark"] .field .err{color:#FF6961}
-  :root[data-theme="dark"] .ks-sum{background:rgba(255,255,255,.05)}
-  :root[data-theme="dark"] .upload-card{background:#1C1C1E}
   :root[data-theme="dark"] body{background:#000}
   :root[data-theme="dark"] ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border:3.5px solid transparent;background-clip:content-box}
-  :root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover{background-color:rgba(255,255,255,.36)}
   :root[data-theme="dark"] .search input:focus,
-  :root[data-theme="dark"] select.flt:focus,
-  :root[data-theme="dark"] .field input:focus,
-  :root[data-theme="dark"] .field select:focus{background:#2C2C2E;box-shadow:0 0 0 3.5px rgba(48,209,88,.32)}
-  :root[data-theme="dark"] .note-in input:focus{background:#2C2C2E;box-shadow:0 0 0 3px rgba(48,209,88,.3)}
-  :root[data-theme="dark"] .field.invalid input,
-  :root[data-theme="dark"] .field.invalid select{background:#2C2C2E;box-shadow:0 0 0 3.5px rgba(255,69,58,.34)}
-  /* light-theme hard overrides (win over the dark media query when toggled) */
-  :root[data-theme="light"] ::selection{background:rgba(0,166,81,.22)}
+  :root[data-theme="dark"] select.flt:focus{background:#2C2C2E;box-shadow:0 0 0 3.5px rgba(var(--nc-rgb),.4)}
+  /* light-theme hard overrides (win over dark media query when toggled) */
+  :root[data-theme="light"] ::selection{background:rgba(var(--nc-rgb),.22)}
   :root[data-theme="light"] .topbar{background:rgba(245,245,247,.78)}
   :root[data-theme="light"] .drawer-f{background:rgba(245,245,247,.85)}
-  :root[data-theme="light"] nav#segNav button.on{background:#fff;color:var(--ink);box-shadow:0 1px 1px rgba(0,0,0,.06),0 2px 6px rgba(0,0,0,.08)}
-  :root[data-theme="light"] nav#segNav button.on svg{color:var(--rk-green)}
-  :root[data-theme="light"] .card-tabs button.on{background:#fff;color:var(--ink)}
-  :root[data-theme="light"] .card-tabs button[data-ct="buyer"].on{color:var(--buyer-ink)}
-  :root[data-theme="light"] .card-tabs button[data-ct="seller"].on{color:var(--rk-green-ink)}
-  :root[data-theme="light"] .seg button.on-rec{background:#fff;color:var(--rk-green-ink)}
-  :root[data-theme="light"] .seg button.on-pen{background:#fff;color:var(--amber-ink)}
-  :root[data-theme="light"] .seg button.on-na{background:#fff;color:var(--ink)}
-  :root[data-theme="light"] .hero-band{
+  :root[data-theme="light"] .subnav button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 1px rgba(0,0,0,.06),0 2px 6px rgba(0,0,0,.08)}
+  :root[data-theme="light"] .subnav button.on svg{color:var(--nc)}
+  :root[data-theme="light"] .nbfc-hero{
     background:linear-gradient(170deg,#242428 0%,#131315 45%,#000 100%);
-    box-shadow:0 2px 10px rgba(0,0,0,.16),0 20px 52px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.07);
+    box-shadow:0 2px 10px rgba(0,0,0,.16),0 20px 52px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.07);
   }
   :root[data-theme="light"] .attn-card{background:var(--surface)}
-  :root[data-theme="light"] .attn-card:hover{background:var(--rk-green-tint-2)}
-  :root[data-theme="light"] .tbl tbody tr:hover{background:var(--rk-green-tint-2)}
-  :root[data-theme="light"] .matrix tbody tr:hover th,
-  :root[data-theme="light"] .matrix tbody tr:hover td{background:var(--rk-green-tint-2)}
-  :root[data-theme="light"] .ks-item:hover{background:var(--fill)}
-  :root[data-theme="light"] .doc-item:hover{background:var(--fill)}
-  :root[data-theme="light"] .avatar{background:var(--rk-green-tint);color:var(--rk-green-ink)}
-  :root[data-theme="light"] .buyer-avatar{background:var(--buyer-tint);color:var(--buyer-ink)}
+  :root[data-theme="light"] .tbl tbody tr:hover{background:rgba(var(--nc-rgb),.06)}
   :root[data-theme="light"] .chip.ok{background:var(--rk-green-tint);color:var(--rk-green-ink)}
   :root[data-theme="light"] .chip.warn{background:var(--amber-tint);color:var(--amber-ink)}
+  :root[data-theme="light"] .chip.mut{background:var(--fill);color:var(--ink-3)}
   :root[data-theme="light"] .attn-cnt{background:var(--amber-tint);color:var(--amber-ink)}
-  :root[data-theme="light"] .attn-tv-txt{color:var(--rk-green-ink)}
-  :root[data-theme="light"] .attn-tv-txt.buyer{color:var(--buyer-ink)}
-  :root[data-theme="light"] .doc-field{background:var(--surface)}
   :root[data-theme="light"] .detail-hero{background:var(--surface)}
-  :root[data-theme="light"] .drive-link{background:var(--rk-green-tint);color:var(--rk-green-ink)}
-  :root[data-theme="light"] .doc-file-row{background:var(--rk-green-tint)}
-  :root[data-theme="light"] .doc-file-link{color:var(--rk-green-ink)}
-  :root[data-theme="light"] .form-alert{background:rgba(255,69,58,.1);color:#D70015}
-  :root[data-theme="light"] .field .err{color:#FF453A}
-  :root[data-theme="light"] .ks-sum{background:var(--surface)}
-  :root[data-theme="light"] .upload-card{background:#fff}
+  :root[data-theme="light"] .kpi-sumbar{background:var(--surface)}
   :root[data-theme="light"] body{background:linear-gradient(180deg,#FBFBFD 0%,#F5F5F7 300px) no-repeat,#F5F5F7}
-  :root[data-theme="light"] ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.2);border:3.5px solid transparent;background-clip:content-box}
   :root[data-theme="light"] .search input:focus,
-  :root[data-theme="light"] select.flt:focus,
-  :root[data-theme="light"] .field input:focus,
-  :root[data-theme="light"] .field select:focus{background:var(--card);box-shadow:0 0 0 3.5px rgba(0,166,81,.22)}
-  :root[data-theme="light"] .note-in input:focus{background:var(--card);box-shadow:0 0 0 3px rgba(0,166,81,.2)}
-  :root[data-theme="light"] .field.invalid input,
-  :root[data-theme="light"] .field.invalid select{background:var(--card);box-shadow:0 0 0 3.5px rgba(255,69,58,.22)}
+  :root[data-theme="light"] select.flt:focus{background:var(--card);box-shadow:0 0 0 3.5px rgba(var(--nc-rgb),.22)}
 
   @media (prefers-reduced-motion:reduce){
     *{animation-duration:.01ms!important;transition-duration:.01ms!important}
   }
 </style>
 
-<!-- Hidden file input for Drive uploads -->
-<input type="file" id="fileInput" style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.heic,.zip">
-
-<!-- Upload progress overlay -->
-<div id="uploadOverlay" role="dialog" aria-modal="true">
-  <div class="upload-card">
-    <div class="upload-spinner"></div>
-    <div class="u-title">Uploading to Drive…</div>
-    <div class="u-sub" id="uploadDocName"></div>
-  </div>
-</div>
-
-<!-- ─── Topbar: brand + nav + actions ─────────────────────────────────────── -->
+<!-- ─── Topbar: brand + NBFC switcher + actions ───────────────────────────── -->
 <header class="topbar">
   <div class="topbar-brand">
-    <img class="brand-logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKUAAACUCAMAAADF0xngAAAAaVBMVEUAAAD////Ly8uUlJRMTEyKioqbm5v39/eXl5fu7u6NjY38/Pxqamo8PDzp6elZWVnc3Nyzs7Pj4+NRUVHFxcW8vLzU1NQNDQ0aGhpDQ0MgICCtra2kpKRhYWEnJycyMjJ6enqCgoJycnLWQl4AAAAGZElEQVR4nO1b65ayOgyloiAgV7kqiPj+D3kgaUuDMmu+cYa61un+M1qr3aRtmux0LMvAwMDAwMDAwMDAwMDAwMDAwOBX8fCPQ8hf98PRP2ll8xK1E7kBC9wC3qXwOnJqzawWiDPGMdG8ijdZrJuYiocreLFob4WSMnPvuqnNOLIZXmedI+X9UTc5jqpVSLHkZtWJ2tBWugkCbJUTu44tzlOLfmQqpQiaIkKz1UxwRGephNwOGs+e2hjYmjla91xlGRxEs6vSZA+tHK0zS1WWjvzgQFgyrX5zH417Y+ayUz4qCEtvr42jdSmZasusUT677QjN0UHpQsqmE1EuShpenOnSLDRxtIZp9LISnmjpF+90aR5e/safA91NFPKjJ3vqQJcmd1Jbo+Tbt1sj0VDnnmjgiPM9wgmjtXXn0zn3N+do9eJ48WBmvcurTiTsYG7zqs+fQka67HYI1gK0jhoz3ZijFc9+Jq085r12hxV1msHWG2g2JYvqXDkaKRbeaGunqY596NlavthklOamHK2HOnTWt/1aRzrlbNiSJJyNytj1atbQUpbbTnlJxva+6ElZbuvZczr4F8H4kXTcrXf8AyxOlfXBh5AkFxvnvYuJDFe67b2KJJQbZ710YQZric3Aro1izK0DDuKKVs++Kh9TX8UZ3bekOKJe7J/XgcR5NPO9mZfv5hrciSYM+ctO07ooLNFzdV38IWgk/jKQGGAt3tIvn+SPQY1ZPgeYXCHsYuzhauA4xjsBofkcFnEbHvku15Se0Tlny4gjFlZGpVBbqkudZkQjYZlyMHgcLbkZ4EznnCbks6UhZNaoFC2WprryFO11YnnXxBCwiDpmg8WMsFzLODYCDYelnhWqmYRVbBuwPaOiGz3BjX4j+8qy9QluHJQQjzTJIe9aH1ClqKgaNJ3VpxfEdYNas7QWfjRZzS+3Ra+yis6Tjq2QXAvjt4eyhbyYVPjyD1iTErPfLGtVKviUKiRHxx2kO01wyIO66PMK+c01SUqhsAxlkqRnrXwMDAwMDP4A1eNoO9+roDSObR/0BMzNlMB9JWnPgJhFQxlwxB6Tiu8AghQ9N1EMy9/D/51l36bpGB1eTqlXoMjc3PPMdXdOTBKE/pEmnje2QqfGcZz2Lj+zW6f1a5Vlfbd93+Z5UONMSlxiN9Z9HMz+AUvID3b76VtZCKylfpbPIkt1kAJGPjlErN+K8BxFj1BliVk6yNbVVWi0nl+KDv/IEi5WRYlIAW9qYcmVWYKaObpjkI71JyFLQ3OizjgWfvBqnnIJIXDfYYkYbdlQaZpfWrstaso+p+HhOSMNK1liAgfqYUX1kLdZeml9wYwwau0jWiCC22BYxveuto2tbmfFYExMG+FL02UOwRKftbzNj8By33bEs/6cZVCc+xrllMCfxP3aDoQ98EZGMekW9WNiN60EGCaZthLeNZpGFCwhR8cCACrYUTftxMvxTZYeTm3C5xMAkxpYfCeUvLXLdiCw9vC9WPTzYsEywEXs4f7GMpXQPNr3WPL+sw3EO3bhf2Uq23AHlXHuuEpAxgKWLijDQaz8vNS4UH//KUuhQjEVqFB32Jo9lXhgHbghV4JPkiUTXwNc5YcTsFb4U5b8YSv2jMGqwWhPZUWU31qcRQzXFJbElc4hZ/tHLBu0ZfJc/HRwyt15PIVlFCospS1RTX6TJfDxHAXtg7eyZ9EPJdeUT/yCpagCgueURck++g2Wk10CqZSKgB+mVpbD0lbI/vOdF14y5yzx+MIv4B4XP4ne/l2WMK6oizkuV02xis+Fv/Hn3R2214Kk+1BZZns8G8CjXcAVJHhV+BT8CkusdQbpcL/74DvbaTnyKn45th7RTnyhiatloqKHLM/c72IUgJ5u/MlhEFLnuyytgVGU4ByXp7uY/Y63i3NAnuN7eBi4tnehNx5/haU1kDqeMFJPaJaydzEPS1jyygVczK1JlPVDlj4d1zrNMYw73yPpi1etfKHJyqkSX+LOgq43WRFyWxlfwovva9xhkec7VW2+nZCR16r6bnVKA+SotnbQJp32pd3lO16GPO7G30UaVVxMNvSusXUYO8BDncaPi43uu4KV8g/7j7MlMMjUo1B8H3BGRp9U5XkF2LEf8H9HXwLdzYeUHlcBh5+W603/giG9Xq/b3543MDAwMDAwMDAwMDAwMDAwMPhf4D8ZoEYVSW0ISQAAAABJRU5ErkJggg==" alt="recykal" />
+    <img class="brand-logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKUAAACUCAMAAADF0xngAAAAaVBMVEUAAAD////Ly8uUlJRMTEyKioqbm5v39/eXl5fu7u6NjY38/Pxqamo8PDzp6elZWVnc3Nyzs7Pj4+NRUVHFxcW8vLzU1NQNDQ0aGhpDQ0MgICCtra2kpKRhYWEnJycyMjJ6enqCgoJycnLWQl4AAAAGZElEQVR4nO1b65ayOgyloiAgV7kqiPj+D3kgaUuDMmu+cYa61un+M1qr3aRtmux0LMvAwMDAwMDAwMDAwMDAwMDAwOBX8fCPQ8hf98PRP2ll8xK1E7kBC9wC3qXwOnJqzawWiDPGMdG8ijdZrJuYiocreLFob4WSMnPvuqnNOLIZXmedI+X9UTc5jqpVSLHkZtWJ2tBWugkCbJUTu44tzlOLfmQqpQiaIkKz1UxwRGephNwOGs+e2hjYmjla91xlGRxEs6vSZA+tHK0zS1WWjvzgQFgyrX5zH41/Y+ayUz4qCEtvr42jdSmZasusUT677QjN0UHpQsqmE1EuShpenOnSLDRxtIZp9LISnmjpF+90aR5e/safA91NFPKjJ3vqQJcmd1Jbo+Tbt1sj0VDnnmjgiPM9wgmjtXXn0zn3N+do9eJ48WBmvcurTiTsYG7zqs+fQka67HYI1gK0jhoz3ZijFc9+Jq085r12hxV1msHWG2g2JYvqXDkaKRbeaGunqY596NlavthklOamHK2HOnTWt/1aRzrlbNiSJJyNytj1atbQUpbbTnlJxva+6ElZbuvZczr4F8H4kXTcrXf8AyxOlfXBh5AkFxvnvYuJDFe67b2KJJQbZ710YQZric3Aro1izK0DDuKKVs++Kh9TX8UZ3bekOKJe7J/XgcR5NPO9mZfv5hrciSYM+ctO07ooLNFzdV38IWgk/jKQGGAt3tIvn+SPQY1ZPgeYXCHsYuzhauA4xjsBofkcFnEbHvku15Se0Tlny4gjFlZGpVBbqkudZkQjYZlyMHgcLbkZ4EznnCbks6UhZNaoFC2WprryFO11YnnXxBCwiDpmg8WMsFzLODYCDYelnhWqmYRVbBuwPaOiGz3BjX4j++qy9QluHJQQjzTJIe9aH1ClqKgaNJ3VpxfEdYNas7QWfjRZzS+3Ra+yis6Tjq2QXAvjt4eyhbyYVPjyD1iTELPfLGtVKviUKiRHxx2kO01wyIO66PMK+c01SUqhsAxlkqRnrXwMDAwMDP4A1eNoO9+roDSObR/0BMzNlMB9JWnPgJhFQxlwxB6Tiu8AghQ9N1EMy9/D/51l36bpGB1eTqlXoMjc3PPMdXdOTBKE/pEmnje2QqfGcZz2Lj+zW6f1a5Vlfbd93+Z5UONMSlxiN9Z9HMz+AUvID3b76VtZCKylfpbPIkt1kAJGPjlErN+K8BxFj1BliVk6yNbVVWi0nl+KDv/IEi5WRYlIAW9qYcmVWYKaObpjkI71JyFLQ3OizjgWfvBqnnIJIXDfYYkYbdlQaZpfWrstaso+p+HhOSMNK1liAgfqYUX1kLdZeml9wYwwau0jWiCC22BYxveuto2tbmfFYExMG+FL02UOwRKftbzNj8By33bEs/6cZVCc+xrllMCfxP3aDoQ98EZGMekW9WNiN60EGCaZthLeNZpGFCwhR8cCACrYUTftxMvxTZYeTm3C5xMAkxpYfCeUvLXLdiCw9vC9WPTzYsEywEXs4f7GMpXQPNr3WPL+sw3EO3bhf2Uq23AHlXHuuEpAxgKWLijDQaz8vNS4UH//KUuhQjEVqFB32Jo9lXhgHbghV4JPkiUTXwNc5YcTsFb4U5b8YSv2jMGqwWhPZUWU31qcRQzXFJbElc4hZ/tHLBu0ZfJc/HRwyt15PIVlFCospS1RTX6TJfDxHAXtg7eyZ9EPJdeUT/yCpagCgueURck++g2Wk10CqZSKgB+mVpbD0lbI/vOdF14y5yzx+MIv4B4XP4ne/l2WMK6oizkuV02xis+Fv/Hn3R2214Kk+1BZZns8G8CjXcAVJHhV+BT8CkusdQbpcL/74DvbaTnyKn45th7RTnyhiatloqKHLM/c72IUgJ5u/MlhEFLnuyytgVGU4ByXp7uY/Y63i3NAnuN7eBi4tnehNx5/haU1kDqeMFJPaJaydzEPS1jyygVczK1JlPVDlj4d1zrNMYw73yPpi1etfKHJyqkSX+LOgq43WRFyWxlfwovva9xhkec7VW2+nZCR16r6bnVKA+SotnbQJp32pd3lO16GPO7G30UaVVxMNvSusXUYO8BDncaPi43uu4KV8g/7j7MlMMjUo1B8H3BGRp9U5XkF2LEf8H9HXwLdzYeUHlcBh5+W603/giG9Xq/b3543MDAwMDAwMDAwMDAwMDAwMPhf4D8ZoEYVSW0ISQAAAABJRU5ErkJggg==" alt="recykal" />
     <div class="brand-sub">NBFC Tracker</div>
   </div>
-  <nav id="segNav">
-    <button data-view="overview" class="on">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      Overview
-    </button>
-    <button data-view="sellers">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Sellers
-    </button>
-    <button data-view="buyers">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-      Buyers
-    </button>
-    <button data-view="matrix">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
-      Document Matrix
-    </button>
-  </nav>
+  <nav id="nbfcNav" aria-label="NBFC"></nav>
   <div class="topbar-spacer"></div>
   <span class="sync" id="syncLabel"></span>
   <div class="topbar-div"></div>
@@ -964,25 +727,22 @@
   <a class="icon-btn" id="sheetLink" target="_blank" rel="noopener" title="Open the Google Sheet" aria-label="Open the Google Sheet" style="display:none;margin-left:6px">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
   </a>
-  <div class="topbar-div"></div>
-  <button class="btn-primary" id="addSellerBtn">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-    Add Seller
-  </button>
-  <button class="btn-primary" id="addBuyerBtn" style="background:var(--buyer);box-shadow:0 1px 3px rgba(24,73,214,.28)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-    Add Buyer
-  </button>
 </header>
 
 <div class="shell">
 
   <!-- loading skeleton -->
   <div id="loading">
-    <div class="skeleton" style="height:212px;border-radius:26px"></div>
+    <div class="skeleton" style="height:150px;border-radius:24px"></div>
+    <div class="kpis" style="margin-top:14px">
+      <div class="skeleton" style="height:150px"></div>
+      <div class="skeleton" style="height:150px"></div>
+      <div class="skeleton" style="height:150px"></div>
+      <div class="skeleton" style="height:150px"></div>
+    </div>
     <div class="ov-grid" style="margin-top:16px">
-      <div class="skeleton" style="height:430px"></div>
-      <div class="skeleton" style="height:430px"></div>
+      <div class="skeleton" style="height:360px"></div>
+      <div class="skeleton" style="height:360px"></div>
     </div>
   </div>
 
@@ -995,138 +755,115 @@
 
   <div id="app" style="display:none">
 
+    <!-- NBFC identity band -->
+    <div class="nbfc-hero" id="nbfcHero"></div>
+
+    <!-- four clickable hero cards -->
+    <div class="kpis" id="kpis"></div>
+
+    <!-- secondary view switcher -->
+    <nav class="subnav" id="subnav" aria-label="View">
+      <button data-view="overview" class="on">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Overview
+      </button>
+      <button data-view="entities">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        All sellers
+      </button>
+      <button data-view="matrix">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+        Document matrix
+      </button>
+    </nav>
+
+    <!-- error state for a single failed tab -->
+    <div id="nbfcError" class="card state-box" style="display:none;margin-top:16px">
+      <h3>This tab couldn't be read</h3>
+      <p id="nbfcErrorMsg"></p>
+    </div>
+
     <!-- ─── Overview ──────────────────────────────────────────────────── -->
     <section class="view on" id="view-overview">
-      <div class="hero-band">
-        <div class="hero-half" id="heroSeller"></div>
-        <div class="hero-sep"></div>
-        <div class="hero-half buyer" id="heroBuyer"></div>
-      </div>
       <div class="ov-grid">
         <div class="stack">
-        <div class="card ov-attn">
-          <div class="card-h">
-            <h3>Needs attention</h3>
-            <div class="card-tabs" id="attnTabs">
-              <button data-ct="seller" class="on" onclick="switchAttn('seller')">Sellers</button>
-              <button data-ct="buyer" onclick="switchAttn('buyer')">Buyers</button>
+          <div class="card">
+            <div class="card-h">
+              <h3>Needs attention</h3>
+              <span class="hint" id="attnHint"></span>
             </div>
+            <div class="attn" id="attnList"></div>
           </div>
-          <div class="attn" id="attnList"></div>
-          <div class="attn" id="attnListBuyer" style="display:none"></div>
-        </div>
-        <div class="card ov-breakdown">
-          <div class="card-h">
-            <h3>Portfolio breakdown</h3>
-            <div class="card-tabs" id="facetTabs">
-              <button data-ct="seller" class="on" onclick="switchFacets('seller')">Sellers</button>
-              <button data-ct="buyer" onclick="switchFacets('buyer')">Buyers</button>
+          <div class="card">
+            <div class="card-h">
+              <h3>Portfolio breakdown</h3>
+              <span class="hint">Tap a category to list its sellers</span>
             </div>
+            <div class="facets" id="facets"></div>
           </div>
-          <div class="facets" id="facets"></div>
-          <div class="facets" id="facets-buyer" style="display:none"></div>
         </div>
-        </div><!-- /left stack -->
         <div class="stack">
-        <div class="card">
-          <div class="card-h">
-            <h3>Document status</h3>
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div class="card">
+            <div class="card-h">
+              <h3>Document status</h3>
               <div class="legend" style="padding:0">
                 <span><i style="background:var(--rk-green)"></i>Received</span>
                 <span><i style="background:var(--amber)"></i>Pending</span>
                 <span><i style="background:transparent;border:1.5px solid var(--gray-dot)"></i>N/A</span>
               </div>
-              <div class="card-tabs" id="docBarsTabs">
-                <button data-ct="seller" class="on" onclick="switchDocBars('seller')">Sellers</button>
-                <button data-ct="buyer" onclick="switchDocBars('buyer')">Buyers</button>
-              </div>
             </div>
+            <div class="docbars" id="docBars"></div>
           </div>
-          <div class="docbars" id="docBars"></div>
-          <div class="docbars" id="docBarsBuyer" style="display:none"></div>
         </div>
-        </div><!-- /right stack -->
       </div>
     </section>
 
-    <!-- ─── Sellers ───────────────────────────────────────────────────── -->
-    <section class="view" id="view-sellers">
+    <!-- ─── All sellers table ─────────────────────────────────────────── -->
+    <section class="view" id="view-entities">
       <div class="card">
-      <div class="toolbar">
-        <div class="search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <input id="q" type="search" placeholder="Search seller, GST, region…" autocomplete="off">
+        <div class="toolbar">
+          <div class="search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="q" type="search" placeholder="Search name, GST, region…" autocomplete="off">
+          </div>
+          <select class="flt" id="fltEntity"><option value="">All entity types</option></select>
+          <select class="flt" id="fltRegion"><option value="">All regions</option></select>
+          <select class="flt" id="fltStatus">
+            <option value="">All statuses</option>
+            <option value="phase0">Phase 0 · not started</option>
+            <option value="pending">Has pending docs</option>
+            <option value="complete">Completed</option>
+          </select>
+          <span class="tbl-count" id="entitiesCount"></span>
         </div>
-        <select class="flt" id="fltEntity"><option value="">All entity types</option></select>
-        <select class="flt" id="fltRegion"><option value="">All regions</option></select>
-        <select class="flt" id="fltStatus">
-          <option value="">All statuses</option>
-          <option value="complete">Complete</option>
-          <option value="pending">Has pending docs</option>
-        </select>
-        <span class="tbl-count" id="sellersCount"></span>
-      </div>
-      <div class="tbl-wrap">
-        <table class="tbl">
-          <thead id="sellersHead"></thead>
-          <tbody id="sellersBody"></tbody>
-        </table>
-      </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead id="entitiesHead"></thead>
+            <tbody id="entitiesBody"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
-    <!-- ─── Buyers ────────────────────────────────────────────────────── -->
-    <section class="view" id="view-buyers">
-      <div class="card">
-      <div class="toolbar">
-        <div class="search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <input id="qBuyer" type="search" placeholder="Search buyer, GST, region…" autocomplete="off">
-        </div>
-        <select class="flt" id="fltBuyerEntity"><option value="">All entity types</option></select>
-        <select class="flt" id="fltBuyerStatus">
-          <option value="">All statuses</option>
-          <option value="complete">Complete</option>
-          <option value="pending">Has pending docs</option>
-        </select>
-        <span class="tbl-count" id="buyersCount"></span>
-      </div>
-      <div class="tbl-wrap">
-        <table class="tbl">
-          <thead id="buyersHead"></thead>
-          <tbody id="buyersBody"></tbody>
-        </table>
-      </div>
-      </div>
-    </section>
-
-    <!-- ─── Matrix ────────────────────────────────────────────────────── -->
+    <!-- ─── Document matrix ───────────────────────────────────────────── -->
     <section class="view" id="view-matrix">
       <div class="card">
         <div class="card-h" style="padding-bottom:12px">
           <h3>Document matrix</h3>
-          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-            <div class="legend" style="padding:0">
-              <span><i style="background:var(--rk-green)"></i>Received</span>
-              <span><i style="background:var(--amber)"></i>Pending</span>
-              <span><i style="border:1.5px solid var(--gray-dot);background:transparent"></i>NA</span>
-            </div>
-            <div class="card-tabs" id="matrixTabs">
-              <button data-ct="seller" class="on" onclick="switchMatrix('seller')">Sellers</button>
-              <button data-ct="buyer" onclick="switchMatrix('buyer')">Buyers</button>
-            </div>
+          <div class="legend" style="padding:0">
+            <span><i style="background:var(--rk-green)"></i>Received</span>
+            <span><i style="background:var(--amber)"></i>Pending</span>
+            <span><i style="border:1.5px solid var(--gray-dot);background:transparent"></i>N/A</span>
           </div>
         </div>
-        <div class="matrix-wrap" id="matrixWrapSeller"><table class="matrix" id="matrixTable"></table></div>
-        <div class="matrix-wrap" id="matrixWrapBuyer" style="display:none"><table class="matrix" id="matrixTableBuyer"></table></div>
+        <div class="matrix-wrap"><table class="matrix" id="matrixTable"></table></div>
       </div>
     </section>
 
   </div><!-- #app -->
 </div><!-- .shell -->
 
-<!-- ─── Seller detail drawer ─────────────────────────────────────────────── -->
+<!-- ─── Seller detail drawer (read-only) ──────────────────────────────────── -->
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="detailDrawer" aria-hidden="true">
   <div class="drawer-h">
@@ -1141,98 +878,26 @@
   <div class="drawer-body" id="dBody"></div>
   <div class="drawer-f">
     <button class="btn-ghost" data-close>Close</button>
-    <button class="btn-primary" id="dEditBtn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-      Edit seller
-    </button>
+    <a class="btn-primary" id="dSheetBtn" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+      Open in Sheet
+    </a>
   </div>
 </aside>
 
-<!-- ─── Buyer detail drawer ──────────────────────────────────────────────── -->
-<aside class="drawer" id="buyerDetailDrawer" aria-hidden="true">
-  <div class="drawer-h">
-    <div style="min-width:0;flex:1">
-      <h2 id="bdName"></h2>
-      <div class="meta-line" id="bdMeta"></div>
-    </div>
-    <button class="x-btn" data-close aria-label="Close">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-    </button>
-  </div>
-  <div class="drawer-body" id="bdBody"></div>
-  <div class="drawer-f">
-    <button class="btn-ghost" data-close>Close</button>
-    <button class="btn-primary" id="bdEditBtn" style="background:var(--buyer);box-shadow:0 1px 3px rgba(24,73,214,.28)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-      Edit buyer
-    </button>
-  </div>
-</aside>
-
-<!-- ─── Buyer form drawer ─────────────────────────────────────────────────── -->
-<aside class="drawer" id="buyerFormDrawer" aria-hidden="true">
-  <div class="drawer-h">
-    <div style="flex:1">
-      <h2 id="bfTitle">Add buyer</h2>
-      <div class="meta-line" id="bfSub">Writes directly to the Buyer_NBFC Tracker sheet</div>
-    </div>
-    <button class="x-btn" data-close aria-label="Close">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-    </button>
-  </div>
-  <div class="drawer-body">
-    <div class="form-alert" id="bfAlert"></div>
-    <div class="fgrid" id="bfMetaFields"></div>
-    <div class="fsec">Document checklist <span class="cnt" id="bfDocCount"></span></div>
-    <div id="bfDocFields"></div>
-  </div>
-  <div class="drawer-f">
-    <button class="btn-ghost" data-close>Cancel</button>
-    <button class="btn-primary" id="bfSaveBtn" style="background:var(--buyer);box-shadow:0 1px 3px rgba(24,73,214,.28)">
-      <span id="bfSaveSpin" class="spin" style="display:none"></span>
-      <span id="bfSaveLbl">Save to sheet</span>
-    </button>
-  </div>
-</aside>
-
-<!-- ─── Seller form drawer ───────────────────────────────────────────────── -->
-<aside class="drawer" id="formDrawer" aria-hidden="true">
-  <div class="drawer-h">
-    <div style="flex:1">
-      <h2 id="fTitle">Add seller</h2>
-      <div class="meta-line" id="fSub">Writes directly to the Seller_NBFC Tracker sheet</div>
-    </div>
-    <button class="x-btn" data-close aria-label="Close">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-    </button>
-  </div>
-  <div class="drawer-body">
-    <div class="form-alert" id="formAlert"></div>
-    <div class="fgrid" id="metaFields"></div>
-    <div class="fsec">Document checklist <span class="cnt" id="docCount"></span></div>
-    <div id="docFields"></div>
-  </div>
-  <div class="drawer-f">
-    <button class="btn-ghost" data-close>Cancel</button>
-    <button class="btn-primary" id="saveBtn">
-      <span id="saveSpin" class="spin" style="display:none"></span>
-      <span id="saveLbl">Save to sheet</span>
-    </button>
-  </div>
-</aside>
-
-<!-- ─── KPI detail drawer ────────────────────────────────────────────────── -->
+<!-- ─── KPI drill-down drawer (table) ─────────────────────────────────────── -->
 <div class="scrim" id="kpiScrim"></div>
 <aside class="drawer" id="kpiDrawer" aria-hidden="true">
   <div class="drawer-h">
-    <div style="flex:1">
+    <div style="flex:1;min-width:0">
       <h2 id="kpiDrTitle"></h2>
       <div class="meta-line" id="kpiDrSub"></div>
     </div>
-    <button class="x-btn" onclick="closeKpiDrawer()" aria-label="Close">
+    <button class="x-btn" onclick="closeKpi()" aria-label="Close">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
     </button>
   </div>
+  <div class="kpi-sumbar" id="kpiSumbar"></div>
   <div class="drawer-body" id="kpiDrBody"></div>
 </aside>
 
@@ -1244,19 +909,22 @@
 
 /* ═══════════════════════════ State & helpers ═══════════════════════════ */
 
-var D = null;                 // latest payload from getInitialData()
-var DB = null;                // D.buyerData shorthand
-var fieldByType = {};         // gst / date / entity / turnover → header name (sellers)
-var buyerFieldByType = {};    // gst / date / entity / turnover → header name (buyers)
-var nameHeader = null;
-var buyerNameHeader = null;
-var editingSeller = null;     // seller object while form is open, else null
-var editingBuyer  = null;     // buyer object while buyer form is open, else null
-var _formDocUrls = {};        // docKey → Drive URL for the currently open form
-var _removedFormDocUrls = {}; // docKeys explicitly removed this session
-var _buyerFormDocUrls = {};
-var _removedBuyerFormDocUrls = {};
+var DATA = null;            // full getInitialData() payload
+var NBFCS = {};             // id → nbfc object
+var NBFC_ORDER = [];        // ordered list of nbfc ids
+var activeNbfcId = null;
+var ND = null;              // active nbfc object
+var fieldByType = {};       // gst / date / entity / turnover → header (active NBFC)
+var nameHeader = null;      // active NBFC's business-name header
 var lastFocusRefresh = 0;
+
+/* Per-NBFC accent theming. Keys are backend tab ids (see Code.gs CONFIG.NBFC_TABS). */
+var NBFC_THEME = {
+  billmart:  { nc:'#E85D04', rgb:'232,93,4',   ring:'#FF8C4A' },
+  capitalxb: { nc:'#1849D6', rgb:'24,73,214',  ring:'#7DABFF' },
+  strideone: { nc:'#0D9488', rgb:'13,148,136', ring:'#2DD4BF' }
+};
+function themeFor(id){ return NBFC_THEME[id] || { nc:'#E85D04', rgb:'232,93,4', ring:'#FF8C4A' }; }
 
 function $(id){ return document.getElementById(id); }
 function esc(s){
@@ -1269,13 +937,15 @@ function initials(name){
   return ((p[0]||'')[0]||'•').toUpperCase() + ((p[1]||'')[0]||'').toUpperCase();
 }
 function pct(n){ return (Math.round(n*10)/10) + '%'; }
-function animCount(el, to, suffix, dur){
+function normKey(s){ return String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]+/g,''); }
+
+function animCount(el, to, dur){
   if (!el) return;
   var start = null, ease = function(t){ return 1 - Math.pow(1 - t, 3); };
   var step = function(ts){
     if (!start) start = ts;
     var p = Math.min((ts - start) / (dur || 680), 1);
-    el.textContent = Math.round(ease(p) * to) + (suffix || '');
+    el.textContent = Math.round(ease(p) * to);
     if (p < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
@@ -1295,24 +965,7 @@ function toast(msg, kind){
   toast._t = setTimeout(function(){ t.classList.remove('on'); }, 3600);
 }
 
-/* GSTIN: 2-digit state · 5 letters · 4 digits · letter · alnum · 'Z' · alnum */
-var GST_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/;
-
-var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-function sheetDateToIso(s){
-  var m = String(s||'').trim().match(/^(\d{1,2})[-\/ ]([A-Za-z]{3,})[-\/ ](\d{4})$/);
-  if (m){
-    var mi = MONTHS.findIndex(function(x){ return m[2].toLowerCase().indexOf(x.toLowerCase()) === 0; });
-    if (mi > -1) return m[3] + '-' + String(mi+1).padStart(2,'0') + '-' + String(m[1]).padStart(2,'0');
-  }
-  var d = new Date(s);
-  if (!isNaN(d) && /\d{4}/.test(String(s))) {
-    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-  }
-  return '';
-}
-
-/* Format a turnover value for display: "2.5 Cr", "50 L" → "₹2.5 Cr", "₹50 L" */
+/* Format a turnover value for display: "2.5 Cr" → "₹2.5 Cr" */
 function formatTurnover(raw){
   if (!raw) return '';
   var s = String(raw).trim();
@@ -1321,39 +974,48 @@ function formatTurnover(raw){
   if (m){
     var n = parseFloat(m[1].replace(/,/g,''));
     var unit = /^cr/i.test(m[2]) ? 'Cr' : 'L';
-    return '₹' + n + ' ' + unit;
+    return '₹' + n + ' ' + unit;
   }
-  return s.indexOf('₹') === 0 ? s : '₹ ' + s;
+  return s.indexOf('₹') === 0 ? s : '₹ ' + s;
 }
-
-/* Short display name for a document column header. */
 function docShort(key){
   var s = String(key);
   return s.length > 44 ? s.slice(0, 42).replace(/[ ,;–-]+$/,'') + '…' : s;
 }
 
-/* Is this document applicable for the given entity type? (mirrors backend) */
-function normKey(s){ return String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]+/g,''); }
+/* Which requirement column applies to a given entity type (mirrors backend). */
 function entityColumnFor(entityType){
+  var cols = (ND && ND.entityColumns) || [];
   var e = normKey(entityType); if (!e) return null;
   var best = null, len = 0;
-  D.entityColumns.forEach(function(label){
+  cols.forEach(function(label){
     var n = normKey(label);
     if ((e.indexOf(n) !== -1 || n.indexOf(e) !== -1) && n.length > len){ best = label; len = n.length; }
   });
   return best;
 }
-function buyerEntityColumnFor(entityType){
-  if (!DB) return null;
-  var e = normKey(entityType); if (!e) return null;
-  var best = null, len = 0;
-  DB.entityColumns.forEach(function(label){
-    var n = normKey(label);
-    if ((e.indexOf(n) !== -1 || n.indexOf(e) !== -1) && n.length > len){ best = label; len = n.length; }
-  });
-  return best;
+function regionHeader(){
+  var f = (ND.metaFields || []).filter(function(f){ return normKey(f.key) === 'region'; })[0];
+  return f ? f.key : '';
 }
 
+/* ─── SVG icons ──────────────────────────────────────────────────────── */
+var ICON = {
+  users:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  seed:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12C12 8 9 5 4 5c0 5 3 8 8 7z"/><path d="M12 10c0-3 3-6 8-6 0 4-3 7-8 6z"/></svg>',
+  clock:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3.2 2"/></svg>',
+  check:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>',
+  chev:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
+};
+
+/* Ring gauge SVG */
+function ringSvg(p, size, stroke, trackColor, fillColor){
+  var r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  var off = c * (1 - Math.min(Math.max(p,0),100)/100);
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" style="transform:rotate(-90deg)">' +
+    '<circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" fill="none" stroke="'+trackColor+'" stroke-width="'+stroke+'"/>' +
+    '<circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" fill="none" stroke="'+fillColor+'" stroke-width="'+stroke+'" stroke-linecap="round" stroke-dasharray="'+c+'" stroke-dashoffset="'+off+'" style="transition:stroke-dashoffset .8s cubic-bezier(.22,1,.36,1)"/></svg>';
+}
 
 /* ═══════════════════════════════ Boot ══════════════════════════════════ */
 
@@ -1369,30 +1031,33 @@ function boot(){
 }
 
 function onData(data){
-  D = data;
-  DB = (data.buyerData && data.buyerData.ok) ? data.buyerData : null;
-  fieldByType = {}; buyerFieldByType = {}; nameHeader = null;
-  D.metaFields.forEach(function(f){
-    if (f.type !== 'text' && !fieldByType[f.type]) fieldByType[f.type] = f.key;
-    if (!nameHeader && normKey(f.key).indexOf('name') !== -1) nameHeader = f.key;
-  });
-  buyerNameHeader = DB ? DB.nameHeader : null;
-  if (DB) {
-    (DB.metaFields || []).forEach(function(f){
-      if (f.type !== 'text' && !buyerFieldByType[f.type]) buyerFieldByType[f.type] = f.key;
-    });
+  DATA = data;
+  NBFCS = {}; NBFC_ORDER = [];
+  (data.nbfcs || []).forEach(function(n){ NBFCS[n.id] = n; NBFC_ORDER.push(n.id); });
+
+  if (!NBFC_ORDER.length){
+    $('loading').style.display = 'none';
+    $('fatalMsg').textContent = 'No NBFC tabs were returned by the sheet.';
+    $('fatal').style.display = 'block';
+    return;
   }
+
+  // Preserve the active NBFC across refreshes; otherwise pick the first that loaded ok.
+  if (!activeNbfcId || !NBFCS[activeNbfcId]){
+    activeNbfcId = NBFC_ORDER.filter(function(id){ return NBFCS[id].ok; })[0] || NBFC_ORDER[0];
+  }
+
   $('loading').style.display = 'none';
   $('fatal').style.display = 'none';
   $('app').style.display = 'block';
-  $('sheetLink').href = D.sheetUrl; $('sheetLink').style.display = 'inline-flex';
-  var t = new Date(D.generatedAt);
-  $('syncLabel').innerHTML = 'Synced <b>' + t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + '</b> · ' + esc(D.trackerName);
-  renderOverview();
-  renderFilters();
-  renderSellers();
-  renderBuyers();
-  renderMatrix();
+  $('sheetLink').href = DATA.sheetUrl; $('sheetLink').style.display = 'inline-flex';
+  var t = new Date(DATA.generatedAt);
+  $('syncLabel').innerHTML = 'Synced <b>' + t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + '</b> · ' + esc(DATA.sheetName || 'Google Sheet');
+
+  applyNbfcTheme(activeNbfcId);
+  renderNbfcNav();
+  setNd();
+  renderAll();
 }
 
 function refresh(quiet){
@@ -1406,176 +1071,180 @@ function refresh(quiet){
   }).finally(function(){ btn.disabled = false; btn.style.opacity = 1; });
 }
 
+/* ═══════════════════════════ NBFC switching ════════════════════════════ */
+
+function applyNbfcTheme(id){
+  var th = themeFor(id), s = document.documentElement.style;
+  s.setProperty('--nc', th.nc);
+  s.setProperty('--nc-rgb', th.rgb);
+  s.setProperty('--nc-ring', th.ring);
+}
+
+function renderNbfcNav(){
+  $('nbfcNav').innerHTML = NBFC_ORDER.map(function(id){
+    var n = NBFCS[id], th = themeFor(id), on = id === activeNbfcId;
+    var style = on ? ' style="background:'+th.nc+';box-shadow:0 1px 3px rgba('+th.rgb+',.35)"' : '';
+    return '<button type="button" class="nbfc-pill'+(on?' on':'')+'" data-nbfc="'+id+'"'+style+'>' +
+      '<i class="nbfc-dot" style="background:'+th.nc+'"></i>' + esc(n.name) + '</button>';
+  }).join('');
+}
+
+function switchNbfc(id){
+  if (!NBFCS[id] || id === activeNbfcId) return;
+  activeNbfcId = id;
+  applyNbfcTheme(id);
+  renderNbfcNav();
+  setNd();
+  closeDrawers(); closeKpi();
+  renderAll();
+}
+
+function setNd(){
+  ND = NBFCS[activeNbfcId];
+  fieldByType = {}; nameHeader = ND.nameHeader || null;
+  (ND.metaFields || []).forEach(function(f){
+    if (f.type !== 'text' && !fieldByType[f.type]) fieldByType[f.type] = f.key;
+    if (!nameHeader && normKey(f.key).indexOf('name') !== -1) nameHeader = f.key;
+  });
+}
+
+function renderAll(){
+  if (!ND.ok){ renderNbfcError(); return; }
+  $('nbfcError').style.display = 'none';
+  document.querySelectorAll('.view').forEach(function(v){ v.style.removeProperty('display'); });
+  $('subnav').style.display = '';
+  renderHero();
+  renderKpis();
+  renderFilters();
+  renderOverview();
+  renderEntities();
+  renderMatrix();
+}
+
+function renderNbfcError(){
+  $('nbfcHero').innerHTML =
+    '<div class="nh-info"><div class="nh-eyebrow"><i></i>' + esc(ND.name) + '</div>' +
+    '<div class="nh-name">Unavailable</div>' +
+    '<div class="nh-sub">This NBFC tab could not be read from the sheet.</div></div>';
+  $('kpis').innerHTML = '';
+  $('subnav').style.display = 'none';
+  document.querySelectorAll('.view').forEach(function(v){ v.style.display = 'none'; });
+  $('nbfcErrorMsg').textContent = ND.error
+    ? ('“' + ND.name + '” tab: ' + ND.error)
+    : ('The “' + ND.name + '” tab could not be located or parsed.');
+  $('nbfcError').style.display = 'block';
+}
+
+/* ═══════════════════════════ Statistics ════════════════════════════════ */
+
+/* Bucket definitions (per NBFC tab):
+   • total     — every seller in the tab
+   • phase0    — onboarded but yet to submit any document (received === 0)
+   • pending   — has at least one document still awaited (pending > 0)
+   • completed — every required document received (pending === 0, applicable > 0)
+   Phase 0 is a subset of Pending; each card is an independent lens. */
+function computeStats(entities){
+  var s = {total:0, phase0:0, pending:0, completed:0, received:0, pendingDocs:0, na:0, applicable:0};
+  (entities || []).forEach(function(e){
+    s.total++;
+    s.received += e.received; s.pendingDocs += e.pending; s.na += e.na; s.applicable += e.applicable;
+    if (e.received === 0 && e.applicable > 0) s.phase0++;
+    if (e.pending > 0) s.pending++;
+    if (e.pending === 0 && e.applicable > 0) s.completed++;
+  });
+  s.completion = s.applicable ? Math.round(s.received / s.applicable * 1000) / 10 : 0;
+  return s;
+}
+
+function filterByKind(kind){
+  var ents = ND.entities || [];
+  if (kind === 'phase0')    return ents.filter(function(e){ return e.received === 0 && e.applicable > 0; });
+  if (kind === 'pending')   return ents.filter(function(e){ return e.pending > 0; });
+  if (kind === 'completed') return ents.filter(function(e){ return e.pending === 0 && e.applicable > 0; });
+  return ents.slice();
+}
+
+/* ═══════════════════════════ NBFC hero band ════════════════════════════ */
+
+function renderHero(){
+  var st = computeStats(ND.entities);
+  var th = themeFor(activeNbfcId);
+  $('nbfcHero').innerHTML =
+    '<div class="nh-info">' +
+      '<div class="nh-eyebrow"><i></i>NBFC · Document tracker</div>' +
+      '<div class="nh-name">' + esc(ND.name) + '</div>' +
+      '<div class="nh-sub">' + st.total + ' seller' + (st.total===1?'':'s') + ' submitting documents to ' + esc(ND.name) + '</div>' +
+      '<div class="nh-stats">' +
+        '<span><i style="background:var(--rk-green)"></i>' + st.received + ' documents received</span>' +
+        '<span><i style="background:var(--amber)"></i>' + st.pendingDocs + ' pending</span>' +
+        '<span><i style="background:var(--gray-dot)"></i>' + st.na + ' not applicable</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="nh-ring">' + ringSvg(st.completion, 120, 9, 'rgba(255,255,255,.16)', th.ring) +
+      '<div class="nh-ring-lbl"><b>' + Math.round(st.completion) + '%</b><span>received</span></div>' +
+    '</div>';
+}
+
+/* ═══════════════════════════ Hero KPI cards ════════════════════════════ */
+
+function renderKpis(){
+  var st = computeStats(ND.entities);
+  var cards = [
+    { kind:'total',     tone:'total',     icon:ICON.users, num:st.total,     label:'Total Sellers', sub:'All sellers in ' + esc(ND.name) },
+    { kind:'phase0',    tone:'phase0',    icon:ICON.seed,  num:st.phase0,    label:'Phase 0',        sub:'Yet to submit any document' },
+    { kind:'pending',   tone:'pending',   icon:ICON.clock, num:st.pending,   label:'Pending',        sub:'Documents still awaited' },
+    { kind:'completed', tone:'completed', icon:ICON.check, num:st.completed, label:'Completed',      sub:'All required docs received' }
+  ];
+  $('kpis').innerHTML = cards.map(function(c, i){
+    return '<button type="button" class="kpi kpi-' + c.tone + '" onclick="openKpi(\'' + c.kind + '\')" style="animation-delay:' + (i*60) + 'ms">' +
+      '<div class="kpi-top"><span class="kpi-ico">' + c.icon + '</span><span class="kpi-chev">' + ICON.chev + '</span></div>' +
+      '<div class="kpi-num" id="kpi-' + c.kind + '">0</div>' +
+      '<div class="kpi-label">' + c.label + '</div>' +
+      '<div class="kpi-sub">' + c.sub + '</div>' +
+    '</button>';
+  }).join('');
+  animCount($('kpi-total'), st.total);
+  animCount($('kpi-phase0'), st.phase0);
+  animCount($('kpi-pending'), st.pending);
+  animCount($('kpi-completed'), st.completed);
+}
+
 /* ═══════════════════════════ Overview view ═════════════════════════════ */
 
-function totals(){
-  var t = {sellers:0, received:0, pending:0, na:0, applicable:0, complete:0};
-  D.sellers.forEach(function(s){
-    t.sellers++; t.received += s.received; t.pending += s.pending; t.na += s.na;
-    t.applicable += s.applicable;
-    if (s.pending === 0 && s.applicable > 0) t.complete++;
-  });
-  t.completion = t.applicable ? (t.received / t.applicable) * 100 : 0;
-  return t;
-}
-
-function buyerTotals(){
-  var t = {buyers:0, received:0, pending:0, na:0, applicable:0, complete:0};
-  if (!DB || !DB.buyers) return t;
-  DB.buyers.forEach(function(b){
-    t.buyers++; t.received += b.received; t.pending += b.pending; t.na += b.na;
-    t.applicable += b.applicable;
-    if (b.pending === 0 && b.applicable > 0) t.complete++;
-  });
-  t.completion = t.applicable ? (t.received / t.applicable) * 100 : 0;
-  return t;
-}
-
-function ringSvg(p, size, stroke, trackColor, fillColor){
-  var r = (size - stroke) / 2, c = 2 * Math.PI * r;
-  var off = c * (1 - Math.min(Math.max(p,0),100)/100);
-  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" style="transform:rotate(-90deg)">' +
-    '<circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" fill="none" stroke="'+trackColor+'" stroke-width="'+stroke+'"/>' +
-    '<circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" fill="none" stroke="'+fillColor+'" stroke-width="'+stroke+'" stroke-linecap="round" stroke-dasharray="'+c+'" stroke-dashoffset="'+off+'" style="transition:stroke-dashoffset .8s cubic-bezier(.22,1,.36,1)"/></svg>';
-}
-
 function renderOverview(){
-  var t = totals();
-  var bt = buyerTotals();
-  var sl = D.sellerLists || {plastic: 0, metal: 0, plasticName: 'Plastic', metalName: 'Metal'};
-  var totalList = sl.plastic + sl.metal;
+  var docs = ND.docs || [], entities = ND.entities || [];
 
-  /* ── Hero band — Sellers half ── */
-  $('heroSeller').innerHTML =
-    '<div class="hh-main" onclick="openKpi(\'sellers-total\')" role="button" tabindex="0">' +
-      '<div class="hh-info">' +
-        '<div class="hh-eyebrow"><i style="background:#3DDC84"></i>Sellers</div>' +
-        '<div class="hh-big" id="kv0">' + totalList + '</div>' +
-        '<div class="hh-sub">giving documents to NBFC</div>' +
-        '<div class="hh-stats">' +
-          '<span><i style="background:#3DDC84"></i>' + t.received + ' received</span>' +
-          '<span><i style="background:#F59E0B"></i>' + t.pending + ' pending</span>' +
-        '</div>' +
-      '</div>' +
-      '<div class="hh-ring">' + ringSvg(t.completion, 112, 8, 'rgba(255,255,255,.16)', '#3DDC84') +
-        '<div class="hh-ring-lbl"><b>' + Math.round(t.completion) + '%</b><span>received</span></div>' +
-      '</div>' +
-    '</div>' +
-    '<div class="hh-pills">' +
-      hhPill('kv1', sl.plastic, 'Plastic', 'sellers-plastic', sl.plasticName || '', '#3DDC84') +
-      hhPill('kv2', sl.metal, 'Metal', 'sellers-metal', sl.metalName || '', '#B9C6D2') +
-      hhPill('kv3', t.sellers, 'In tracker', 'sellers-tracked', '', 'rgba(255,255,255,.4)') +
-      hhPill('kv4', t.complete, 'Completed', 'sellers-complete',
-             t.sellers ? Math.round(t.complete/t.sellers*100) + '% done' : '', '#3DDC84') +
-    '</div>';
-  animCount($('kv0'), totalList); animCount($('kv1'), sl.plastic);
-  animCount($('kv2'), sl.metal); animCount($('kv3'), t.sellers); animCount($('kv4'), t.complete);
+  /* Needs attention */
+  $('attnList').innerHTML = buildAttnCards(entities, docs);
+  var withPending = entities.filter(function(e){ return e.pending > 0; }).length;
+  $('attnHint').textContent = withPending ? (withPending + ' need follow-up') : 'All complete';
 
-  /* ── Hero band — Buyers half (Buyer_NBFC Tracker) ── */
-  var bTotal = bt.buyers;
-  var bl = (DB && DB.buyerLists) ? DB.buyerLists
-          : {plastic:0, metal:0, plasticName:'Plastic Buyers', metalName:'Metal Buyers',
-             plasticBuyers:[], metalBuyers:[], hasSplit:false, totalBuyers:0};
-  var blHasSplit = bl.hasSplit === true && (bl.plastic > 0 || bl.metal > 0);
-  var bListTotal = blHasSplit ? (bl.plastic + bl.metal) : bTotal;
-  var plasticSub = blHasSplit ? (bl.plasticName || 'Plastic Buyers')
-                 : (bTotal > 0 ? 'No material column detected in tracker' : 'No buyers in tracker yet');
-  var metalSub   = blHasSplit ? (bl.metalName || 'Metal Buyers')
-                 : (bTotal > 0 ? 'No material column detected in tracker' : 'No buyers in tracker yet');
-  $('heroBuyer').innerHTML =
-    '<div class="hh-main" onclick="openKpi(\'buyers-total\')" role="button" tabindex="0">' +
-      '<div class="hh-info">' +
-        '<div class="hh-eyebrow"><i style="background:#7DABFF"></i>Buyers</div>' +
-        '<div class="hh-big" id="bkv0">' + bListTotal + '</div>' +
-        '<div class="hh-sub">giving documents to NBFC</div>' +
-        '<div class="hh-stats">' +
-          '<span><i style="background:#7DABFF"></i>' + bt.received + ' received</span>' +
-          '<span><i style="background:#F59E0B"></i>' + bt.pending + ' pending</span>' +
-        '</div>' +
-      '</div>' +
-      '<div class="hh-ring">' + ringSvg(bt.completion, 112, 8, 'rgba(255,255,255,.16)', '#7DABFF') +
-        '<div class="hh-ring-lbl"><b>' + Math.round(bt.completion) + '%</b><span>received</span></div>' +
-      '</div>' +
-    '</div>' +
-    '<div class="hh-pills">' +
-      hhPill('bkv1', blHasSplit ? bl.plastic : '—', 'Plastic', blHasSplit ? 'buyers-plastic' : null, plasticSub, '#3DDC84') +
-      hhPill('bkv2', blHasSplit ? bl.metal : '—', 'Metal', blHasSplit ? 'buyers-metal' : null, metalSub, '#B9C6D2') +
-      hhPill('bkv3', bTotal, 'In tracker', 'buyers-total', '', 'rgba(255,255,255,.4)') +
-      hhPill('bkv4', bt.complete, 'Completed', 'buyers-complete',
-             bTotal ? Math.round(bt.complete/bTotal*100) + '% done' : '', '#7DABFF') +
-    '</div>';
-  animCount($('bkv0'), bListTotal);
-  if (blHasSplit){ animCount($('bkv1'), bl.plastic); animCount($('bkv2'), bl.metal); }
-  animCount($('bkv3'), bTotal);
-  animCount($('bkv4'), bt.complete);
+  /* Document status bars */
+  $('docBars').innerHTML = buildDocBars(docs, entities);
 
-  /* ── Seller doc bars ── */
-  $('docBars').innerHTML = buildDocBars(D.docs, D.sellers);
-  /* ── Buyer doc bars ── */
-  $('docBarsBuyer').innerHTML = DB ? buildDocBars(DB.docs, DB.buyers) : '<div class="empty-cell">No buyer data loaded.</div>';
+  /* Portfolio breakdown — Entity type (Proprietorship/Partnership/Private Limited) + Region */
+  var kinds = [];
+  if (fieldByType.entity) kinds.push(fieldByType.entity);
+  var rh = regionHeader();
+  if (rh) kinds.push(rh);
 
-  /* ── Seller attention ── */
-  var checkIcon = '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="1" y="1" width="8" height="8" rx="1.5"/></svg>';
-  $('attnList').innerHTML = buildAttnCards(D.sellers, D.docs, nameHeader, fieldByType.entity, checkIcon, 'openDetail', false, fieldByType.turnover);
-  /* ── Buyer attention ── */
-  $('attnListBuyer').innerHTML = DB ? buildAttnCards(DB.buyers, DB.docs, buyerNameHeader, DB.entityHeader, checkIcon, 'openBuyerDetail', true, buyerFieldByType.turnover) : '';
-
-  /* ── Facets (seller portfolio breakdown) ── */
-  $('facets').innerHTML = ['Region','Entity'].map(function(kind){
-    var header = kind === 'Region'
-      ? (D.metaFields.filter(function(f){ return normKey(f.key) === 'region'; })[0] || {}).key
-      : fieldByType.entity;
-    if (!header) return '';
+  $('facets').innerHTML = kinds.length ? kinds.map(function(header){
     var counts = {};
-    D.sellers.forEach(function(s){ var v = s.meta[header]||'—'; counts[v]=(counts[v]||0)+1; });
-    var facetTotal = D.sellers.length;
+    entities.forEach(function(e){ var v = e.meta[header] || '—'; counts[v] = (counts[v]||0)+1; });
+    var total = entities.length;
     var chips = Object.keys(counts).sort().map(function(k){
-      var p = facetTotal ? Math.round(counts[k] / facetTotal * 100) : 0;
-      return '<div class="facet-chip" style="flex-direction:column;align-items:stretch;gap:4px">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between">' +
-          '<span>' + esc(k) + '</span><b>' + counts[k] + '</b>' +
-        '</div>' +
+      var p = total ? Math.round(counts[k] / total * 100) : 0;
+      var enc = encodeURIComponent(header) + '::' + encodeURIComponent(k);
+      return '<button type="button" class="facet-chip" onclick="openFacet(\'' + enc + '\')">' +
+        '<div class="fc-top"><span>' + esc(k) + '</span><b>' + counts[k] + '</b></div>' +
         '<div class="facet-bar" style="width:' + p + '%"></div>' +
-      '</div>';
+      '</button>';
     }).join('');
-    return '<div class="facet"><h4>'+esc(header)+'</h4><div class="facet-row">'+chips+'</div></div>';
-  }).join('');
-
-  /* ── Buyer portfolio breakdown ── */
-  $('facets-buyer').innerHTML = (function(){
-    if (!DB || !DB.buyers || !DB.buyers.length)
-      return '<div class="empty-cell">No buyer data available.</div>';
-    var kinds = [];
-    if (DB.entityHeader) kinds.push(DB.entityHeader);
-    var rk = (DB.metaFields || []).filter(function(f){ return normKey(f.key) === 'region'; })[0];
-    if (rk) kinds.push(rk.key);
-    if (!kinds.length) return '<div class="empty-cell">No breakdown fields found.</div>';
-    var bTotal = DB.buyers.length;
-    return kinds.map(function(h){
-      var counts = {};
-      DB.buyers.forEach(function(b){ var v = (b.meta[h]||'—'); counts[v]=(counts[v]||0)+1; });
-      var chips = Object.keys(counts).sort().map(function(k){
-        var p = bTotal ? Math.round(counts[k] / bTotal * 100) : 0;
-        return '<div class="facet-chip" style="flex-direction:column;align-items:stretch;gap:4px">' +
-          '<div style="display:flex;align-items:center;justify-content:space-between">' +
-            '<span>' + esc(k) + '</span><b>' + counts[k] + '</b>' +
-          '</div>' +
-          '<div class="facet-bar" style="width:' + p + '%;background:var(--buyer)"></div>' +
-        '</div>';
-      }).join('');
-      return '<div class="facet"><h4>' + esc(h) + '</h4><div class="facet-row">' + chips + '</div></div>';
-    }).join('');
-  })();
+    return '<div class="facet"><h4>' + esc(header) + '</h4><div class="facet-row">' + chips + '</div></div>';
+  }).join('') : '<div class="empty-cell">No breakdown fields found.</div>';
 }
 
-function switchFacets(section){
-  var isBuyer = section === 'buyer';
-  $('facets').style.display = isBuyer ? 'none' : '';
-  $('facets-buyer').style.display = isBuyer ? '' : 'none';
-  $('facetTabs').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.ct === section); });
-}
-
-/* Shared: build stacked doc bars HTML from docs + entity rows */
+/* Stacked document bars from docs + entity rows */
 function buildDocBars(docs, rows){
   if (!docs || !docs.length) return '<div class="empty-cell">No document columns found.</div>';
   var data = docs.map(function(doc){
@@ -1597,25 +1266,25 @@ function buildDocBars(docs, rows){
   }).join('');
 }
 
-/* Shared: build attention cards HTML from any entity rows array */
-function buildAttnCards(rows, docs, nHeader, entityHeader, checkIcon, openFn, isBuyer, tvHeader){
+/* Attention cards from entity rows */
+function buildAttnCards(rows, docs){
   var withPending = (rows||[]).slice().sort(function(a,b){ return b.pending-a.pending||a.completion-b.completion; }).filter(function(r){ return r.pending>0; });
-  var avatarCls = isBuyer ? 'buyer-avatar' : 'avatar';
   if (!withPending.length) return '<div class="empty-cell" style="padding:24px 12px">All checklists are complete.</div>';
+  var entityHeader = ND.entityHeader || fieldByType.entity;
+  var tvHeader = fieldByType.turnover;
   return withPending.slice(0,6).map(function(r,i){
-    var nm = nHeader ? r.meta[nHeader] : ('Row '+r.row);
+    var nm = nameHeader ? r.meta[nameHeader] : ('Row '+r.row);
     var tv = tvHeader ? formatTurnover(r.meta[tvHeader]) : '';
     var ent = entityHeader ? (r.meta[entityHeader]||'') : '';
     var pendingNames = (docs||[]).filter(function(d){ return (r.docs[d.key]||{}).status==='pending'; })
       .map(function(d){ return d.key; }).join(' · ');
-    var clickAttr = openFn ? ' onclick="'+openFn+'('+r.row+')"' : '';
-    return '<div class="attn-card"'+clickAttr+' style="animation-delay:'+(i*55)+'ms">'+
+    return '<div class="attn-card" onclick="openDetail('+r.row+')" style="animation-delay:'+(i*55)+'ms">'+
       '<div class="attn-head">'+
-        '<div class="'+avatarCls+'">'+esc(initials(nm))+'</div>'+
+        '<div class="avatar">'+esc(initials(nm))+'</div>'+
         '<div class="attn-info">'+
           '<div class="attn-name">'+esc(nm)+'</div>'+
           '<div class="attn-type">'+esc(ent)+
-            (tv ? (ent ? ' · ' : '')+'<b class="attn-tv-txt'+(isBuyer?' buyer':'')+'">'+esc(tv)+'</b>' : '')+
+            (tv ? (ent ? ' · ' : '')+'<b class="attn-tv-txt">'+esc(tv)+'</b>' : '')+
           '</div>'+
         '</div>'+
         '<span class="attn-cnt">'+r.pending+' pending</span>'+
@@ -1626,41 +1295,27 @@ function buildAttnCards(rows, docs, nHeader, entityHeader, checkIcon, openFn, is
   }).join('');
 }
 
-function switchAttn(section){
-  var isBuyer = section === 'buyer';
-  $('attnList').style.display = isBuyer ? 'none' : '';
-  $('attnListBuyer').style.display = isBuyer ? '' : 'none';
-  $('attnTabs').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.ct === section); });
-}
-function switchDocBars(section){
-  var isBuyer = section === 'buyer';
-  $('docBars').style.display = isBuyer ? 'none' : '';
-  $('docBarsBuyer').style.display = isBuyer ? '' : 'none';
-  $('docBarsTabs').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.ct === section); });
+/* Portfolio facet → KPI drawer listing that category's sellers */
+function openFacet(enc){
+  var parts = enc.split('::');
+  var header = decodeURIComponent(parts[0]), value = decodeURIComponent(parts[1]);
+  var list = (ND.entities || []).filter(function(e){ return (e.meta[header] || '—') === value; });
+  openKpiDrawer(value, list.length + ' seller' + (list.length===1?'':'s') + ' · ' + header, list, null);
 }
 
-/* One stat pill inside the hero band. kind=null renders an inert pill. */
-function hhPill(id, val, lbl, kind, title, dot){
-  var idAttr = id ? ' id="' + id + '"' : '';
-  var clickAttr = kind ? ' onclick="openKpi(\'' + kind + '\')"' : ' disabled';
-  var titleAttr = title ? ' title="' + esc(title) + '"' : '';
-  return '<button type="button" class="hh-pill"' + clickAttr + titleAttr + '>' +
-    '<b' + idAttr + '>' + String(val == null ? '—' : val) + '</b>' +
-    '<span>' + (dot ? '<i style="background:' + dot + '"></i>' : '') + esc(lbl) + '</span></button>';
-}
-
-/* ═══════════════════════════ Sellers view ══════════════════════════════ */
+/* ═══════════════════════════ All sellers table ═════════════════════════ */
 
 function renderFilters(){
   var ent = {}, reg = {};
-  var regionHeader = (D.metaFields.filter(function(f){ return normKey(f.key) === 'region'; })[0] || {}).key;
-  D.sellers.forEach(function(s){
-    if (fieldByType.entity && s.meta[fieldByType.entity]) ent[s.meta[fieldByType.entity]] = 1;
-    if (regionHeader && s.meta[regionHeader]) reg[s.meta[regionHeader]] = 1;
+  var rh = regionHeader();
+  (ND.entities || []).forEach(function(e){
+    if (fieldByType.entity && e.meta[fieldByType.entity]) ent[e.meta[fieldByType.entity]] = 1;
+    if (rh && e.meta[rh]) reg[e.meta[rh]] = 1;
   });
   fillSelect($('fltEntity'), Object.keys(ent).sort(), 'All entity types');
   fillSelect($('fltRegion'), Object.keys(reg).sort(), 'All regions');
-  $('fltRegion').dataset.header = regionHeader || '';
+  $('fltRegion').dataset.header = rh || '';
+  $('fltRegion').style.display = rh ? '' : 'none';
 }
 function fillSelect(sel, opts, first){
   var cur = sel.value;
@@ -1669,127 +1324,76 @@ function fillSelect(sel, opts, first){
   sel.value = opts.indexOf(cur) > -1 ? cur : '';
 }
 
-function renderSellers(){
+function renderEntities(){
+  var entities = ND.entities || [];
   var q = $('q').value.trim().toLowerCase();
   var fe = $('fltEntity').value, fr = $('fltRegion').value, fs = $('fltStatus').value;
-  var regionHeader = $('fltRegion').dataset.header;
+  var rh = $('fltRegion').dataset.header;
+  var hasGst = !!fieldByType.gst, hasTv = !!fieldByType.turnover;
 
-  $('sellersHead').innerHTML = '<tr><th>#</th><th>Seller</th><th>GST</th><th>Entity type</th>' +
-    '<th>Turnover</th><th>Completion</th><th>Pending</th><th></th></tr>';
+  $('entitiesHead').innerHTML = '<tr><th>#</th><th>Seller</th>' +
+    (hasGst ? '<th>GST</th>' : '') +
+    '<th>Entity type</th>' + (hasTv ? '<th>Turnover</th>' : '') +
+    '<th>Completion</th><th>Status</th></tr>';
 
-  var rows = D.sellers.filter(function(s){
-    if (fe && (s.meta[fieldByType.entity] || '') !== fe) return false;
-    if (fr && regionHeader && (s.meta[regionHeader] || '') !== fr) return false;
-    if (fs === 'complete' && s.pending !== 0) return false;
-    if (fs === 'pending' && s.pending === 0) return false;
+  var rows = entities.filter(function(e){
+    if (fe && (e.meta[fieldByType.entity] || '') !== fe) return false;
+    if (fr && rh && (e.meta[rh] || '') !== fr) return false;
+    if (fs === 'complete' && !(e.pending === 0 && e.applicable > 0)) return false;
+    if (fs === 'pending' && e.pending === 0) return false;
+    if (fs === 'phase0' && !(e.received === 0 && e.applicable > 0)) return false;
     if (q){
-      var hay = Object.keys(s.meta).map(function(k){ return s.meta[k]; }).join(' ').toLowerCase();
+      var hay = Object.keys(e.meta).map(function(k){ return e.meta[k]; }).join(' ').toLowerCase();
       if (hay.indexOf(q) === -1) return false;
     }
     return true;
   });
 
-  /* secondary line: every plain-text meta field except the name itself */
-  var subFields = D.metaFields.filter(function(f){
-    return f.type === 'text' && f.key !== nameHeader;
-  });
+  var subFields = (ND.metaFields || []).filter(function(f){ return f.type === 'text' && f.key !== nameHeader; });
+  var colCount = 4 + (hasGst?1:0) + (hasTv?1:0);
 
-  $('sellersBody').innerHTML = rows.length ? rows.map(function(s){
-    var nm = nameHeader ? s.meta[nameHeader] : ('Row ' + s.row);
-    var sub = subFields.map(function(f){ return s.meta[f.key]; }).filter(Boolean).join(' · ');
-    var tv = fieldByType.turnover ? formatTurnover(s.meta[fieldByType.turnover]) : '';
-    return '<tr onclick="openDetail(' + s.row + ')">' +
-      '<td style="color:var(--ink-3)">' + esc(s.serial) + '</td>' +
+  $('entitiesBody').innerHTML = rows.length ? rows.map(function(e){
+    var nm = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
+    var sub = subFields.map(function(f){ return e.meta[f.key]; }).filter(Boolean).join(' · ');
+    var tv = hasTv ? formatTurnover(e.meta[fieldByType.turnover]) : '';
+    return '<tr onclick="openDetail(' + e.row + ')">' +
+      '<td style="color:var(--ink-3)">' + esc(e.serial) + '</td>' +
       '<td><div class="cell-name">' + esc(nm) + '</div>' +
         (sub ? '<div class="cell-sub">' + esc(sub) + '</div>' : '') + '</td>' +
-      '<td class="gst">' + esc(s.meta[fieldByType.gst] || '—') + '</td>' +
-      '<td>' + esc(s.meta[fieldByType.entity] || '—') + '</td>' +
-      '<td>' + (tv ? '<span class="tv-tag seller">'+esc(tv)+'</span>' : '<span style="color:var(--ink-3)">—</span>') + '</td>' +
-      '<td><div class="prog-cell"><div class="track"><div class="fill" style="width:' + s.completion + '%"></div></div><span>' + pct(s.completion) + '</span></div></td>' +
-      '<td>' + (s.pending
-          ? '<span class="chip warn">' + s.pending + ' pending</span>'
-          : '<span class="chip ok">Complete</span>') + '</td>' +
-      '<td onclick="event.stopPropagation();openForm(' + s.row + ')">' +
-        '<span class="row-edit" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></span></td>' +
+      (hasGst ? '<td class="gst">' + esc(e.meta[fieldByType.gst] || '—') + '</td>' : '') +
+      '<td>' + esc((fieldByType.entity && e.meta[fieldByType.entity]) || '—') + '</td>' +
+      (hasTv ? '<td>' + (tv ? '<span class="tv-tag">'+esc(tv)+'</span>' : '<span style="color:var(--ink-3)">—</span>') + '</td>' : '') +
+      '<td><div class="prog-cell"><div class="track"><div class="fill" style="width:' + e.completion + '%"></div></div><span>' + pct(e.completion) + '</span></div></td>' +
+      '<td>' + statusChip(e) + '</td>' +
     '</tr>';
-  }).join('') : '<tr><td colspan="8" class="empty-cell">No sellers match the current filters.</td></tr>';
-  var sc = $('sellersCount');
-  if (sc) sc.textContent = rows.length === D.sellers.length
+  }).join('') : '<tr><td colspan="' + colCount + '" class="empty-cell">No sellers match the current filters.</td></tr>';
+
+  var sc = $('entitiesCount');
+  if (sc) sc.textContent = rows.length === entities.length
     ? rows.length + ' seller' + (rows.length === 1 ? '' : 's')
-    : rows.length + ' of ' + D.sellers.length;
+    : rows.length + ' of ' + entities.length;
 }
 
-/* ═══════════════════════════ Buyers view ═══════════════════════════════ */
-
-function renderBuyers(){
-  if (!DB || !DB.buyers){
-    $('buyersHead').innerHTML = '';
-    $('buyersBody').innerHTML = '<tr><td colspan="6" class="empty-cell">Buyer_NBFC Tracker tab not found or empty.</td></tr>';
-    return;
-  }
-
-  /* Populate entity filter */
-  var ents = {};
-  DB.buyers.forEach(function(b){ if (DB.entityHeader && b.meta[DB.entityHeader]) ents[b.meta[DB.entityHeader]] = 1; });
-  var fltEnt = $('fltBuyerEntity');
-  var curEnt = fltEnt.value;
-  fltEnt.innerHTML = '<option value="">All entity types</option>' +
-    Object.keys(ents).sort().map(function(o){ return '<option'+(o===curEnt?' selected':'')+'>'+esc(o)+'</option>'; }).join('');
-
-  var q = ($('qBuyer').value||'').trim().toLowerCase();
-  var fe = $('fltBuyerEntity').value;
-  var fs = $('fltBuyerStatus').value;
-
-  $('buyersHead').innerHTML = '<tr><th>#</th><th>Buyer</th><th>Entity type</th>' +
-    '<th>Turnover</th><th>Completion</th><th>Pending</th><th></th></tr>';
-
-  var rows = DB.buyers.filter(function(b){
-    if (fe && DB.entityHeader && (b.meta[DB.entityHeader]||'') !== fe) return false;
-    if (fs === 'complete' && b.pending !== 0) return false;
-    if (fs === 'pending' && b.pending === 0) return false;
-    if (q){
-      var hay = Object.keys(b.meta).map(function(k){ return b.meta[k]; }).join(' ').toLowerCase();
-      if (hay.indexOf(q) === -1) return false;
-    }
-    return true;
-  });
-
-  var subFields = (DB.metaFields||[]).filter(function(f){ return f.type === 'text' && f.key !== buyerNameHeader; });
-
-  $('buyersBody').innerHTML = rows.length ? rows.map(function(b){
-    var nm = buyerNameHeader ? b.meta[buyerNameHeader] : ('Row '+b.row);
-    var sub = subFields.map(function(f){ return b.meta[f.key]; }).filter(Boolean).join(' · ');
-    var entityVal = DB.entityHeader ? (b.meta[DB.entityHeader]||'—') : '—';
-    var btv = buyerFieldByType.turnover ? formatTurnover(b.meta[buyerFieldByType.turnover]) : '';
-    return '<tr onclick="openBuyerDetail('+b.row+')" style="cursor:pointer">' +
-      '<td style="color:var(--ink-3)">'+esc(b.serial)+'</td>'+
-      '<td><div class="cell-name">'+esc(nm)+'</div>'+(sub?'<div class="cell-sub">'+esc(sub)+'</div>':'')+'</td>'+
-      '<td>'+esc(entityVal)+'</td>'+
-      '<td>'+(btv?'<span class="tv-tag buyer">'+esc(btv)+'</span>':'<span style="color:var(--ink-3)">—</span>')+'</td>'+
-      '<td><div class="prog-cell"><div class="track"><div class="fill" style="width:'+b.completion+'%;background:var(--buyer)"></div></div><span>'+pct(b.completion)+'</span></div></td>'+
-      '<td>'+(b.pending?'<span class="chip warn">'+b.pending+' pending</span>':'<span class="chip ok">Complete</span>')+'</td>'+
-      '<td></td>'+
-    '</tr>';
-  }).join('') : '<tr><td colspan="7" class="empty-cell">No buyers match the current filters.</td></tr>';
-  var bc = $('buyersCount');
-  if (bc) bc.textContent = rows.length === DB.buyers.length
-    ? rows.length + ' buyer' + (rows.length === 1 ? '' : 's')
-    : rows.length + ' of ' + DB.buyers.length;
+function statusChip(e){
+  if (e.pending === 0 && e.applicable > 0) return '<span class="chip ok">Completed</span>';
+  if (e.received === 0 && e.applicable > 0) return '<span class="chip mut">Phase 0</span>';
+  if (e.pending > 0) return '<span class="chip warn">' + e.pending + ' pending</span>';
+  return '<span class="chip mut">—</span>';
 }
 
-/* ═══════════════════════════ Matrix view ═══════════════════════════════ */
+/* ═══════════════════════════ Document matrix ═══════════════════════════ */
 
-/* Shared: entity × document status grid for any rows/docs pair. */
-function buildMatrix(rows, docsArr, nHeader, openFn, colLabel, emptyMsg){
-  var head = '<thead><tr><th>' + colLabel + '</th>' + docsArr.map(function(d){
+function renderMatrix(){
+  var rows = ND.entities || [], docsArr = ND.docs || [];
+  var head = '<thead><tr><th>Seller</th>' + docsArr.map(function(d){
     return '<th title="' + esc(d.key) + '">' + esc(docShort(d.key)) + '</th>';
   }).join('') + '</tr></thead>';
 
   var body = '<tbody>' + rows.map(function(s){
-    var nm = nHeader ? s.meta[nHeader] : ('Row ' + s.row);
-    return '<tr><th onclick="' + openFn + '(' + s.row + ')" style="cursor:pointer" title="' + esc(nm) + '">' + esc(nm) + '</th>' +
+    var nm = nameHeader ? s.meta[nameHeader] : ('Row ' + s.row);
+    return '<tr><th onclick="openDetail(' + s.row + ')" title="' + esc(nm) + '">' + esc(nm) + '</th>' +
       docsArr.map(function(d){
-        var cell = s.docs[d.key] || {status:'pending', raw:'', note:''};
+        var cell = s.docs[d.key] || {status:'pending', note:''};
         var cls = cell.status === 'received' ? 'rec' : cell.status === 'na' ? 'na' : 'pen';
         var tipTxt = '<b>' + esc(nm) + '</b><br>' + esc(d.key) + '<br><span class="t-sub">' +
           (cell.status === 'received' ? 'Received' : cell.status === 'na' ? 'Not applicable' : 'Pending') +
@@ -1798,44 +1402,121 @@ function buildMatrix(rows, docsArr, nHeader, openFn, colLabel, emptyMsg){
       }).join('') + '</tr>';
   }).join('') + '</tbody>';
 
-  return rows.length ? head + body
-    : head + '<tbody><tr><td colspan="' + (docsArr.length+1) + '" class="empty-cell">' + emptyMsg + '</td></tr></tbody>';
+  $('matrixTable').innerHTML = rows.length ? head + body
+    : head + '<tbody><tr><td colspan="' + (docsArr.length+1) + '" class="empty-cell">No sellers in this tab yet.</td></tr></tbody>';
 }
 
-function renderMatrix(){
-  $('matrixTable').innerHTML = buildMatrix(
-    D.sellers, D.docs, nameHeader, 'openDetail', 'Seller', 'No sellers yet — add the first one.');
-  $('matrixTableBuyer').innerHTML = DB
-    ? buildMatrix(DB.buyers, DB.docs || [], buyerNameHeader, 'openBuyerDetail', 'Buyer', 'No buyers yet — add the first one.')
-    : '<thead><tr><th>Buyer</th></tr></thead><tbody><tr><td class="empty-cell">Buyer_NBFC Tracker tab not found or empty.</td></tr></tbody>';
+/* ═══════════════════════════ KPI drill-down ════════════════════════════ */
+
+function openKpi(kind){
+  var list = filterByKind(kind);
+  var titles = {
+    total:     'All sellers',
+    phase0:    'Phase 0 — yet to submit',
+    pending:   'Pending documents',
+    completed: 'Completed'
+  };
+  var subs = {
+    total:     list.length + ' seller' + (list.length===1?'':'s') + ' in ' + ND.name,
+    phase0:    list.length + ' onboarded, no documents received yet',
+    pending:   list.length + ' seller' + (list.length===1?'':'s') + ' with documents still awaited',
+    completed: list.length + ' seller' + (list.length===1?'':'s') + ' with every required document received'
+  };
+  openKpiDrawer(titles[kind], subs[kind], list, kind);
 }
 
-function switchMatrix(section){
-  var isBuyer = section === 'buyer';
-  $('matrixWrapSeller').style.display = isBuyer ? 'none' : '';
-  $('matrixWrapBuyer').style.display = isBuyer ? '' : 'none';
-  $('matrixTabs').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.ct === section); });
+function openKpiDrawer(title, sub, list, kind){
+  $('kpiDrTitle').textContent = title;
+  $('kpiDrSub').textContent = sub;
+
+  var agg = computeStats(list);
+  $('kpiSumbar').innerHTML =
+    '<span><i style="background:var(--rk-green)"></i><b>' + agg.received + '</b> received</span>' +
+    '<span><i style="background:var(--amber)"></i><b>' + agg.pendingDocs + '</b> pending</span>' +
+    '<span><i style="background:var(--gray-dot)"></i><b>' + agg.na + '</b> N/A</span>' +
+    '<span style="margin-left:auto"><b>' + Math.round(agg.completion) + '%</b> received</span>';
+
+  $('kpiDrBody').innerHTML = buildKpiTable(list, kind);
+
+  $('kpiScrim').classList.add('on');
+  $('kpiDrawer').classList.add('on');
+  $('kpiDrawer').setAttribute('aria-hidden','false');
+  document.body.style.overflow = 'hidden';
 }
 
-/* ═══════════════════════ Seller detail drawer ══════════════════════════ */
+function buildKpiTable(list, kind){
+  if (!list || !list.length) return '<div class="empty-cell">No sellers in this group.</div>';
+  var entityHeader = fieldByType.entity;
+  var hasTv = !!fieldByType.turnover;
+  var showPending = kind === 'pending';
 
-function sellerByRow(row){
-  return D.sellers.filter(function(s){ return s.row === row; })[0] || null;
+  var head = '<thead><tr><th>#</th><th>Seller</th>' +
+    (entityHeader ? '<th>Entity type</th>' : '') +
+    (hasTv ? '<th>Turnover</th>' : '') +
+    (showPending ? '<th>Pending</th>' : '') +
+    '<th>Completion</th></tr></thead>';
+
+  var sorted = list.slice().sort(function(a,b){
+    if (showPending) return b.pending - a.pending || a.completion - b.completion;
+    return b.completion - a.completion;
+  });
+
+  var subHeader = regionHeader() || (fieldByType.gst || '');
+  var body = '<tbody>' + sorted.map(function(e){
+    var nm = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
+    var pendingNames = showPending
+      ? (ND.docs||[]).filter(function(d){ return (e.docs[d.key]||{}).status==='pending'; }).map(function(d){ return d.key; }).join(' · ')
+      : '';
+    var sub = showPending ? pendingNames : (subHeader ? (e.meta[subHeader] || '') : '');
+    var tv = hasTv ? formatTurnover(e.meta[fieldByType.turnover]) : '';
+    return '<tr onclick="fromKpiToDetail(' + e.row + ')">' +
+      '<td style="color:var(--ink-3)">' + esc(e.serial) + '</td>' +
+      '<td><div class="cell-name">' + esc(nm) + '</div>' +
+        (sub ? '<div class="cell-sub" title="'+esc(sub)+'" style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(sub) + '</div>' : '') +
+      '</td>' +
+      (entityHeader ? '<td>' + esc(e.meta[entityHeader] || '—') + '</td>' : '') +
+      (hasTv ? '<td>' + (tv ? '<span class="tv-tag">'+esc(tv)+'</span>' : '<span style="color:var(--ink-3)">—</span>') + '</td>' : '') +
+      (showPending ? '<td><span class="chip warn">' + e.pending + '</span></td>' : '') +
+      '<td><div class="prog-cell" style="min-width:120px"><div class="track"><div class="fill" style="width:' + e.completion + '%"></div></div><span>' + pct(e.completion) + '</span></div></td>' +
+    '</tr>';
+  }).join('') + '</tbody>';
+
+  return '<div class="tbl-wrap"><table class="tbl" style="min-width:520px">' + head + body + '</table></div>';
+}
+
+function fromKpiToDetail(row){
+  closeKpi();
+  setTimeout(function(){ openDetail(row); }, 60);
+}
+
+function closeKpi(){
+  $('kpiScrim').classList.remove('on');
+  $('kpiDrawer').classList.remove('on');
+  $('kpiDrawer').setAttribute('aria-hidden','true');
+  if (!$('detailDrawer').classList.contains('on')) document.body.style.overflow = '';
+}
+
+/* ═══════════════════════════ Detail drawer ═════════════════════════════ */
+
+function entityByRow(row){
+  return (ND.entities || []).filter(function(e){ return e.row === row; })[0] || null;
 }
 
 function openDetail(row){
-  var s = sellerByRow(row);
-  if (!s) return;
-  var nm = nameHeader ? s.meta[nameHeader] : ('Row ' + s.row);
+  var e = entityByRow(row);
+  if (!e) return;
+  var nm = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
   $('dName').textContent = nm;
-  $('dMeta').innerHTML = D.metaFields
-    .filter(function(f){ return f.key !== nameHeader && s.meta[f.key]; })
-    .map(function(f){ return '<span>' + esc(s.meta[f.key]) + '</span>'; })
-    .join('<span style="color:var(--line)">·</span>');
+  $('dMeta').innerHTML =
+    '<span class="chip brand" style="margin-right:2px">' + esc(ND.name) + '</span>' +
+    (ND.metaFields || [])
+      .filter(function(f){ return f.key !== nameHeader && e.meta[f.key]; })
+      .map(function(f){ return '<span>' + esc(e.meta[f.key]) + '</span>'; })
+      .join('<span style="color:var(--line)">·</span>');
 
   var groups = {pending: [], received: [], na: []};
-  D.docs.forEach(function(d){
-    var cell = s.docs[d.key] || {status:'pending', note:''};
+  (ND.docs || []).forEach(function(d){
+    var cell = e.docs[d.key] || {status:'pending', note:''};
     groups[cell.status === 'received' ? 'received' : cell.status === 'na' ? 'na' : 'pending']
       .push({key: d.key, note: cell.note, driveUrl: cell.driveUrl || ''});
   });
@@ -1861,685 +1542,61 @@ function openDetail(row){
       }).join('') + '</div>';
   }
 
-  var sTurnover = fieldByType.turnover ? formatTurnover(s.meta[fieldByType.turnover]) : '';
+  var tv = fieldByType.turnover ? formatTurnover(e.meta[fieldByType.turnover]) : '';
   $('dBody').innerHTML =
     '<div class="detail-hero">' +
       '<div style="position:relative;width:74px;height:74px;flex:none">' +
-        ringSvg(s.completion, 74, 8, 'var(--line-2)', 'var(--rk-green)') +
-        '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px">' + Math.round(s.completion) + '%</div>' +
+        ringSvg(e.completion, 74, 8, 'var(--line-2)', 'var(--rk-green)') +
+        '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px">' + Math.round(e.completion) + '%</div>' +
       '</div>' +
       '<div class="nums">' +
-        '<div class="dh-num"><div class="v" style="color:var(--rk-green-ink)">' + s.received + '</div><div class="k">Received</div></div>' +
-        '<div class="dh-num"><div class="v" style="color:' + (s.pending ? 'var(--amber)' : 'var(--ink)') + '">' + s.pending + '</div><div class="k">Pending</div></div>' +
-        '<div class="dh-num"><div class="v" style="color:var(--ink-3)">' + s.na + '</div><div class="k">N/A</div></div>' +
-        (sTurnover ? '<div class="dh-num"><div class="v" style="color:var(--rk-green-ink);font-size:15px">' + esc(sTurnover) + '</div><div class="k">Turnover</div></div>' : '') +
+        '<div class="dh-num"><div class="v" style="color:var(--rk-green-ink)">' + e.received + '</div><div class="k">Received</div></div>' +
+        '<div class="dh-num"><div class="v" style="color:' + (e.pending ? 'var(--amber)' : 'var(--ink)') + '">' + e.pending + '</div><div class="k">Pending</div></div>' +
+        '<div class="dh-num"><div class="v" style="color:var(--ink-3)">' + e.na + '</div><div class="k">N/A</div></div>' +
+        (tv ? '<div class="dh-num"><div class="v" style="color:var(--nc);font-size:15px">' + esc(tv) + '</div><div class="k">Turnover</div></div>' : '') +
       '</div>' +
     '</div>' +
     group('Pending documents', groups.pending, 'pending') +
     group('Received', groups.received, 'received') +
     group('Not applicable for this entity', groups.na, 'na');
 
-  $('dEditBtn').onclick = function(){ closeDrawers(); openForm(row); };
+  var sheetBtn = $('dSheetBtn');
+  if (DATA && DATA.sheetUrl){ sheetBtn.href = DATA.sheetUrl; sheetBtn.style.display = 'inline-flex'; }
+  else sheetBtn.style.display = 'none';
+
   openDrawer('detailDrawer');
 }
 
-/* ══════════════════════════ Buyer detail drawer ════════════════════════ */
-
-function buyerByRow(row){
-  return DB && DB.buyers ? DB.buyers.filter(function(b){ return b.row === row; })[0] || null : null;
-}
-
-function openBuyerDetail(row){
-  if (!DB) return;
-  var b = buyerByRow(row);
-  if (!b) return;
-  var nm = buyerNameHeader ? b.meta[buyerNameHeader] : ('Row ' + b.row);
-  $('bdName').textContent = nm;
-  $('bdMeta').innerHTML = (DB.metaFields || [])
-    .filter(function(f){ return f.key !== buyerNameHeader && b.meta[f.key]; })
-    .map(function(f){ return '<span>' + esc(b.meta[f.key]) + '</span>'; })
-    .join('<span style="color:var(--line)">·</span>');
-
-  var groups = {pending: [], received: [], na: []};
-  (DB.docs || []).forEach(function(d){
-    var cell = b.docs[d.key] || {status:'pending', note:''};
-    groups[cell.status === 'received' ? 'received' : cell.status === 'na' ? 'na' : 'pending']
-      .push({key: d.key, note: cell.note, driveUrl: cell.driveUrl || ''});
-  });
-
-  var ICO = {
-    pending: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2.1" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>',
-    received:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--buyer)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
-    na:      '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--gray-dot)" stroke-width="2.1" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>'
-  };
-  function bgroup(title, arr, kind){
-    if (!arr.length) return '';
-    return '<div class="doc-group"><h4>' + title + ' <span class="chip ' +
-      (kind==='pending'?'warn':kind==='received'?'ok':'mut') + '">' + arr.length + '</span></h4>' +
-      arr.map(function(d){
-        var drvHtml = d.driveUrl
-          ? '<a href="' + esc(d.driveUrl) + '" target="_blank" rel="noopener" class="drive-link" style="display:inline-flex;margin-top:5px">' +
-              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>View in Drive</a>'
-          : '';
-        return '<div class="doc-item"><span class="di-ico">' + ICO[kind] + '</span>' +
-          '<div style="flex:1;min-width:0"><div class="di-name">' + esc(d.key) + '</div>' +
-          (d.note ? '<div class="di-note">' + esc(d.note) + '</div>' : '') +
-          drvHtml + '</div></div>';
-      }).join('') + '</div>';
-  }
-
-  var bTurnover = buyerFieldByType.turnover ? formatTurnover(b.meta[buyerFieldByType.turnover]) : '';
-  $('bdBody').innerHTML =
-    '<div class="detail-hero">' +
-      '<div style="position:relative;width:74px;height:74px;flex:none">' +
-        ringSvg(b.completion, 74, 8, 'var(--line-2)', 'var(--buyer)') +
-        '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px">' + Math.round(b.completion) + '%</div>' +
-      '</div>' +
-      '<div class="nums">' +
-        '<div class="dh-num"><div class="v" style="color:var(--buyer)">' + b.received + '</div><div class="k">Received</div></div>' +
-        '<div class="dh-num"><div class="v" style="color:' + (b.pending ? 'var(--amber)' : 'var(--ink)') + '">' + b.pending + '</div><div class="k">Pending</div></div>' +
-        '<div class="dh-num"><div class="v" style="color:var(--ink-3)">' + b.na + '</div><div class="k">N/A</div></div>' +
-        (bTurnover ? '<div class="dh-num"><div class="v" style="color:var(--buyer-ink);font-size:15px">' + esc(bTurnover) + '</div><div class="k">Turnover</div></div>' : '') +
-      '</div>' +
-    '</div>' +
-    bgroup('Pending documents', groups.pending, 'pending') +
-    bgroup('Received', groups.received, 'received') +
-    bgroup('Not applicable for this entity', groups.na, 'na');
-
-  $('bdEditBtn').onclick = function(){ closeDrawers(); openBuyerForm(row); };
-  openDrawer('buyerDetailDrawer');
-}
-
-/* ═══════════════════════════ Buyer form drawer ══════════════════════════ */
-
-function openBuyerForm(row){
-  if (!DB) return;
-  editingBuyer = row ? buyerByRow(row) : null;
-  $('bfTitle').textContent = editingBuyer ? 'Update buyer' : 'Add buyer';
-  $('bfSub').textContent = editingBuyer
-    ? 'Editing row ' + editingBuyer.row + ' of Buyer_NBFC Tracker'
-    : 'Appends a new row to Buyer_NBFC Tracker in the sheet\'s exact format';
-  $('bfAlert').classList.remove('on');
-
-  $('bfMetaFields').innerHTML = DB.metaFields.map(function(f, i){
-    var val = editingBuyer ? (editingBuyer.meta[f.key] || '') : '';
-    var isName = f.key === buyerNameHeader;
-    var label = esc(f.key) + (isName || f.type === 'entity' ? ' <span class="req">*</span>' : '');
-    var full = isName ? ' full' : '';
-    if (f.type === 'entity'){
-      var opts = DB.entityColumns.map(function(o){
-        return '<option' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>';
-      }).join('');
-      return '<div class="field' + full + '" data-key="' + esc(f.key) + '"><label>' + label + '</label>' +
-        '<select id="bfmf' + i + '" onchange="onBuyerEntityChange()"><option value=""' + (val ? '' : ' selected') + ' disabled>Select entity type…</option>' + opts + '</select>' +
-        '<span class="err"></span></div>';
-    }
-    if (f.type === 'date'){
-      return '<div class="field' + full + '" data-key="' + esc(f.key) + '" data-orig="' + esc(val) + '"><label>' + label + '</label>' +
-        '<input id="bfmf' + i + '" type="date" value="' + esc(sheetDateToIso(val)) + '">' +
-        '<span class="err"></span></div>';
-    }
-    if (f.type === 'turnover'){
-      return '<div class="field' + full + '" data-key="' + esc(f.key) + '"><label>' + label + '</label>' +
-        '<div style="display:flex;align-items:center;gap:6px">' +
-          '<span style="font-size:16px;font-weight:700;color:var(--buyer-ink);flex:none;line-height:40px">₹</span>' +
-          '<input id="bfmf' + i + '" type="text" value="' + esc(val) + '" placeholder="e.g. 2.5 Cr  or  50 L" autocomplete="off" style="flex:1">' +
-        '</div>' +
-        '<span class="err"></span></div>';
-    }
-    return '<div class="field' + full + '" data-key="' + esc(f.key) + '"><label>' + label + '</label>' +
-      '<input id="bfmf' + i + '" type="text" value="' + esc(val) + '" autocomplete="off">' +
-      '<span class="err"></span></div>';
-  }).join('');
-
-  /* Always show Annual Turnover field for buyers too */
-  if (!buyerFieldByType.turnover) {
-    var existingTvB = editingBuyer ? (editingBuyer.meta['Annual Turnover'] || editingBuyer.meta['Turnover'] || '') : '';
-    $('bfMetaFields').innerHTML +=
-      '<div class="field" data-key="Turnover">' +
-        '<label>Annual Turnover</label>' +
-        '<div style="display:flex;align-items:center;gap:6px">' +
-          '<span style="font-size:16px;font-weight:700;color:var(--buyer-ink);flex:none;line-height:40px">₹</span>' +
-          '<input id="mfTurnoverBuyer" type="text" value="' + esc(existingTvB) + '" placeholder="e.g. 2.5 Cr or 50 L" autocomplete="off" style="flex:1">' +
-        '</div>' +
-        '<span class="err"></span>' +
-      '</div>';
-  }
-
-  _buyerFormDocUrls = {};
-  _removedBuyerFormDocUrls = {};
-  if (editingBuyer) {
-    DB.docs.forEach(function(d){
-      var cell = editingBuyer.docs[d.key] || {};
-      if (cell.driveUrl) _buyerFormDocUrls[d.key] = cell.driveUrl;
-    });
-  }
-
-  $('bfDocFields').innerHTML = DB.docs.map(function(d, i){
-    var cell = editingBuyer ? (editingBuyer.docs[d.key] || {}) : {};
-    var st = cell.status || 'pending';
-    var note = cell.note || '';
-    return '<div class="doc-field" id="bdf' + i + '" data-key="' + esc(d.key) + '" data-status="' + st + '">' +
-      '<div class="doc-field-top">' +
-        '<span class="dname" title="' + esc(d.key) + '">' + esc(d.key) + '</span>' +
-        '<span class="na-tag" style="display:none"></span>' +
-        '<div class="seg" role="group">' +
-          '<button type="button" data-v="received" onclick="setBuyerDocStatus(' + i + ',\'received\')">Received</button>' +
-          '<button type="button" data-v="pending" onclick="setBuyerDocStatus(' + i + ',\'pending\')">Pending</button>' +
-          '<button type="button" data-v="na" onclick="setBuyerDocStatus(' + i + ',\'na\')">NA</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="doc-field-btns">' +
-        '<button type="button" class="note-toggle" onclick="toggleBuyerNote(' + i + ')">' + (note ? 'Edit note' : '+ Add note') + '</button>' +
-      '</div>' +
-      '<div class="note-in" style="display:' + (note ? 'block' : 'none') + '">' +
-        '<input type="text" maxlength="300" placeholder="Optional note" value="' + esc(note) + '">' +
-      '</div>' +
-    '</div>';
-  }).join('');
-
-  DB.docs.forEach(function(d, i){ paintBuyerSeg(i); });
-  onBuyerEntityChange();
-  openDrawer('buyerFormDrawer');
-}
-
-function buyerEntitySelectValue(){
-  if (!DB) return '';
-  var idx = DB.metaFields.findIndex(function(f){ return f.type === 'entity'; });
-  return idx === -1 ? '' : ($('bfmf' + idx) ? $('bfmf' + idx).value : '');
-}
-
-function onBuyerEntityChange(){
-  if (!DB) return;
-  var entity = buyerEntitySelectValue();
-  var col = buyerEntityColumnFor(entity);
-  var applicable = 0;
-  DB.docs.forEach(function(d, i){
-    var el = $('bdf' + i);
-    if (!el) return;
-    var na = entity && col ? !d.requiredBy[col] : false;
-    el.classList.toggle('is-na', na);
-    var tag = el.querySelector('.na-tag');
-    var seg = el.querySelector('.seg');
-    var btns = el.querySelector('.doc-field-btns');
-    var noteIn = el.querySelector('.note-in');
-    if (na){
-      tag.style.display = ''; tag.textContent = 'Not required · ' + col;
-      seg.style.display = 'none'; if (btns) btns.style.display = 'none';
-      noteIn.style.display = 'none';
-    } else {
-      tag.style.display = 'none'; seg.style.display = ''; if (btns) btns.style.display = '';
-      var noteVal = noteIn.querySelector('input') ? noteIn.querySelector('input').value.trim() : '';
-      noteIn.style.display = noteVal ? 'block' : 'none';
-      applicable++;
-    }
-  });
-  $('bfDocCount').textContent = entity
-    ? '— ' + applicable + ' required for ' + entity
-    : '— select an entity type to apply the requirement checklist';
-}
-
-function setBuyerDocStatus(i, v){
-  var el = $('bdf' + i);
-  if (!el) return;
-  el.dataset.status = v;
-  paintBuyerSeg(i);
-}
-
-function paintBuyerSeg(i){
-  var el = $('bdf' + i);
-  if (!el) return;
-  var st = el.dataset.status;
-  el.querySelectorAll('.seg button').forEach(function(b){
-    b.className = b.dataset.v === st
-      ? (st === 'received' ? 'on-rec' : st === 'pending' ? 'on-pen' : 'on-na') : '';
-  });
-}
-
-function toggleBuyerNote(i){
-  var box = $('bdf' + i).querySelector('.note-in');
-  var show = box.style.display === 'none';
-  box.style.display = show ? 'block' : 'none';
-  if (show) box.querySelector('input').focus();
-}
-
-function validateBuyerForm(){
-  if (!DB) return null;
-  var ok = true, meta = {};
-  DB.metaFields.forEach(function(f, i){
-    var wrap = $('bfMetaFields').querySelector('.field[data-key="' + CSS.escape(f.key) + '"]');
-    var input = $('bfmf' + i);
-    if (!wrap || !input) return;
-    var v = (input.value || '').trim();
-    if (f.type === 'date' && !v && wrap.dataset.orig && !sheetDateToIso(wrap.dataset.orig)){
-      v = wrap.dataset.orig;
-    }
-    var err = '';
-    if (f.key === buyerNameHeader && !v) err = 'Required.';
-    if (f.type === 'entity' && !v) err = 'Select the business category — it drives the document checklist.';
-    wrap.classList.toggle('invalid', !!err);
-    wrap.querySelector('.err').textContent = err;
-    if (err) ok = false;
-    meta[f.key] = v;
-  });
-  /* Collect hardcoded turnover field when buyer sheet has no turnover column */
-  if (!buyerFieldByType.turnover) {
-    var btvInput = $('mfTurnoverBuyer');
-    if (btvInput) meta['Turnover'] = btvInput.value.trim();
-  }
-  return ok ? meta : null;
-}
-
-function saveBuyerEntry(){
-  if (!DB) return;
-  var meta = validateBuyerForm();
-  var alert = $('bfAlert');
-  if (!meta){
-    alert.textContent = 'Please fix the highlighted fields before saving.';
-    alert.classList.add('on');
-    $('buyerFormDrawer').querySelector('.drawer-body').scrollTop = 0;
-    return;
-  }
-  alert.classList.remove('on');
-
-  var statuses = {}, notes = {};
-  DB.docs.forEach(function(d, i){
-    var el = $('bdf' + i);
-    if (!el) return;
-    statuses[d.key] = el.classList.contains('is-na') ? 'na' : el.dataset.status;
-    var n = el.querySelector('.note-in input').value.trim();
-    if (n && !el.classList.contains('is-na')) notes[d.key] = n;
-  });
-
-  var payload = {
-    row: editingBuyer ? editingBuyer.row : null,
-    meta: meta, statuses: statuses, notes: notes,
-    docDriveUrls: Object.keys(_buyerFormDocUrls).length ? _buyerFormDocUrls : null,
-    docClearUrls: Object.keys(_removedBuyerFormDocUrls)
-  };
-
-  var btn = $('bfSaveBtn');
-  btn.disabled = true; $('bfSaveSpin').style.display = 'inline-block'; $('bfSaveLbl').textContent = 'Saving…';
-  run('saveBuyer', payload).then(function(fresh){
-    onData(fresh);
-    closeDrawers();
-    var nm = buyerNameHeader ? meta[buyerNameHeader] : 'Buyer';
-    toast(nm + ' ' + (fresh.savedAction === 'updated' ? 'updated' : 'added') + ' — sheet & dashboard are in sync');
-  }).catch(function(err){
-    alert.textContent = (err && err.message) ? err.message : String(err);
-    alert.classList.add('on');
-    $('buyerFormDrawer').querySelector('.drawer-body').scrollTop = 0;
-  }).finally(function(){
-    btn.disabled = false; $('bfSaveSpin').style.display = 'none'; $('bfSaveLbl').textContent = 'Save to sheet';
-  });
-}
-
-/* ═══════════════════════════ Form drawer ═══════════════════════════════ */
-
-function openForm(row){
-  editingSeller = row ? sellerByRow(row) : null;
-  $('fTitle').textContent = editingSeller ? 'Update seller' : 'Add seller';
-  $('fSub').textContent = editingSeller
-    ? 'Editing row ' + editingSeller.row + ' of ' + D.trackerName
-    : 'Appends a new row to ' + D.trackerName + ' in the sheet’s exact format';
-  $('formAlert').classList.remove('on');
-
-  /* meta fields */
-  $('metaFields').innerHTML = D.metaFields.map(function(f, i){
-    var val = editingSeller ? (editingSeller.meta[f.key] || '') : '';
-    var isName = f.key === nameHeader;
-    var label = esc(f.key) + (isName || f.type === 'gst' || f.type === 'entity' ? ' <span class="req">*</span>' : '');
-    var full = isName ? ' full' : '';
-    if (f.type === 'entity'){
-      var opts = D.entityTypeOptions.map(function(o){
-        return '<option' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>';
-      }).join('');
-      return '<div class="field' + full + '" data-key="' + esc(f.key) + '"><label>' + label + '</label>' +
-        '<select id="mf' + i + '" onchange="onEntityChange()"><option value=""' + (val ? '' : ' selected') + ' disabled>Select entity type…</option>' + opts + '</select>' +
-        '<span class="err"></span></div>';
-    }
-    if (f.type === 'date'){
-      /* data-orig keeps the sheet's raw value so an unparseable date is never lost */
-      return '<div class="field' + full + '" data-key="' + esc(f.key) + '" data-orig="' + esc(val) + '"><label>' + label + '</label>' +
-        '<input id="mf' + i + '" type="date" value="' + esc(sheetDateToIso(val)) + '">' +
-        '<span class="err"></span></div>';
-    }
-    if (f.type === 'turnover'){
-      return '<div class="field' + full + '" data-key="' + esc(f.key) + '"><label>' + label + '</label>' +
-        '<div style="display:flex;align-items:center;gap:6px">' +
-          '<span style="font-size:16px;font-weight:700;color:var(--ink-2);flex:none;line-height:40px">₹</span>' +
-          '<input id="mf' + i + '" type="text" value="' + esc(val) + '" placeholder="e.g. 2.5 Cr  or  50 L" autocomplete="off" style="flex:1">' +
-        '</div>' +
-        '<span class="err"></span></div>';
-    }
-    var listAttr = '', listHtml = '';
-    if (f.options && f.options.length && f.type === 'text'){
-      listAttr = ' list="dl' + i + '"';
-      listHtml = '<datalist id="dl' + i + '">' + f.options.map(function(o){ return '<option value="' + esc(o) + '">'; }).join('') + '</datalist>';
-    }
-    var ph = f.type === 'gst' ? ' placeholder="e.g. 36ADFFS5699R1ZU" maxlength="15" style="text-transform:uppercase"' : '';
-    return '<div class="field' + full + '" data-key="' + esc(f.key) + '"><label>' + label + '</label>' +
-      '<input id="mf' + i + '" type="text" value="' + esc(val) + '"' + ph + listAttr + ' autocomplete="off">' + listHtml +
-      '<span class="err"></span></div>';
-  }).join('');
-
-  /* Always show an Annual Turnover field; inject it if the sheet has no turnover column yet */
-  if (!fieldByType.turnover) {
-    var existingTvS = editingSeller ? (editingSeller.meta['Annual Turnover'] || editingSeller.meta['Turnover'] || '') : '';
-    $('metaFields').innerHTML +=
-      '<div class="field" data-key="Turnover">' +
-        '<label>Annual Turnover</label>' +
-        '<div style="display:flex;align-items:center;gap:6px">' +
-          '<span style="font-size:16px;font-weight:700;color:var(--ink-2);flex:none;line-height:40px">₹</span>' +
-          '<input id="mfTurnoverSeller" type="text" value="' + esc(existingTvS) + '" placeholder="e.g. 2.5 Cr or 50 L" autocomplete="off" style="flex:1">' +
-        '</div>' +
-        '<span class="err"></span>' +
-      '</div>';
-  }
-
-  /* per-doc Drive URLs: pre-populate from existing seller data */
-  _formDocUrls = {};
-  _removedFormDocUrls = {};
-  if (editingSeller) {
-    D.docs.forEach(function(d){
-      var cell = editingSeller.docs[d.key] || {};
-      if (cell.driveUrl) _formDocUrls[d.key] = cell.driveUrl;
-    });
-  }
-
-  /* document checklist */
-  $('docFields').innerHTML = D.docs.map(function(d, i){
-    var cell = editingSeller ? (editingSeller.docs[d.key] || {}) : {};
-    var st = cell.status || 'pending';
-    var note = cell.note || '';
-    var upIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
-    return '<div class="doc-field" id="df' + i + '" data-key="' + esc(d.key) + '" data-status="' + st + '">' +
-      '<div class="doc-field-top">' +
-        '<span class="dname" title="' + esc(d.key) + '">' + esc(d.key) + '</span>' +
-        '<span class="na-tag" style="display:none"></span>' +
-        '<div class="seg" role="group">' +
-          '<button type="button" data-v="received" onclick="setDocStatus(' + i + ',\'received\')">Received</button>' +
-          '<button type="button" data-v="pending" onclick="setDocStatus(' + i + ',\'pending\')">Pending</button>' +
-          '<button type="button" data-v="na" onclick="setDocStatus(' + i + ',\'na\')">NA</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="doc-field-btns">' +
-        '<button type="button" class="note-toggle" onclick="toggleNote(' + i + ')">' + (note ? 'Edit note' : '+ Add note') + '</button>' +
-        '<button type="button" class="note-toggle upload-btn" style="display:' + (st === 'pending' ? '' : 'none') + '" onclick="uploadFormDoc(' + i + ',\'' + d.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;') + '\')">' + upIco + ' Upload</button>' +
-      '</div>' +
-      '<div class="note-in" style="display:' + (note ? 'block' : 'none') + '">' +
-        '<input type="text" maxlength="300" placeholder="Optional note — e.g. FY 25-26 provisional pending" value="' + esc(note) + '">' +
-      '</div>' +
-      '<div id="dfu' + i + '">' + renderDocFileRow(d.key, i) + '</div>' +
-    '</div>';
-  }).join('');
-
-  D.docs.forEach(function(d, i){ paintSeg(i); });
-  onEntityChange();
-  openDrawer('formDrawer');
-}
-
-function entitySelectValue(){
-  var idx = D.metaFields.findIndex(function(f){ return f.type === 'entity'; });
-  return idx === -1 ? '' : ($('mf' + idx) ? $('mf' + idx).value : '');
-}
-
-function onEntityChange(){
-  var entity = entitySelectValue();
-  var col = entityColumnFor(entity);
-  var applicable = 0;
-  D.docs.forEach(function(d, i){
-    var el = $('df' + i);
-    var na = entity && col ? !d.requiredBy[col] : false;
-    el.classList.toggle('is-na', na);
-    var tag = el.querySelector('.na-tag');
-    var seg = el.querySelector('.seg');
-    var btns = el.querySelector('.doc-field-btns');
-    var noteIn = el.querySelector('.note-in');
-    if (na){
-      tag.style.display = ''; tag.textContent = 'Not required · ' + col;
-      seg.style.display = 'none'; if (btns) btns.style.display = 'none';
-      noteIn.style.display = 'none';
-    } else {
-      tag.style.display = 'none'; seg.style.display = ''; if (btns) btns.style.display = '';
-      // Restore note-in visibility based on whether it has content.
-      var noteVal = noteIn.querySelector('input') ? noteIn.querySelector('input').value.trim() : '';
-      noteIn.style.display = noteVal ? 'block' : 'none';
-      applicable++;
-    }
-  });
-  $('docCount').textContent = entity
-    ? '— ' + applicable + ' required for ' + entity
-    : '— select an entity type to apply the requirement checklist';
-}
-
-function setDocStatus(i, v){
-  var el = $('df' + i);
-  el.dataset.status = v;
-  paintSeg(i);
-  var upBtn = el.querySelector('.upload-btn');
-  if (upBtn) upBtn.style.display = v === 'pending' ? '' : 'none';
-}
-function paintSeg(i){
-  var el = $('df' + i);
-  var st = el.dataset.status;
-  el.querySelectorAll('.seg button').forEach(function(b){
-    b.className = b.dataset.v === st
-      ? (st === 'received' ? 'on-rec' : st === 'pending' ? 'on-pen' : 'on-na') : '';
-  });
-}
-function toggleNote(i){
-  var box = $('df' + i).querySelector('.note-in');
-  var show = box.style.display === 'none';
-  box.style.display = show ? 'block' : 'none';
-  if (show) box.querySelector('input').focus();
-}
-
-function validateForm(){
-  var ok = true, meta = {};
-  D.metaFields.forEach(function(f, i){
-    var wrap = document.querySelector('.field[data-key="' + CSS.escape(f.key) + '"]');
-    var input = $('mf' + i);
-    var v = (input.value || '').trim();
-    if (f.type === 'gst') v = v.toUpperCase();
-    if (f.type === 'date' && !v && wrap.dataset.orig && !sheetDateToIso(wrap.dataset.orig)){
-      v = wrap.dataset.orig; // keep a sheet value the date picker couldn't represent
-    }
-    var err = '';
-    if (f.key === nameHeader && !v) err = 'Required.';
-    if (f.type === 'entity' && !v) err = 'Select the business category — it drives the document checklist.';
-    if (f.type === 'gst'){
-      if (!v) err = 'Required — GST is the unique seller identifier.';
-      else if (!GST_RE.test(v)) err = 'Not a valid 15-character GSTIN.';
-    }
-    wrap.classList.toggle('invalid', !!err);
-    wrap.querySelector('.err').textContent = err;
-    if (err) ok = false;
-    meta[f.key] = v;
-  });
-  /* Collect hardcoded turnover field when sheet has no turnover column */
-  if (!fieldByType.turnover) {
-    var tvInput = $('mfTurnoverSeller');
-    if (tvInput) meta['Turnover'] = tvInput.value.trim();
-  }
-  return ok ? meta : null;
-}
-
-function save(){
-  var meta = validateForm();
-  var alert = $('formAlert');
-  if (!meta){
-    alert.textContent = 'Please fix the highlighted fields before saving.';
-    alert.classList.add('on');
-    $('formDrawer').querySelector('.drawer-body').scrollTop = 0;
-    return;
-  }
-  alert.classList.remove('on');
-
-  var statuses = {}, notes = {};
-  D.docs.forEach(function(d, i){
-    var el = $('df' + i);
-    if (!el) return; // guard: sheet column added while form was open
-    statuses[d.key] = el.classList.contains('is-na') ? 'na' : el.dataset.status;
-    var n = el.querySelector('.note-in input').value.trim();
-    if (n && !el.classList.contains('is-na')) notes[d.key] = n;
-  });
-
-  var payload = {
-    row: editingSeller ? editingSeller.row : null,
-    originalGst: editingSeller ? (editingSeller.meta[fieldByType.gst] || '') : '',
-    meta: meta, statuses: statuses, notes: notes,
-    docDriveUrls: Object.keys(_formDocUrls).length ? _formDocUrls : null,
-    docClearUrls: Object.keys(_removedFormDocUrls)
-  };
-
-  var btn = $('saveBtn');
-  btn.disabled = true; $('saveSpin').style.display = 'inline-block'; $('saveLbl').textContent = 'Saving…';
-  run('saveSeller', payload).then(function(fresh){
-    onData(fresh);
-    closeDrawers();
-    var nm = nameHeader ? meta[nameHeader] : 'Seller';
-    toast(nm + ' ' + (fresh.savedAction === 'updated' ? 'updated' : 'added') + ' — sheet & dashboard are in sync');
-  }).catch(function(err){
-    alert.textContent = (err && err.message) ? err.message : String(err);
-    alert.classList.add('on');
-    $('formDrawer').querySelector('.drawer-body').scrollTop = 0;
-  }).finally(function(){
-    btn.disabled = false; $('saveSpin').style.display = 'none'; $('saveLbl').textContent = 'Save to sheet';
-  });
-}
-
-/* ═══════════════════ Drawers, tooltip, wiring ══════════════════════════ */
+/* ═══════════════════════ Drawers, tooltip, wiring ══════════════════════ */
 
 function openDrawer(id){
-  closeDrawers(true);
   $('scrim').classList.add('on');
   $(id).classList.add('on');
   $(id).setAttribute('aria-hidden','false');
   document.body.style.overflow = 'hidden';
 }
-function closeDrawers(keepScrim){
-  ['detailDrawer','formDrawer','buyerDetailDrawer','buyerFormDrawer'].forEach(function(id){
-    $(id).classList.remove('on'); $(id).setAttribute('aria-hidden','true');
-  });
-  if (!keepScrim){
-    $('scrim').classList.remove('on');
-    document.body.style.overflow = '';
-  }
-}
-
-/* ═════════════════════════ KPI drawer ══════════════════════════════════ */
-
-function openKpi(kind){
-  var sl = D.sellerLists || {};
-  var bt = buyerTotals();
-  var title = '', sub = '', html = '';
-
-  if (kind === 'sellers-total'){
-    var allSellers = (sl.plasticSellers||[]).map(function(n){ return {name:n,label:'Plastic'}; })
-      .concat((sl.metalSellers||[]).map(function(n){ return {name:n,label:'Metal'}; }));
-    title = 'Sellers giving docs to NBFC'; sub = allSellers.length + ' registered';
-    html = buildKpiList(allSellers, 'name', 'label');
-  } else if (kind === 'sellers-plastic'){
-    title = 'Plastic sellers'; sub = (sl.plastic||0) + ' sellers';
-    html = buildKpiList((sl.plasticSellers||[]).map(function(n){ return {name:n}; }), 'name');
-  } else if (kind === 'sellers-metal'){
-    title = 'Metal sellers'; sub = (sl.metal||0) + ' sellers';
-    html = buildKpiList((sl.metalSellers||[]).map(function(n){ return {name:n}; }), 'name');
-  } else if (kind === 'sellers-tracked'){
-    title = 'Sellers in tracker'; sub = D.sellers.length + ' sellers';
-    html = buildKpiList(D.sellers.map(function(s){
-      return {name: nameHeader?s.meta[nameHeader]:'Row '+s.row, dsub: s.received+' received · '+s.pending+' pending'};
-    }), 'name', null, 'dsub');
-  } else if (kind === 'sellers-complete'){
-    var done = D.sellers.filter(function(s){ return s.pending===0 && s.applicable>0; });
-    title = 'Completed sellers'; sub = done.length + ' fully submitted';
-    html = buildKpiList(done.map(function(s){
-      return {name: nameHeader?s.meta[nameHeader]:'Row '+s.row, dsub: s.received+' docs received'};
-    }), 'name', null, 'dsub');
-  } else if (kind === 'buyers-total'){
-    var bl2 = (DB && DB.buyerLists) ? DB.buyerLists : {};
-    var blHasSplit2 = bl2.hasSplit === true && ((bl2.plastic||0) > 0 || (bl2.metal||0) > 0);
-    title = 'Buyers giving docs to NBFC';
-    if (blHasSplit2) {
-      var splitList = (bl2.plasticBuyers||[]).map(function(n){ return {name:n,label:'Plastic'}; })
-        .concat((bl2.metalBuyers||[]).map(function(n){ return {name:n,label:'Metal'}; }));
-      sub = splitList.length + ' buyers (Plastic: ' + (bl2.plastic||0) + ', Metal: ' + (bl2.metal||0) + ')';
-      html = buildKpiList(splitList, 'name', 'label');
-    } else {
-      var trackerList = (DB ? DB.buyers : []).map(function(b){
-        var nm = buyerNameHeader ? b.meta[buyerNameHeader] : 'Row '+b.row;
-        var ent = DB.entityHeader ? (b.meta[DB.entityHeader]||'') : '';
-        return {name:nm, label:ent, dsub: b.received+' received · '+b.pending+' pending'};
-      });
-      sub = trackerList.length + ' buyers from Buyer_NBFC Tracker';
-      html = buildKpiList(trackerList, 'name', 'label', 'dsub');
-    }
-  } else if (kind === 'buyers-plastic'){
-    var bl3 = (DB && DB.buyerLists) ? DB.buyerLists : {};
-    title = 'Plastic buyers'; sub = (bl3.plastic||0) + ' buyers from Buyer_NBFC Tracker';
-    html = buildKpiList((bl3.plasticBuyers||[]).map(function(n){ return {name:n}; }), 'name');
-  } else if (kind === 'buyers-metal'){
-    var bl4 = (DB && DB.buyerLists) ? DB.buyerLists : {};
-    title = 'Metal buyers'; sub = (bl4.metal||0) + ' buyers from Buyer_NBFC Tracker';
-    html = buildKpiList((bl4.metalBuyers||[]).map(function(n){ return {name:n}; }), 'name');
-  } else if (kind === 'buyers-complete'){
-    var done2 = DB ? DB.buyers.filter(function(b){ return b.pending===0 && b.applicable>0; }) : [];
-    title = 'Completed buyers'; sub = done2.length + ' fully submitted';
-    html = buildKpiList(done2.map(function(b){
-      var nm = buyerNameHeader ? b.meta[buyerNameHeader] : 'Row '+b.row;
-      return {name:nm, dsub: b.received+' docs received'};
-    }), 'name', null, 'dsub');
-  } else if (kind.indexOf('buyers-ent-') === 0){
-    var entLabel = decodeURIComponent(kind.slice('buyers-ent-'.length));
-    var entBuyers = DB ? DB.buyers.filter(function(b){
-      return DB.entityHeader && (b.meta[DB.entityHeader]||'') === entLabel;
-    }) : [];
-    title = entLabel; sub = entBuyers.length + ' buyer' + (entBuyers.length===1?'':'s');
-    html = buildKpiList(entBuyers.map(function(b){
-      var nm = buyerNameHeader ? b.meta[buyerNameHeader] : 'Row '+b.row;
-      return {name:nm, dsub: b.received+' received · '+b.pending+' pending'};
-    }), 'name', null, 'dsub');
-  }
-
-  $('kpiDrTitle').textContent = title;
-  $('kpiDrSub').textContent = sub;
-  $('kpiDrBody').innerHTML = html || '<div class="empty-cell">No data available.</div>';
-  $('kpiScrim').classList.add('on');
-  $('kpiDrawer').classList.add('on');
-  $('kpiDrawer').setAttribute('aria-hidden','false');
-  document.body.style.overflow = 'hidden';
-}
-
-function buildKpiList(arr, nameKey, labelKey, subKey){
-  if (!arr || !arr.length) return '<div class="empty-cell">Nothing to show.</div>';
-  return '<div style="padding:4px 0">' + arr.map(function(item, i){
-    return '<div class="ks-item">' +
-      '<span class="ks-idx">' + (i+1) + '</span>' +
-      '<div style="flex:1;min-width:0">' +
-        '<div class="ks-name">' + esc(item[nameKey]||'—') + '</div>' +
-        (subKey && item[subKey] ? '<div class="ks-sub">' + esc(item[subKey]) + '</div>' : '') +
-      '</div>' +
-      (labelKey && item[labelKey] ? '<span class="chip mut">' + esc(item[labelKey]) + '</span>' : '') +
-    '</div>';
-  }).join('') + '</div>';
-}
-
-function closeKpiDrawer(){
-  $('kpiScrim').classList.remove('on');
-  $('kpiDrawer').classList.remove('on');
-  $('kpiDrawer').setAttribute('aria-hidden','true');
-  document.body.style.overflow = '';
+function closeDrawers(){
+  $('detailDrawer').classList.remove('on');
+  $('detailDrawer').setAttribute('aria-hidden','true');
+  $('scrim').classList.remove('on');
+  if (!$('kpiDrawer').classList.contains('on')) document.body.style.overflow = '';
 }
 
 document.addEventListener('click', function(e){
   if (e.target.closest('[data-close]')) closeDrawers();
 });
 $('scrim').addEventListener('click', function(){ closeDrawers(); });
-$('kpiScrim').addEventListener('click', function(){ closeKpiDrawer(); });
-document.addEventListener('keydown', function(e){ if (e.key === 'Escape'){ closeDrawers(); closeKpiDrawer(); } });
+$('kpiScrim').addEventListener('click', function(){ closeKpi(); });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape'){ closeDrawers(); closeKpi(); } });
 
-$('segNav').addEventListener('click', function(e){
+/* NBFC switcher */
+$('nbfcNav').addEventListener('click', function(e){
+  var b = e.target.closest('button[data-nbfc]'); if (!b) return;
+  switchNbfc(b.dataset.nbfc);
+});
+
+/* Secondary view switcher */
+$('subnav').addEventListener('click', function(e){
   var b = e.target.closest('button'); if (!b) return;
   this.querySelectorAll('button').forEach(function(x){ x.classList.toggle('on', x === b); });
   document.querySelectorAll('.view').forEach(function(v){
@@ -2547,16 +1604,9 @@ $('segNav').addEventListener('click', function(e){
   });
 });
 
-$('addSellerBtn').addEventListener('click', function(){ if (D) openForm(null); });
-$('addBuyerBtn').addEventListener('click', function(){ if (DB) openBuyerForm(null); });
-$('refreshBtn').addEventListener('click', function(){ if (D) refresh(false); });
-$('saveBtn').addEventListener('click', save);
-$('bfSaveBtn').addEventListener('click', saveBuyerEntry);
+$('refreshBtn').addEventListener('click', function(){ if (DATA) refresh(false); });
 ['q','fltEntity','fltRegion','fltStatus'].forEach(function(id){
-  $(id).addEventListener('input', renderSellers);
-});
-['qBuyer','fltBuyerEntity','fltBuyerStatus'].forEach(function(id){
-  $(id).addEventListener('input', renderBuyers);
+  $(id).addEventListener('input', function(){ if (ND && ND.ok) renderEntities(); });
 });
 
 /* tooltip (delegated) */
@@ -2577,104 +1627,9 @@ document.addEventListener('mousemove', function(e){
 
 /* pick up outside edits when the tab regains focus (throttled) */
 window.addEventListener('focus', function(){
-  if (!D) return;
+  if (!DATA) return;
   var now = Date.now();
   if (now - lastFocusRefresh > 60000){ lastFocusRefresh = now; refresh(true); }
-});
-
-/* ═══════════════════ Per-doc Drive upload (form) ═══════════════════════ */
-
-var _formUploadDocIdx = null;   // doc-field index waiting for a file pick
-var _formUploadDocKey = null;
-
-function renderDocFileRow(docKey, idx) {
-  var url = _formDocUrls[docKey];
-  if (!url) return '';
-  var linkIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;flex:none"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>';
-  return '<div class="doc-file-row">' +
-    linkIco +
-    '<a class="doc-file-link" href="' + esc(url) + '" target="_blank" rel="noopener">View in Drive</a>' +
-    '<button type="button" class="doc-file-rm" title="Remove" onclick="removeFormDoc(\'' + docKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;') + '\',' + idx + ')">&#x2715;</button>' +
-  '</div>';
-}
-
-function uploadFormDoc(idx, docKey) {
-  _formUploadDocIdx = idx;
-  _formUploadDocKey = docKey;
-  $('fileInput').value = '';
-  $('fileInput').click();
-}
-
-function removeFormDoc(docKey, idx) {
-  delete _formDocUrls[docKey];
-  _removedFormDocUrls[docKey] = true;
-  $('dfu' + idx).innerHTML = '';
-}
-
-$('fileInput').addEventListener('change', function () {
-  var file = this.files[0];
-  if (!file || _formUploadDocIdx === null) return;
-
-  var MAX_BYTES = 10 * 1024 * 1024; // 10 MB raw → ~14 MB base64; safe for GAS payload limit
-  if (file.size > MAX_BYTES) {
-    toast('File is too large (max 10 MB).', 'err');
-    return;
-  }
-
-  var docIdx = _formUploadDocIdx, docKey = _formUploadDocKey;
-  _formUploadDocIdx = null; _formUploadDocKey = null;
-
-  // Seller name + GST: from editingSeller or live form fields.
-  var sellerName = '', sellerGst = '', row = null;
-  if (editingSeller) {
-    sellerName = nameHeader ? (editingSeller.meta[nameHeader] || '') : '';
-    sellerGst = fieldByType.gst ? (editingSeller.meta[fieldByType.gst] || '') : '';
-    row = editingSeller.row;
-  } else {
-    D.metaFields.forEach(function (f, i) {
-      var inp = $('mf' + i);
-      if (!inp) return;
-      if (f.key === nameHeader) sellerName = inp.value.trim();
-      if (f.type === 'gst') sellerGst = inp.value.trim();
-    });
-    if (!sellerName && !sellerGst) {
-      toast('Please enter a seller name before uploading documents.', 'err');
-      return;
-    }
-  }
-
-  $('uploadDocName').textContent = docKey;
-  $('uploadOverlay').classList.add('on');
-
-  var reader = new FileReader();
-  reader.onload = function (ev) {
-    run('uploadDocument', {
-      row: row,
-      sellerName: sellerName,
-      gst: sellerGst,
-      docKey: docKey,
-      fileName: file.name,
-      mimeType: file.type || 'application/octet-stream',
-      base64Data: ev.target.result
-    }).then(function (result) {
-      $('uploadOverlay').classList.remove('on');
-      _formDocUrls[docKey] = result.driveUrl;
-      setDocStatus(docIdx, 'received');
-      $('dfu' + docIdx).innerHTML = renderDocFileRow(docKey, docIdx);
-      // Only refresh the dashboard if the form is closed; while it's open,
-      // replacing D would make D.docs diverge from the rendered doc-field DOM.
-      if (result.sellers && !editingSeller) onData(result);
-      toast('✓ ' + docKey + ' uploaded to Drive');
-    }).catch(function (err) {
-      $('uploadOverlay').classList.remove('on');
-      toast('Upload failed: ' + ((err && err.message) || String(err)), 'err');
-    });
-  };
-  reader.onerror = function () {
-    $('uploadOverlay').classList.remove('on');
-    toast('Could not read the file. Please try again.', 'err');
-  };
-  reader.readAsDataURL(file);
 });
 
 boot();
