@@ -150,6 +150,60 @@ function parseStatus_(raw) {
   return { status: 'pending', note: s };
 }
 
+/* ──────────────────── Hardcoded entity-type doc applicability ──────────── */
+//
+// Each entry: [ normalisedDocFragment, [entityClasses where doc is N/A] ]
+//
+// Applicability by category (confirmed requirements):
+//   Proprietorship  — N/A: Partnership Deed, MOA/AOA/COI, Shareholding Details
+//   Partnership     — N/A: Debt Profile, MOA/AOA/COI
+//   Private Limited — N/A: Partnership Deed
+//
+var ENTITY_DOC_RULES = [
+  ['partnershipdeed',         ['proprietorship', 'privatelimited']],
+  ['moaaoacoi',               ['proprietorship', 'partnership']],
+  ['memorandumofassociation', ['proprietorship', 'partnership']],
+  ['articleofassociation',    ['proprietorship', 'partnership']],
+  ['certificateofincorporat', ['proprietorship', 'partnership']],
+  ['shareholdingdetail',      ['proprietorship']],
+  ['shareholdingpattern',     ['proprietorship']],
+  ['debtprofile',             ['partnership']],
+];
+
+/**
+ * Maps a raw entity-type string to one of three canonical classes:
+ *   'proprietorship' | 'partnership' | 'privatelimited'
+ * Returns null when the type is blank or unrecognised.
+ * Private Limited is tested first because its normalised form contains
+ * "limited" which would also partially match LLP / "limitedliabilitypartnership".
+ */
+function classifyEntityType_(entityType) {
+  var n = normKey_(entityType);
+  if (!n) return null;
+  if (n.indexOf('privat') !== -1 || (n.indexOf('pvt') !== -1 && n.indexOf('ltd') !== -1)) return 'privatelimited';
+  if (n.indexOf('partner') !== -1 || n.indexOf('llp') !== -1) return 'partnership';
+  if (n.indexOf('proprietor') !== -1 || n.indexOf('propri') !== -1) return 'proprietorship';
+  return null;
+}
+
+/**
+ * Returns false when ENTITY_DOC_RULES says this document is not applicable for
+ * the given entity class.  Returns true (applicable) when the entity class is
+ * unknown or no rule matches the document header.
+ */
+function isDocApplicableByRules_(docHeader, entityClass) {
+  if (!entityClass) return true;
+  var docNorm = normKey_(docHeader);
+  for (var i = 0; i < ENTITY_DOC_RULES.length; i++) {
+    var fragment  = ENTITY_DOC_RULES[i][0];
+    var naClasses = ENTITY_DOC_RULES[i][1];
+    if (docNorm.indexOf(fragment) !== -1 || fragment.indexOf(docNorm) !== -1) {
+      if (naClasses.indexOf(entityClass) !== -1) return false;
+    }
+  }
+  return true;
+}
+
 /* ──────────────────────── Requirement matrix (optional tab) ───────────── */
 
 function readRequirementMatrix_(ss) {
@@ -322,7 +376,8 @@ function getNbfcData_(ss, tabCfg, matrix) {
 
         var serial = parseInt(row[layout.serialIdx], 10);
         var entityType = entityHeaderKey ? (meta[entityHeaderKey] || '') : '';
-        var entityCol = matchEntityColumn_(matrix, entityType);
+        var entityCol   = matchEntityColumn_(matrix, entityType);
+        var entityClass = classifyEntityType_(entityType);
         var rowNotes = allNotes[i] || [];
         var docStates = {};
         var received = 0, pending = 0, na = 0;
@@ -334,7 +389,17 @@ function getNbfcData_(ss, tabCfg, matrix) {
         layout.docIdx.forEach(function (idx) {
           var h = layout.headers[idx];
           var req = matchRequirementRow_(matrix, h);
-          var applicable = (!req || !entityCol) ? true : !!req.requiredBy[entityCol];
+          // Hardcoded entity-type rules take first priority.
+          // The optional sheet matrix can further refine when both entity class
+          // and a matching requirement row are present.
+          var applicable;
+          if (!isDocApplicableByRules_(h, entityClass)) {
+            applicable = false;
+          } else if (req && entityCol) {
+            applicable = !!req.requiredBy[entityCol];
+          } else {
+            applicable = true;
+          }
           var cellNote = String(rowNotes[idx] || '').trim();
           var driveUrl = /^https?:\/\/\S+$/.test(cellNote) ? cellNote : '';
           var parsed = parseStatus_(row[idx]);
@@ -527,8 +592,9 @@ function saveEntry(nbfcId, payload) {
       existing = lastRow > 1 ? sh.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues() : [];
     }
 
-    var entityType = entityHeader ? String(meta[entityHeader] || '').trim() : '';
-    var entityCol = matchEntityColumn_(matrix, entityType);
+    var entityType  = entityHeader ? String(meta[entityHeader] || '').trim() : '';
+    var entityCol   = matchEntityColumn_(matrix, entityType);
+    var entityClass = classifyEntityType_(entityType);
 
     var out = new Array(layout.headers.length);
     for (var c = 0; c < out.length; c++) out[c] = '';
@@ -557,7 +623,14 @@ function saveEntry(nbfcId, payload) {
     layout.docIdx.forEach(function (idx) {
       var h = layout.headers[idx];
       var req = matchRequirementRow_(matrix, h);
-      var applicable = (!req || !entityCol) ? true : !!req.requiredBy[entityCol];
+      var applicable;
+      if (!isDocApplicableByRules_(h, entityClass)) {
+        applicable = false;
+      } else if (req && entityCol) {
+        applicable = !!req.requiredBy[entityCol];
+      } else {
+        applicable = true;
+      }
       var status = String(statuses[h] || '').toLowerCase();
       var note = String(notes[h] == null ? '' : notes[h]).trim().replace(/\s+/g, ' ').slice(0, 300);
       var cell;
