@@ -1541,6 +1541,7 @@ function buildKpiTable(list, kind){
   if (kind === 'pending')   return buildPendingCards(list);
   if (kind === 'completed') return buildCompletedCards(list);
   if (kind === 'phase0')    return buildPhase0Cards(list);
+  if (kind === 'total')     return '<div class="empty-cell" style="padding:32px 20px;text-align:center">All-sellers view is coming soon.</div>';
   if (!list || !list.length) return '<div class="empty-cell">No sellers in this group.</div>';
   var entityHeader = fieldByType.entity;
   var hasTv = !!fieldByType.turnover;

@@ -180,7 +180,7 @@ var ENTITY_DOC_RULES = [
 function classifyEntityType_(entityType) {
   var n = normKey_(entityType);
   if (!n) return null;
-  if (n.indexOf('privat') !== -1 || (n.indexOf('pvt') !== -1 && n.indexOf('ltd') !== -1)) return 'privatelimited';
+  if (n.indexOf('privat') !== -1 || (n.indexOf('pvt') !== -1 && (n.indexOf('ltd') !== -1 || n.indexOf('lim') !== -1))) return 'privatelimited';
   if (n.indexOf('partner') !== -1 || n.indexOf('llp') !== -1) return 'partnership';
   if (n.indexOf('proprietor') !== -1 || n.indexOf('propri') !== -1) return 'proprietorship';
   return null;
@@ -272,16 +272,22 @@ function matchEntityColumn_(matrix, entityType) {
 function readTrackerLayout_(sh, maxCol, docStartCol, docEndCol) {
   var lastCol = sh.getLastColumn();
   if (maxCol && maxCol > 0 && maxCol < lastCol) lastCol = maxCol;
-  var headers = sh.getRange(1, 1, 1, lastCol).getDisplayValues()[0]
-    .map(function (h) { return String(h).trim(); });
-  var pendingIdx = -1, i;
-  for (i = 0; i < headers.length; i++) {
-    if (normKey_(headers[i]) === 'pendingdocument' || normKey_(headers[i]) === 'pendingdocuments') {
-      pendingIdx = i; break;
+  // Scan up to 3 rows to find the actual header row (handles sheets where row 1
+  // is a title or blank and column headers start at row 2 or 3).
+  var headerRowNum = 0, headers = [], pendingIdx = -1, i;
+  var maxSearch = Math.min(3, sh.getLastRow()), r, nk;
+  for (r = 1; r <= maxSearch && !headerRowNum; r++) {
+    var candidate = sh.getRange(r, 1, 1, lastCol).getDisplayValues()[0]
+      .map(function (h) { return String(h).trim(); });
+    for (i = 0; i < candidate.length; i++) {
+      nk = normKey_(candidate[i]);
+      if (nk === 'pendingdocument' || nk === 'pendingdocuments') {
+        headerRowNum = r; headers = candidate; pendingIdx = i; break;
+      }
     }
   }
-  if (pendingIdx === -1)
-    throw new Error('The "' + sh.getName() + '" tab has no "Pending Document" column within the first ' + lastCol + ' columns.');
+  if (!headerRowNum)
+    throw new Error('The "' + sh.getName() + '" tab has no "Pending Document" column in the first 3 rows.');
   var serialIdx = 0;
   var metaIdx = [];
   for (i = 0; i < pendingIdx; i++) {
@@ -307,7 +313,7 @@ function readTrackerLayout_(sh, maxCol, docStartCol, docEndCol) {
       if (headers[i] && (i + 1) > docEndCol) extraMetaIdx.push(i);
     }
   }
-  return { headers: headers, colCount: lastCol, serialIdx: serialIdx, metaIdx: metaIdx, pendingIdx: pendingIdx, docIdx: docIdx, extraMetaIdx: extraMetaIdx };
+  return { headers: headers, colCount: lastCol, headerRowNum: headerRowNum, serialIdx: serialIdx, metaIdx: metaIdx, pendingIdx: pendingIdx, docIdx: docIdx, extraMetaIdx: extraMetaIdx };
 }
 
 function metaFieldType_(header) {
@@ -357,12 +363,16 @@ function getNbfcData_(ss, tabCfg, matrix) {
     var entities = [];
     var optionValues = {};
 
-    if (lastRow > 1) {
-      var dataRange = sh.getRange(2, 1, lastRow - 1, layout.colCount);
+    if (lastRow > layout.headerRowNum) {
+      var dataRange = sh.getRange(layout.headerRowNum + 1, 1, lastRow - layout.headerRowNum, layout.colCount);
       var values = dataRange.getDisplayValues();
       var allNotes = dataRange.getNotes();
 
       values.forEach(function (row, i) {
+        // Skip rows whose serial column has non-numeric text (e.g. "No:", "S.No") —
+        // those are header rows accidentally included in the data range.
+        var serialRaw = String(row[layout.serialIdx]).trim();
+        if (serialRaw && isNaN(parseInt(serialRaw, 10)) && /[a-zA-Z]/.test(serialRaw)) return;
         var meta = {};
         layout.metaIdx.forEach(function (idx) { meta[layout.headers[idx]] = String(row[idx]).trim(); });
         var hasIdentity = layout.metaIdx.some(function (idx) { return String(row[idx]).trim() !== ''; });
@@ -416,7 +426,7 @@ function getNbfcData_(ss, tabCfg, matrix) {
 
         var applicable = received + pending;
         entities.push({
-          row: i + 2,
+          row: i + layout.headerRowNum + 1,
           serial: isNaN(serial) ? '' : serial,
           meta: meta,
           extraMeta: extraMeta,
@@ -551,13 +561,13 @@ function saveEntry(nbfcId, payload) {
 
     var lastRow = sh.getLastRow();
     var lastCol = layout.colCount;
-    var existing = lastRow > 1
-      ? sh.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues()
+    var existing = lastRow > layout.headerRowNum
+      ? sh.getRange(layout.headerRowNum + 1, 1, lastRow - layout.headerRowNum, lastCol).getDisplayValues()
       : [];
 
     var targetRow = null;
     if (payload.row) {
-      var idx0 = Number(payload.row) - 2;
+      var idx0 = Number(payload.row) - (layout.headerRowNum + 1);
       var expected = String(payload.originalGst || '').trim().toUpperCase();
       var gstColIdx = gstHeader ? layout.headers.indexOf(gstHeader) : -1;
       if (idx0 >= 0 && idx0 < existing.length && gstColIdx !== -1 &&
@@ -565,7 +575,7 @@ function saveEntry(nbfcId, payload) {
         targetRow = Number(payload.row);
       } else if (gstColIdx !== -1 && expected) {
         for (var r = 0; r < existing.length; r++) {
-          if (String(existing[r][gstColIdx]).trim().toUpperCase() === expected) { targetRow = r + 2; break; }
+          if (String(existing[r][gstColIdx]).trim().toUpperCase() === expected) { targetRow = r + layout.headerRowNum + 1; break; }
         }
       }
       if (!targetRow) {
@@ -585,11 +595,11 @@ function saveEntry(nbfcId, payload) {
     var tvSubmitted = String(meta['Turnover'] || '').trim();
     if (tvSubmitted && !layout.metaIdx.some(function (i) { return metaFieldType_(layout.headers[i]) === 'turnover'; })) {
       sh.insertColumnBefore(layout.pendingIdx + 1);
-      sh.getRange(1, layout.pendingIdx + 1).setValue('Annual Turnover');
+      sh.getRange(layout.headerRowNum, layout.pendingIdx + 1).setValue('Annual Turnover');
       meta['Annual Turnover'] = tvSubmitted;
-      layout = readTrackerLayout_(sh, tabCfg.maxCol);
+      layout = readTrackerLayout_(sh, tabCfg.maxCol, tabCfg.docStartCol, tabCfg.docEndCol);
       lastCol = layout.colCount;
-      existing = lastRow > 1 ? sh.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues() : [];
+      existing = lastRow > layout.headerRowNum ? sh.getRange(layout.headerRowNum + 1, 1, lastRow - layout.headerRowNum, lastCol).getDisplayValues() : [];
     }
 
     var entityType  = entityHeader ? String(meta[entityHeader] || '').trim() : '';
