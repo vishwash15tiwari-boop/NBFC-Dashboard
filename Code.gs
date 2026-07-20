@@ -246,7 +246,14 @@ function readTrackerLayout_(sh, maxCol, docStartCol, docEndCol) {
       docIdx.push(i);
     }
   }
-  return { headers: headers, colCount: lastCol, serialIdx: serialIdx, metaIdx: metaIdx, pendingIdx: pendingIdx, docIdx: docIdx };
+  // Columns after docEndCol are display-only seller attributes (e.g. Vintage, Eligibility).
+  var extraMetaIdx = [];
+  if (docEndCol) {
+    for (i = 0; i < headers.length; i++) {
+      if (headers[i] && (i + 1) > docEndCol) extraMetaIdx.push(i);
+    }
+  }
+  return { headers: headers, colCount: lastCol, serialIdx: serialIdx, metaIdx: metaIdx, pendingIdx: pendingIdx, docIdx: docIdx, extraMetaIdx: extraMetaIdx };
 }
 
 function metaFieldType_(header) {
@@ -319,6 +326,10 @@ function getNbfcData_(ss, tabCfg, matrix) {
         var rowNotes = allNotes[i] || [];
         var docStates = {};
         var received = 0, pending = 0, na = 0;
+        var extraMeta = {};
+        layout.extraMetaIdx.forEach(function (idx) {
+          extraMeta[layout.headers[idx]] = String(row[idx] == null ? '' : row[idx]).trim();
+        });
 
         layout.docIdx.forEach(function (idx) {
           var h = layout.headers[idx];
@@ -343,6 +354,7 @@ function getNbfcData_(ss, tabCfg, matrix) {
           row: i + 2,
           serial: isNaN(serial) ? '' : serial,
           meta: meta,
+          extraMeta: extraMeta,
           docs: docStates,
           received: received,
           pending: pending,
@@ -381,6 +393,7 @@ function getNbfcData_(ss, tabCfg, matrix) {
         var h = layout.headers[idx];
         return { key: h, type: metaFieldType_(h), options: Object.keys(optionValues[h] || {}).sort() };
       }),
+      extraMetaFields: layout.extraMetaIdx.map(function (idx) { return layout.headers[idx]; }),
       pendingHeader: layout.headers[layout.pendingIdx]
     };
   } catch (e) {

@@ -784,6 +784,16 @@
   .ksc-done-name{font-size:12.5px;font-weight:700;letter-spacing:-.015em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ksc-done-sub{font-size:11px;color:var(--ink-3);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ksc-done-footer{font-size:11px;color:var(--rk-green-ink);font-weight:600;padding-top:9px;border-top:1px solid var(--line-2);display:flex;align-items:center;justify-content:space-between}
+  /* Extra seller attributes (Vintage, Eligibility) shown per card */
+  .ksc-em-row{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 12px}
+  .ksc-em-item{display:flex;align-items:baseline;gap:5px;background:var(--fill);border-radius:7px;padding:4px 10px;font-size:11.5px}
+  .ksc-em-lbl{color:var(--ink-3);font-weight:500}
+  .ksc-em-val{color:var(--ink-2);font-weight:600}
+  /* Extra attrs on completed tiles */
+  .ksc-done-attrs{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0 10px}
+  .ksc-done-attr{display:flex;align-items:baseline;gap:4px;background:var(--fill);border-radius:6px;padding:3px 8px;font-size:11px}
+  .ksc-done-attr-lbl{color:var(--ink-3);font-weight:500}
+  .ksc-done-attr-val{color:var(--ink-2);font-weight:600}
   @media(prefers-color-scheme:dark){
     .ksc-doc.na{background:rgba(255,255,255,.04)}
     .ksc-doc.recv{background:rgba(0,166,81,.10);border-color:rgba(0,166,81,.22)}
@@ -1581,6 +1591,16 @@ function toggleKpiCard(row){
   _kscOpen = wasOpen ? null : el;
 }
 
+function extraMetaHtml(e){
+  var em = e.extraMeta || {};
+  var keys = Object.keys(em).filter(function(k){ return em[k]; });
+  if (!keys.length) return '';
+  return '<div class="ksc-em-row">' + keys.map(function(k){
+    return '<span class="ksc-em-item"><span class="ksc-em-lbl">' + esc(k) + '</span>' +
+           '<span class="ksc-em-val">' + esc(em[k]) + '</span></span>';
+  }).join('') + '</div>';
+}
+
 function buildPendingCards(list){
   if (!list || !list.length) return '<div class="empty-cell">No sellers with pending documents.</div>';
   var entityHeader = fieldByType.entity;
@@ -1617,6 +1637,7 @@ function buildPendingCards(list){
         '<span class="ksc-chev"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>' +
       '</button>' +
       '<div class="ksc-panel"><div class="ksc-panel-inner">' +
+        extraMetaHtml(e) +
         '<div class="ksc-doc-grid">' + docsHtml + '</div>' +
         '<div class="ksc-foot">' +
           '<div class="ksc-prog"><div class="ksc-prog-fill" style="width:' + e.completion + '%"></div></div>' +
@@ -1669,6 +1690,7 @@ function buildPhase0Cards(list){
         '<span class="ksc-chev"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>' +
       '</button>' +
       '<div class="ksc-panel"><div class="ksc-panel-inner">' +
+        extraMetaHtml(e) +
         '<div style="font-size:11.5px;color:var(--ink-3);margin-bottom:10px;padding:8px 10px;background:var(--fill);border-radius:8px">' +
           'No documents have been received from this seller yet. ' + pendDocs.length + ' document' + (pendDocs.length===1?'':'s') + ' required to complete onboarding.' +
         '</div>' +
@@ -1693,12 +1715,19 @@ function buildCompletedCards(list){
     var nm  = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
     var ent = entityHeader ? (e.meta[entityHeader] || '') : '';
     var tv  = fieldByType.turnover ? formatTurnover(e.meta[fieldByType.turnover]) : '';
+    var em = e.extraMeta || {};
+    var emKeys = Object.keys(em).filter(function(k){ return em[k]; });
+    var emAttrs = emKeys.length ? '<div class="ksc-done-attrs">' + emKeys.map(function(k){
+      return '<span class="ksc-done-attr"><span class="ksc-done-attr-lbl">' + esc(k) + '</span>' +
+             '<span class="ksc-done-attr-val">' + esc(em[k]) + '</span></span>';
+    }).join('') + '</div>' : '';
     return '<div class="ksc-done" onclick="fromKpiToDetail(' + e.row + ')">' +
       '<div class="ksc-done-top">' +
         '<div class="ksc-done-chk">' + chkSvg + '</div>' +
         '<div style="min-width:0"><div class="ksc-done-name">' + esc(nm) + '</div>' +
           (ent ? '<div class="ksc-done-sub">' + esc(ent) + (tv ? ' · ' + esc(tv) : '') + '</div>' : '') + '</div>' +
       '</div>' +
+      emAttrs +
       '<div class="ksc-done-footer">' +
         '<span>' + e.received + ' documents received</span>' +
         '<span class="chip ok">All clear</span>' +
