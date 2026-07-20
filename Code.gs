@@ -39,7 +39,7 @@ var CONFIG = {
   PROP_BACKEND_ID: 'BACKEND_SHEET_ID'
 };
 
-/* ─────────────────────────── Web-app entry ─────────────────────────────── */
+/* ─────────────────────────── Web-app entry ─────────────────────────── */
 
 function doGet() {
   return HtmlService.createTemplateFromFile('Index')
@@ -49,7 +49,7 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
 }
 
-/* ───────────────────────── Spreadsheet access ──────────────────────────── */
+/* ─────────────────────────── Spreadsheet access ────────────────────────── */
 
 function getSpreadsheet_() {
   var props = PropertiesService.getScriptProperties();
@@ -107,7 +107,7 @@ function convertExcelToNativeSheet_(fileId) {
   return JSON.parse(res.getContentText()).id;
 }
 
-/* ─────────────────────────── Tab discovery ─────────────────────────────── */
+/* ─────────────────────────── Tab discovery ─────────────────────────── */
 
 function normKey_(s) {
   return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -134,7 +134,7 @@ function findSheet_(ss, spec) {
   throw new Error('Could not locate the "' + spec.name + '" tab in the spreadsheet.');
 }
 
-/* ─────────────────────────── Status vocab ──────────────────────────────── */
+/* ─────────────────────────── Status vocab ─────────────────────────── */
 
 function parseStatus_(raw) {
   var s = String(raw == null ? '' : raw).trim();
@@ -148,7 +148,7 @@ function parseStatus_(raw) {
   return { status: 'pending', note: s };
 }
 
-/* ──────────────────── Requirement matrix (optional tab) ─────────────────── */
+/* ──────────────────────── Requirement matrix (optional tab) ───────────── */
 
 function readRequirementMatrix_(ss) {
   try {
@@ -211,7 +211,7 @@ function matchEntityColumn_(matrix, entityType) {
   return best;
 }
 
-/* ─────────────────────────── Tracker layout ─────────────────────────────── */
+/* ─────────────────────────── Tracker layout ─────────────────────────── */
 
 function readTrackerLayout_(sh, maxCol) {
   var lastCol = sh.getLastColumn();
@@ -253,7 +253,7 @@ function metaFieldType_(header) {
   return 'text';
 }
 
-/* ────────────────────────── Per-NBFC data reader ───────────────────────── */
+/* ────────────────────────── Per-NBFC data reader ──────────────────────── */
 
 /**
  * Reads one NBFC tracker tab and returns all entity rows with parsed doc statuses.
@@ -383,7 +383,7 @@ function getNbfcData_(ss, tabCfg, matrix) {
   }
 }
 
-/* ───────────────────────────── Read API ────────────────────────────────── */
+/* ───────────────────────────────── Read API ───────────────────────────────── */
 
 /**
  * Returns all NBFC tab data in one round trip.
@@ -405,7 +405,7 @@ function getInitialData() {
   };
 }
 
-/* ───────────────────────────── Write API ───────────────────────────────── */
+/* ───────────────────────────────── Write API ──────────────────────────────── */
 
 function toSheetDate_(value) {
   var s = String(value == null ? '' : value).trim();
@@ -583,7 +583,7 @@ function saveEntry(nbfcId, payload) {
   }
 }
 
-/* ──────────────────────── Drive document upload ────────────────────────── */
+/* ───────────────────────────── Drive document upload ────────────────────────── */
 
 function getOrCreateEntityFolder_(nbfcName, entityName) {
   var root = DriveApp.getFolderById(DRIVE_ROOT_ID);
