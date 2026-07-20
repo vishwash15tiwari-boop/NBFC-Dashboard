@@ -709,6 +709,89 @@
   @media (prefers-reduced-motion:reduce){
     *{animation-duration:.01ms!important;transition-duration:.01ms!important}
   }
+
+  /* ── KPI drill-down — enhanced Pending / Completed views ───────────────── */
+  .kpi-cards-list{display:flex;flex-direction:column;gap:8px;padding:16px 24px 24px}
+  .ksc{
+    background:var(--card);border-radius:14px;
+    box-shadow:0 0 0 .5px var(--line-2),var(--shadow-sm);
+    overflow:hidden;transition:box-shadow .2s var(--ease);
+  }
+  .ksc:hover{box-shadow:0 0 0 .5px var(--line-2),var(--shadow-md)}
+  .ksc.open{box-shadow:0 0 0 1.5px rgba(var(--nc-rgb),.28),var(--shadow-md)}
+  .ksc-hdr{
+    display:grid;grid-template-columns:36px 1fr auto auto 20px;
+    align-items:center;gap:11px;padding:13px 15px;
+    cursor:pointer;border:none;background:none;width:100%;text-align:left;
+    font-family:inherit;color:var(--ink);transition:background .14s;
+  }
+  .ksc-hdr:hover{background:rgba(var(--nc-rgb),.05)}
+  .ksc-av{
+    width:34px;height:34px;border-radius:50%;
+    background:rgba(var(--nc-rgb),.13);color:var(--nc);
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;flex:none;letter-spacing:.01em;
+  }
+  .ksc-info{min-width:0;text-align:left}
+  .ksc-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.015em}
+  .ksc-sub{font-size:11.5px;color:var(--ink-3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.005em}
+  .ksc-ring{position:relative;width:40px;height:40px;flex:none}
+  .ksc-ring svg{display:block}
+  .ksc-ring-lbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;letter-spacing:-.02em}
+  .ksc-chev svg{transition:transform .22s var(--ease)}
+  .ksc.open .ksc-chev svg{transform:rotate(90deg)}
+  .ksc-panel{max-height:0;overflow:hidden;transition:max-height .38s var(--ease)}
+  .ksc.open .ksc-panel{max-height:900px}
+  .ksc-panel-inner{border-top:1px solid var(--line-2);padding:14px 15px 15px}
+  .ksc-doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:6px;margin-bottom:12px}
+  .ksc-doc{
+    display:flex;align-items:flex-start;gap:9px;padding:9px 10px;
+    border-radius:10px;border:1px solid var(--line-2);
+  }
+  .ksc-doc.pend{border-color:rgba(245,158,11,.32);background:var(--amber-tint)}
+  .ksc-doc.recv{border-color:rgba(0,166,81,.22);background:var(--rk-green-tint-2)}
+  .ksc-doc.na{background:var(--surface)}
+  .ksc-doc-dot{width:7px;height:7px;border-radius:50%;flex:none;margin-top:4.5px}
+  .ksc-doc.pend .ksc-doc-dot{background:var(--amber)}
+  .ksc-doc.recv .ksc-doc-dot{background:var(--rk-green)}
+  .ksc-doc.na .ksc-doc-dot{background:transparent;border:1.5px solid var(--gray-dot)}
+  .ksc-doc-name{font-size:11.5px;font-weight:600;color:var(--ink);line-height:1.35;letter-spacing:-.01em}
+  .ksc-doc-tag{
+    font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    margin-top:4px;display:inline-block;padding:2px 7px;border-radius:4px;
+  }
+  .ksc-doc.pend .ksc-doc-tag{background:rgba(245,158,11,.18);color:var(--amber-ink)}
+  .ksc-doc.recv .ksc-doc-tag{background:rgba(0,166,81,.14);color:var(--rk-green-ink)}
+  .ksc-doc.na .ksc-doc-tag{background:var(--fill);color:var(--ink-3)}
+  .ksc-foot{display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid var(--line-2);gap:10px}
+  .ksc-prog{height:4px;background:var(--fill);border-radius:2px;overflow:hidden;flex:1;max-width:120px}
+  .ksc-prog-fill{height:100%;background:var(--rk-green);border-radius:2px;transition:width .5s var(--ease-out)}
+  /* Completed grid */
+  .kpi-done-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;padding:16px 24px 24px}
+  .ksc-done{
+    background:var(--card);border-radius:13px;padding:15px 16px;
+    box-shadow:0 0 0 1px rgba(0,166,81,.22),var(--shadow-sm);
+    transition:all .22s var(--ease);cursor:pointer;
+  }
+  .ksc-done:hover{transform:translateY(-2px);box-shadow:0 0 0 1px rgba(0,166,81,.4),var(--shadow-md)}
+  .ksc-done:active{transform:translateY(0)}
+  .ksc-done-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .ksc-done-chk{
+    width:30px;height:30px;border-radius:50%;flex:none;
+    background:var(--rk-green-tint);color:var(--rk-green-ink);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .ksc-done-name{font-size:12.5px;font-weight:700;letter-spacing:-.015em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ksc-done-sub{font-size:11px;color:var(--ink-3);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ksc-done-footer{font-size:11px;color:var(--rk-green-ink);font-weight:600;padding-top:9px;border-top:1px solid var(--line-2);display:flex;align-items:center;justify-content:space-between}
+  @media(prefers-color-scheme:dark){
+    .ksc-doc.na{background:rgba(255,255,255,.04)}
+    .ksc-doc.recv{background:rgba(0,166,81,.10);border-color:rgba(0,166,81,.22)}
+    .ksc-doc.pend{background:rgba(245,158,11,.10);border-color:rgba(245,158,11,.24)}
+  }
+  :root[data-theme="dark"] .ksc-doc.na{background:rgba(255,255,255,.04)}
+  :root[data-theme="dark"] .ksc-doc.recv{background:rgba(0,166,81,.10);border-color:rgba(0,166,81,.22)}
+  :root[data-theme="dark"] .ksc-doc.pend{background:rgba(245,158,11,.10);border-color:rgba(245,158,11,.24)}
 </style>
 
 <!-- ─── Topbar: brand + NBFC switcher + actions ───────────────────────────── -->
@@ -1445,6 +1528,8 @@ function openKpiDrawer(title, sub, list, kind){
 }
 
 function buildKpiTable(list, kind){
+  if (kind === 'pending')   return buildPendingCards(list);
+  if (kind === 'completed') return buildCompletedCards(list);
   if (!list || !list.length) return '<div class="empty-cell">No sellers in this group.</div>';
   var entityHeader = fieldByType.entity;
   var hasTv = !!fieldByType.turnover;
@@ -1482,6 +1567,88 @@ function buildKpiTable(list, kind){
   }).join('') + '</tbody>';
 
   return '<div class="tbl-wrap"><table class="tbl" style="min-width:520px">' + head + body + '</table></div>';
+}
+
+/* ── Pending: expandable accordion cards ──────────────────────────────── */
+var _kscOpen = null;
+function toggleKpiCard(row){
+  var el = document.getElementById('ksc-' + row);
+  if (!el) return;
+  var wasOpen = el.classList.contains('open');
+  if (_kscOpen && _kscOpen !== el){ _kscOpen.classList.remove('open'); }
+  el.classList.toggle('open', !wasOpen);
+  _kscOpen = wasOpen ? null : el;
+}
+
+function buildPendingCards(list){
+  if (!list || !list.length) return '<div class="empty-cell">No sellers with pending documents.</div>';
+  var entityHeader = fieldByType.entity;
+  var sorted = list.slice().sort(function(a,b){ return b.pending - a.pending || a.completion - b.completion; });
+  return '<div class="kpi-cards-list">' + sorted.map(function(e){
+    var nm  = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
+    var ent = entityHeader ? (e.meta[entityHeader] || '') : '';
+    var tv  = fieldByType.turnover ? formatTurnover(e.meta[fieldByType.turnover]) : '';
+    var sub = [ent, tv].filter(Boolean).join(' · ');
+    var docs = ND.docs || [];
+    var pendDocs = docs.filter(function(d){ return (e.docs[d.key]||{}).status === 'pending'; });
+    var recvDocs = docs.filter(function(d){ return (e.docs[d.key]||{}).status === 'received'; });
+    var naDocs   = docs.filter(function(d){ return (e.docs[d.key]||{}).status === 'na'; });
+    var allDocs  = pendDocs.concat(recvDocs).concat(naDocs);
+    var docsHtml = allDocs.map(function(d){
+      var st  = (e.docs[d.key]||{}).status;
+      var cls = st === 'received' ? 'recv' : st === 'na' ? 'na' : 'pend';
+      var tag = cls === 'pend' ? 'Pending' : cls === 'recv' ? 'Received' : 'N/A';
+      return '<div class="ksc-doc ' + cls + '">' +
+        '<span class="ksc-doc-dot"></span>' +
+        '<div><div class="ksc-doc-name">' + esc(d.key) + '</div>' +
+        '<span class="ksc-doc-tag">' + tag + '</span></div></div>';
+    }).join('');
+    var ringClr = e.completion >= 75 ? 'var(--rk-green)' : e.completion >= 40 ? 'var(--amber)' : '#e05252';
+    var ringHtml = ringSvg(e.completion, 40, 4.5, 'var(--fill)', ringClr);
+    return '<div class="ksc" id="ksc-' + e.row + '">' +
+      '<button class="ksc-hdr" onclick="toggleKpiCard(' + e.row + ')" type="button">' +
+        '<div class="ksc-av">' + esc(initials(nm)) + '</div>' +
+        '<div class="ksc-info"><div class="ksc-name">' + esc(nm) + '</div>' +
+          (sub ? '<div class="ksc-sub">' + esc(sub) + '</div>' : '') + '</div>' +
+        '<div class="ksc-ring">' + ringHtml +
+          '<div class="ksc-ring-lbl">' + Math.round(e.completion) + '%</div></div>' +
+        '<span class="chip warn">' + e.pending + ' pending</span>' +
+        '<span class="ksc-chev"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>' +
+      '</button>' +
+      '<div class="ksc-panel"><div class="ksc-panel-inner">' +
+        '<div class="ksc-doc-grid">' + docsHtml + '</div>' +
+        '<div class="ksc-foot">' +
+          '<div class="ksc-prog"><div class="ksc-prog-fill" style="width:' + e.completion + '%"></div></div>' +
+          '<span style="font-size:11px;color:var(--ink-3)">' + recvDocs.length + ' of ' + (recvDocs.length + pendDocs.length) + ' docs received</span>' +
+          '<button class="btn-ghost" style="height:30px;padding:0 13px;font-size:12.5px" onclick="fromKpiToDetail(' + e.row + ')" type="button">View details</button>' +
+        '</div>' +
+      '</div></div>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+/* ── Completed: clean verified grid ──────────────────────────────────── */
+function buildCompletedCards(list){
+  if (!list || !list.length) return '<div class="empty-cell">No sellers with all documents received.</div>';
+  var entityHeader = fieldByType.entity;
+  var sorted = list.slice().sort(function(a,b){ return b.received - a.received || b.completion - a.completion; });
+  var chkSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+  return '<div class="kpi-done-grid">' + sorted.map(function(e){
+    var nm  = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
+    var ent = entityHeader ? (e.meta[entityHeader] || '') : '';
+    var tv  = fieldByType.turnover ? formatTurnover(e.meta[fieldByType.turnover]) : '';
+    return '<div class="ksc-done" onclick="fromKpiToDetail(' + e.row + ')">' +
+      '<div class="ksc-done-top">' +
+        '<div class="ksc-done-chk">' + chkSvg + '</div>' +
+        '<div style="min-width:0"><div class="ksc-done-name">' + esc(nm) + '</div>' +
+          (ent ? '<div class="ksc-done-sub">' + esc(ent) + (tv ? ' · ' + esc(tv) : '') + '</div>' : '') + '</div>' +
+      '</div>' +
+      '<div class="ksc-done-footer">' +
+        '<span>' + e.received + ' documents received</span>' +
+        '<span class="chip ok">All clear</span>' +
+      '</div>' +
+    '</div>';
+  }).join('') + '</div>';
 }
 
 function fromKpiToDetail(row){
