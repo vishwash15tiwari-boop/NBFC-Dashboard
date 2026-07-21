@@ -503,13 +503,14 @@ function getNbfcData_(ss, tabCfg, matrix) {
   }
 }
 
-/* ──────────────────── Marketplace counts (Open Marketplace vertical) ────── */
+/* ──────────────────── Marketplace counts (Open Marketplace · Onboarded) ─── */
+
+var MB_STATUS_FILTER = 'Onboarded';
 
 /**
- * Reads the marketplace sheet and returns counts of Open Marketplace
- * sellers and buyers.  Looks for a column whose header contains "vertical"
- * and counts rows where that cell equals MB_VERTICAL_FILTER exactly.
- * Falls back to counting all data rows if the vertical column is absent.
+ * Counts rows in a marketplace tab where:
+ *   Vertical = "Open Marketplace"  AND  Status = "Onboarded"
+ * Header detection is case-insensitive; both columns must be present.
  */
 function getMbCounts_() {
   try {
@@ -521,14 +522,17 @@ function getMbCounts_() {
         if (!sh || sh.getLastRow() < 2) return 0;
         var lastCol = sh.getLastColumn();
         var headers = sh.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
-        var vIdx = -1;
+        var vIdx = -1, sIdx = -1;
         for (var c = 0; c < headers.length; c++) {
-          if (normKey_(headers[c]).indexOf('vertical') !== -1) { vIdx = c; break; }
+          var nk = normKey_(headers[c]);
+          if (vIdx === -1 && nk.indexOf('vertical') !== -1) vIdx = c;
+          if (sIdx === -1 && nk === 'status')               sIdx = c;
         }
         var data = sh.getRange(2, 1, sh.getLastRow() - 1, lastCol).getDisplayValues();
-        if (vIdx === -1) return data.length; // no vertical column — count all rows
         return data.filter(function (r) {
-          return String(r[vIdx]).trim() === MB_VERTICAL_FILTER;
+          var verticalOk = vIdx === -1 || String(r[vIdx]).trim() === MB_VERTICAL_FILTER;
+          var statusOk   = sIdx === -1 || String(r[sIdx]).trim() === MB_STATUS_FILTER;
+          return verticalOk && statusOk;
         }).length;
       } catch (e) { return 0; }
     }

@@ -1367,8 +1367,8 @@ function renderKpis(){
   var st  = computeStats(ND.entities);
   var mbC = (DATA && DATA.mbCounts) ? DATA.mbCounts : { sellers: 0, buyers: 0 };
   var cards = [
-    { kind:'total',     tone:'total',     icon:ICON.users,  num:mbC.sellers,  label:'Total Sellers', sub:'Open Marketplace · live count' },
-    { kind:'buyers',    tone:'buyers',    icon:ICON.buyers, num:mbC.buyers,   label:'Total Buyers',  sub:'Open Marketplace · live count' },
+    { kind:'total',     tone:'total',     icon:ICON.users,  num:mbC.sellers,  label:'Total Sellers', sub:'Open Marketplace · Onboarded' },
+    { kind:'buyers',    tone:'buyers',    icon:ICON.buyers, num:mbC.buyers,   label:'Total Buyers',  sub:'Open Marketplace · Onboarded' },
     { kind:'phase0',    tone:'phase0',    icon:ICON.seed,   num:st.phase0,    label:'Phase 0',       sub:'Identified sellers · documents received' },
     { kind:'pending',   tone:'pending',   icon:ICON.clock,  num:st.pending,   label:'Pending',       sub:'Documents still awaited' },
     { kind:'completed', tone:'completed', icon:ICON.check,  num:st.completed, label:'Completed',     sub:'All required docs received' }
