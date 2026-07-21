@@ -802,6 +802,84 @@
   :root[data-theme="dark"] .ksc-doc.na{background:rgba(255,255,255,.04)}
   :root[data-theme="dark"] .ksc-doc.recv{background:rgba(0,166,81,.10);border-color:rgba(0,166,81,.22)}
   :root[data-theme="dark"] .ksc-doc.pend{background:rgba(245,158,11,.10);border-color:rgba(245,158,11,.24)}
+
+  /* ── Kanban full-screen overlay (overrides .drawer for #kpiDrawer) ──────── */
+  #kpiScrim{display:none!important}
+  #kpiDrawer{
+    top:0;right:0;bottom:0;left:0;
+    width:100%;border-radius:0;
+    background:var(--surface);box-shadow:none;
+    transform:translateY(32px);opacity:0;pointer-events:none;
+    transition:transform .34s var(--drawer-open),opacity .24s var(--ease);
+  }
+  #kpiDrawer.on{transform:none;opacity:1;pointer-events:auto}
+  /* Detail drawer must render on top of the full-screen kanban */
+  #detailDrawer{z-index:80}
+  #scrim{z-index:75}
+  /* Kanban header / stats bar / body */
+  #kpiDrawer .drawer-h{
+    padding:16px 24px;
+    border-bottom:1px solid var(--line-2);
+    background:var(--card);
+  }
+  #kpiDrawer .drawer-h h2{font-size:20px;font-weight:700;letter-spacing:-.03em}
+  #kpiSumbar{
+    padding:11px 24px;flex-shrink:0;
+    background:var(--fill);
+    border-bottom:1px solid var(--line-2);
+  }
+  #kpiDrBody{padding:20px 24px 44px;background:var(--surface)}
+  /* ── Kanban card grid ──────────────────────────────────────────────────── */
+  .kb-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(292px,1fr));
+    gap:10px;align-content:start;
+  }
+  /* ── Extra-meta attribute badges (Vintage, Eligibility) ───────────────── */
+  .kb-attrs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .kb-attr{
+    display:inline-flex;align-items:center;gap:5px;
+    padding:4px 11px;border-radius:8px;
+    font-size:11.5px;font-weight:600;
+    background:var(--fill);color:var(--ink-2);
+  }
+  .kb-attr svg{width:11px;height:11px;flex:none;opacity:.85}
+  .kb-attr-vintage{background:rgba(var(--nc-rgb),.12);color:var(--nc)}
+  .kb-attr-elig-yes{background:var(--rk-green-tint);color:var(--rk-green-ink)}
+  .kb-attr-elig-no{background:rgba(220,38,38,.10);color:#DC2626}
+  /* ── Document section labels inside expanded card ──────────────────────── */
+  .kb-sec{
+    display:flex;align-items:center;gap:6px;
+    font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+    color:var(--ink-3);margin:10px 0 6px;
+  }
+  .kb-sec:first-of-type{margin-top:0}
+  .kb-sec-badge{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-width:18px;height:18px;border-radius:9px;padding:0 4px;
+    font-size:9.5px;font-weight:800;
+  }
+  .kb-sec-pend .kb-sec-badge{background:var(--amber-tint);color:var(--amber-ink)}
+  .kb-sec-na   .kb-sec-badge{background:var(--fill);color:var(--ink-3)}
+  .kb-sec-recv .kb-sec-badge{background:var(--rk-green-tint);color:var(--rk-green-ink)}
+  /* ── Overview sellers table ────────────────────────────────────────────── */
+  #ovSellersCard{margin-top:14px}
+  /* ── Responsive kanban ─────────────────────────────────────────────────── */
+  @media(max-width:768px){
+    .kb-grid{grid-template-columns:1fr}
+    #kpiDrawer .drawer-h{padding:12px 16px}
+    #kpiDrBody{padding:14px 16px 32px}
+  }
+  @media(prefers-color-scheme:dark){
+    #kpiDrawer .drawer-h{background:rgba(28,28,30,.96)}
+    #kpiSumbar{background:rgba(255,255,255,.06)}
+    #kpiDrBody{background:#000}
+    .kb-attr-elig-no{background:rgba(220,38,38,.18)}
+  }
+  :root[data-theme="dark"] #kpiDrawer .drawer-h{background:rgba(28,28,30,.96)}
+  :root[data-theme="dark"] #kpiSumbar{background:rgba(255,255,255,.06)}
+  :root[data-theme="dark"] #kpiDrBody{background:#000}
+  :root[data-theme="dark"] .kb-attr-elig-no{background:rgba(220,38,38,.18)}
 </style>
 
 <!-- ─── Topbar: brand + NBFC switcher + actions ───────────────────────────── -->
@@ -860,10 +938,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         Overview
       </button>
-      <button data-view="entities">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        All sellers
-      </button>
       <button data-view="matrix">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
         Document matrix
@@ -909,30 +983,28 @@
           </div>
         </div>
       </div>
-    </section>
-
-    <!-- ─── All sellers table ─────────────────────────────────────────── -->
-    <section class="view" id="view-entities">
-      <div class="card">
+      <!-- All sellers detailed table -->
+      <div class="card" id="ovSellersCard">
+        <div class="card-h">
+          <h3>All Sellers</h3>
+        </div>
         <div class="toolbar">
           <div class="search">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <input id="q" type="search" placeholder="Search name, GST, region…" autocomplete="off">
+            <input id="ovQ" type="search" placeholder="Search name, GST, region…" autocomplete="off">
           </div>
-          <select class="flt" id="fltEntity"><option value="">All entity types</option></select>
-          <select class="flt" id="fltRegion"><option value="">All regions</option></select>
-          <select class="flt" id="fltStatus">
+          <select class="flt" id="ovFltStatus">
             <option value="">All statuses</option>
             <option value="phase0">Phase 0 · not started</option>
             <option value="pending">Has pending docs</option>
-            <option value="complete">Completed</option>
+            <option value="completed">Completed</option>
           </select>
-          <span class="tbl-count" id="entitiesCount"></span>
+          <span class="tbl-count" id="ovSellersCount"></span>
         </div>
         <div class="tbl-wrap">
           <table class="tbl">
-            <thead id="entitiesHead"></thead>
-            <tbody id="entitiesBody"></tbody>
+            <thead id="ovSellersHead"></thead>
+            <tbody id="ovSellersBody"></tbody>
           </table>
         </div>
       </div>
@@ -1208,9 +1280,7 @@ function renderAll(){
   $('subnav').style.display = '';
   renderHero();
   renderKpis();
-  renderFilters();
   renderOverview();
-  renderEntities();
   renderMatrix();
 }
 
@@ -1335,6 +1405,8 @@ function renderOverview(){
     }).join('');
     return '<div class="facet"><h4>' + esc(header) + '</h4><div class="facet-row">' + chips + '</div></div>';
   }).join('') : '<div class="empty-cell">No breakdown fields found.</div>';
+
+  renderOvTable();
 }
 
 /* Stacked document bars from docs + entity rows */
@@ -1398,70 +1470,74 @@ function openFacet(enc){
 
 /* ═══════════════════════════ All sellers table ═════════════════════════ */
 
-function renderFilters(){
-  var ent = {}, reg = {};
-  var rh = regionHeader();
-  (ND.entities || []).forEach(function(e){
-    if (fieldByType.entity && e.meta[fieldByType.entity]) ent[e.meta[fieldByType.entity]] = 1;
-    if (rh && e.meta[rh]) reg[e.meta[rh]] = 1;
-  });
-  fillSelect($('fltEntity'), Object.keys(ent).sort(), 'All entity types');
-  fillSelect($('fltRegion'), Object.keys(reg).sort(), 'All regions');
-  $('fltRegion').dataset.header = rh || '';
-  $('fltRegion').style.display = rh ? '' : 'none';
-}
-function fillSelect(sel, opts, first){
-  var cur = sel.value;
-  sel.innerHTML = '<option value="">' + esc(first) + '</option>' +
-    opts.map(function(o){ return '<option>' + esc(o) + '</option>'; }).join('');
-  sel.value = opts.indexOf(cur) > -1 ? cur : '';
-}
-
-function renderEntities(){
+function renderOvTable(){
   var entities = ND.entities || [];
-  var q = $('q').value.trim().toLowerCase();
-  var fe = $('fltEntity').value, fr = $('fltRegion').value, fs = $('fltStatus').value;
-  var rh = $('fltRegion').dataset.header;
-  var hasGst = !!fieldByType.gst, hasTv = !!fieldByType.turnover;
+  var q  = $('ovQ')        ? $('ovQ').value.trim().toLowerCase() : '';
+  var fs = $('ovFltStatus') ? $('ovFltStatus').value : '';
+  var rh = regionHeader();
+  var hasGst = !!fieldByType.gst;
 
-  $('entitiesHead').innerHTML = '<tr><th>#</th><th>Seller</th>' +
+  /* Collect all extra-meta field names (Vintage, Eligibility, …) */
+  var extraFieldSet = {};
+  entities.forEach(function(e){
+    Object.keys(e.extraMeta || {}).forEach(function(k){ if (k) extraFieldSet[k] = 1; });
+  });
+  var extraFields = Object.keys(extraFieldSet);
+
+  /* Header row */
+  $('ovSellersHead').innerHTML = '<tr><th>#</th><th>Seller</th>' +
     (hasGst ? '<th>GST</th>' : '') +
-    '<th>Entity type</th>' + (hasTv ? '<th>Turnover</th>' : '') +
-    '<th>Completion</th><th>Status</th></tr>';
+    (rh ? '<th>Region</th>' : '') +
+    '<th>Entity Type</th>' +
+    extraFields.map(function(f){ return '<th>' + esc(f) + '</th>'; }).join('') +
+    '<th>Pending</th><th>Completion</th><th>Status</th></tr>';
 
+  /* Apply filters */
   var rows = entities.filter(function(e){
-    if (fe && (e.meta[fieldByType.entity] || '') !== fe) return false;
-    if (fr && rh && (e.meta[rh] || '') !== fr) return false;
-    if (fs === 'complete' && !(e.pending === 0 && e.applicable > 0)) return false;
-    if (fs === 'pending' && e.pending === 0) return false;
-    if (fs === 'phase0' && !(e.received === 0 && e.applicable > 0)) return false;
+    if (fs === 'phase0'    && !(e.received === 0 && e.applicable > 0)) return false;
+    if (fs === 'pending'   && e.pending === 0) return false;
+    if (fs === 'completed' && !(e.pending === 0 && e.applicable > 0)) return false;
     if (q){
-      var hay = Object.keys(e.meta).map(function(k){ return e.meta[k]; }).join(' ').toLowerCase();
+      var hay = [
+        nameHeader ? (e.meta[nameHeader] || '') : '',
+        hasGst ? (e.meta[fieldByType.gst] || '') : '',
+        fieldByType.entity ? (e.meta[fieldByType.entity] || '') : '',
+        rh ? (e.meta[rh] || '') : '',
+        extraFields.map(function(f){ return (e.extraMeta || {})[f] || ''; }).join(' ')
+      ].join(' ').toLowerCase();
       if (hay.indexOf(q) === -1) return false;
     }
     return true;
   });
 
-  var subFields = (ND.metaFields || []).filter(function(f){ return f.type === 'text' && f.key !== nameHeader; });
-  var colCount = 4 + (hasGst?1:0) + (hasTv?1:0);
+  var colCount = 4 + (hasGst?1:0) + (rh?1:0) + extraFields.length;
 
-  $('entitiesBody').innerHTML = rows.length ? rows.map(function(e){
+  $('ovSellersBody').innerHTML = rows.length ? rows.map(function(e){
     var nm = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
-    var sub = subFields.map(function(f){ return e.meta[f.key]; }).filter(Boolean).join(' · ');
-    var tv = hasTv ? formatTurnover(e.meta[fieldByType.turnover]) : '';
     return '<tr onclick="openDetail(' + e.row + ')">' +
-      '<td style="color:var(--ink-3)">' + esc(e.serial) + '</td>' +
-      '<td><div class="cell-name">' + esc(nm) + '</div>' +
-        (sub ? '<div class="cell-sub">' + esc(sub) + '</div>' : '') + '</td>' +
+      '<td style="color:var(--ink-3)">' + esc(String(e.serial || '')) + '</td>' +
+      '<td><div class="cell-name">' + esc(nm) + '</div></td>' +
       (hasGst ? '<td class="gst">' + esc(e.meta[fieldByType.gst] || '—') + '</td>' : '') +
+      (rh ? '<td>' + esc(e.meta[rh] || '—') + '</td>' : '') +
       '<td>' + esc((fieldByType.entity && e.meta[fieldByType.entity]) || '—') + '</td>' +
-      (hasTv ? '<td>' + (tv ? '<span class="tv-tag">'+esc(tv)+'</span>' : '<span style="color:var(--ink-3)">—</span>') + '</td>' : '') +
+      extraFields.map(function(f){
+        var v  = (e.extraMeta || {})[f] || '';
+        var kn = normKey(f);
+        var isElig = kn.indexOf('elig') !== -1;
+        var style  = isElig && String(v).toLowerCase() === 'yes'
+          ? 'color:var(--rk-green-ink);font-weight:700'
+          : isElig && v ? 'color:#DC2626;font-weight:700' : '';
+        return '<td' + (style ? ' style="' + style + '"' : '') + '>' + esc(v || '—') + '</td>';
+      }).join('') +
+      '<td>' + (e.pending
+        ? '<span class="chip warn">' + e.pending + '</span>'
+        : '<span style="color:var(--ink-3)">0</span>') + '</td>' +
       '<td><div class="prog-cell"><div class="track"><div class="fill" style="width:' + e.completion + '%"></div></div><span>' + pct(e.completion) + '</span></div></td>' +
       '<td>' + statusChip(e) + '</td>' +
     '</tr>';
-  }).join('') : '<tr><td colspan="' + colCount + '" class="empty-cell">No sellers match the current filters.</td></tr>';
+  }).join('') : '<tr><td colspan="' + colCount + '" class="empty-cell">No sellers match.</td></tr>';
 
-  var sc = $('entitiesCount');
+  var sc = $('ovSellersCount');
   if (sc) sc.textContent = rows.length === entities.length
     ? rows.length + ' seller' + (rows.length === 1 ? '' : 's')
     : rows.length + ' of ' + entities.length;
@@ -1529,59 +1605,30 @@ function openKpiDrawer(title, sub, list, kind){
     '<span><i style="background:var(--gray-dot)"></i><b>' + agg.na + '</b> N/A</span>' +
     '<span style="margin-left:auto"><b>' + Math.round(agg.completion) + '%</b> received</span>';
 
+  _kscOpen = null;
   $('kpiDrBody').innerHTML = buildKpiTable(list, kind);
+  $('kpiDrBody').scrollTop = 0;
 
-  $('kpiScrim').classList.add('on');
   $('kpiDrawer').classList.add('on');
   $('kpiDrawer').setAttribute('aria-hidden','false');
   document.body.style.overflow = 'hidden';
 }
 
 function buildKpiTable(list, kind){
-  if (kind === 'pending')   return buildPendingCards(list);
-  if (kind === 'completed') return buildCompletedCards(list);
-  if (kind === 'phase0')    return buildPhase0Cards(list);
-  if (kind === 'total')     return '<div class="empty-cell" style="padding:32px 20px;text-align:center">All-sellers view is coming soon.</div>';
-  if (!list || !list.length) return '<div class="empty-cell">No sellers in this group.</div>';
-  var entityHeader = fieldByType.entity;
-  var hasTv = !!fieldByType.turnover;
-  var showPending = kind === 'pending';
-
-  var head = '<thead><tr><th>#</th><th>Seller</th>' +
-    (entityHeader ? '<th>Entity type</th>' : '') +
-    (hasTv ? '<th>Turnover</th>' : '') +
-    (showPending ? '<th>Pending</th>' : '') +
-    '<th>Completion</th></tr></thead>';
-
+  if (!list || !list.length) return '<div class="empty-cell" style="padding:48px 24px">No sellers in this group.</div>';
   var sorted = list.slice().sort(function(a,b){
-    if (showPending) return b.pending - a.pending || a.completion - b.completion;
-    return b.completion - a.completion;
+    if (kind === 'pending')   return b.pending - a.pending || a.completion - b.completion;
+    if (kind === 'completed') return b.received - a.received || b.completion - a.completion;
+    if (kind === 'phase0'){
+      var na = nameHeader ? a.meta[nameHeader] : '', nb = nameHeader ? b.meta[nameHeader] : '';
+      return String(na).localeCompare(String(nb));
+    }
+    return 0;
   });
-
-  var subHeader = regionHeader() || (fieldByType.gst || '');
-  var body = '<tbody>' + sorted.map(function(e){
-    var nm = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
-    var pendingNames = showPending
-      ? (ND.docs||[]).filter(function(d){ return (e.docs[d.key]||{}).status==='pending'; }).map(function(d){ return d.key; }).join(' · ')
-      : '';
-    var sub = showPending ? pendingNames : (subHeader ? (e.meta[subHeader] || '') : '');
-    var tv = hasTv ? formatTurnover(e.meta[fieldByType.turnover]) : '';
-    return '<tr onclick="fromKpiToDetail(' + e.row + ')">' +
-      '<td style="color:var(--ink-3)">' + esc(e.serial) + '</td>' +
-      '<td><div class="cell-name">' + esc(nm) + '</div>' +
-        (sub ? '<div class="cell-sub" title="'+esc(sub)+'" style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(sub) + '</div>' : '') +
-      '</td>' +
-      (entityHeader ? '<td>' + esc(e.meta[entityHeader] || '—') + '</td>' : '') +
-      (hasTv ? '<td>' + (tv ? '<span class="tv-tag">'+esc(tv)+'</span>' : '<span style="color:var(--ink-3)">—</span>') + '</td>' : '') +
-      (showPending ? '<td><span class="chip warn">' + e.pending + '</span></td>' : '') +
-      '<td><div class="prog-cell" style="min-width:120px"><div class="track"><div class="fill" style="width:' + e.completion + '%"></div></div><span>' + pct(e.completion) + '</span></div></td>' +
-    '</tr>';
-  }).join('') + '</tbody>';
-
-  return '<div class="tbl-wrap"><table class="tbl" style="min-width:520px">' + head + body + '</table></div>';
+  return '<div class="kb-grid">' + sorted.map(function(e,i){ return buildKbCard(e, i, kind || 'total'); }).join('') + '</div>';
 }
 
-/* ── Pending: expandable accordion cards ──────────────────────────────── */
+/* ── Kanban seller card (unified builder) ───────────────────────────────── */
 var _kscOpen = null;
 function toggleKpiCard(row){
   var el = document.getElementById('ksc-' + row);
@@ -1592,158 +1639,100 @@ function toggleKpiCard(row){
   _kscOpen = wasOpen ? null : el;
 }
 
-function extraMetaHtml(e){
+function buildKbCard(e, idx, kind){
+  var docs = ND.docs || [];
+  var nm   = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
+  var ent  = (fieldByType.entity && e.meta[fieldByType.entity]) || '';
+  var tv   = fieldByType.turnover ? formatTurnover(e.meta[fieldByType.turnover]) : '';
+  var sub  = [ent, tv].filter(Boolean).join(' · ');
+
+  var pendDocs = docs.filter(function(d){ return (e.docs[d.key]||{}).status === 'pending'; });
+  var recvDocs = docs.filter(function(d){ return (e.docs[d.key]||{}).status === 'received'; });
+  var naDocs   = docs.filter(function(d){ return (e.docs[d.key]||{}).status === 'na'; });
+
+  /* Extra-meta badges (Vintage, Eligibility, …) */
   var em = e.extraMeta || {};
-  var keys = Object.keys(em).filter(function(k){ return em[k]; });
-  if (!keys.length) return '';
-  return '<div class="ksc-em-row">' + keys.map(function(k){
-    return '<span class="ksc-em-item"><span class="ksc-em-lbl">' + esc(k) + '</span>' +
-           '<span class="ksc-em-val">' + esc(em[k]) + '</span></span>';
-  }).join('') + '</div>';
-}
+  var emKeys = Object.keys(em).filter(function(k){ return em[k]; });
+  var attrsHtml = emKeys.length ? '<div class="kb-attrs">' + emKeys.map(function(k){
+    var v = em[k], kn = normKey(k);
+    var isElig = kn.indexOf('elig') !== -1;
+    var cls = isElig && String(v).toLowerCase() === 'yes' ? 'kb-attr-elig-yes' :
+              isElig ? 'kb-attr-elig-no' : 'kb-attr-vintage';
+    var icon = isElig && String(v).toLowerCase() === 'yes'
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>'
+      : isElig
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+    return '<span class="kb-attr ' + cls + '">' + icon + esc(k) + ': <b>' + esc(v) + '</b></span>';
+  }).join('') + '</div>' : '';
 
-function buildPendingCards(list){
-  if (!list || !list.length) return '<div class="empty-cell">No sellers with pending documents.</div>';
-  var entityHeader = fieldByType.entity;
-  var sorted = list.slice().sort(function(a,b){ return b.pending - a.pending || a.completion - b.completion; });
-  return '<div class="kpi-cards-list">' + sorted.map(function(e){
-    var nm  = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
-    var ent = entityHeader ? (e.meta[entityHeader] || '') : '';
-    var tv  = fieldByType.turnover ? formatTurnover(e.meta[fieldByType.turnover]) : '';
-    var sub = [ent, tv].filter(Boolean).join(' · ');
-    var docs = ND.docs || [];
-    var pendDocs = docs.filter(function(d){ return (e.docs[d.key]||{}).status === 'pending'; });
-    var recvDocs = docs.filter(function(d){ return (e.docs[d.key]||{}).status === 'received'; });
-    var naDocs   = docs.filter(function(d){ return (e.docs[d.key]||{}).status === 'na'; });
-    var allDocs  = pendDocs.concat(recvDocs).concat(naDocs);
-    var docsHtml = allDocs.map(function(d){
-      var st  = (e.docs[d.key]||{}).status;
-      var cls = st === 'received' ? 'recv' : st === 'na' ? 'na' : 'pend';
-      var tag = cls === 'pend' ? 'Pending' : cls === 'recv' ? 'Received' : 'N/A';
-      return '<div class="ksc-doc ' + cls + '">' +
-        '<span class="ksc-doc-dot"></span>' +
-        '<div><div class="ksc-doc-name">' + esc(d.key) + '</div>' +
-        '<span class="ksc-doc-tag">' + tag + '</span></div></div>';
-    }).join('');
-    var ringClr = e.completion >= 75 ? 'var(--rk-green)' : e.completion >= 40 ? 'var(--amber)' : '#e05252';
-    var ringHtml = ringSvg(e.completion, 40, 4.5, 'var(--fill)', ringClr);
-    return '<div class="ksc" id="ksc-' + e.row + '">' +
-      '<button class="ksc-hdr" onclick="toggleKpiCard(' + e.row + ')" type="button">' +
-        '<div class="ksc-av">' + esc(initials(nm)) + '</div>' +
-        '<div class="ksc-info"><div class="ksc-name">' + esc(nm) + '</div>' +
-          (sub ? '<div class="ksc-sub">' + esc(sub) + '</div>' : '') + '</div>' +
-        '<div class="ksc-ring">' + ringHtml +
-          '<div class="ksc-ring-lbl">' + Math.round(e.completion) + '%</div></div>' +
-        '<span class="chip warn">' + e.pending + ' pending</span>' +
-        '<span class="ksc-chev"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>' +
-      '</button>' +
-      '<div class="ksc-panel"><div class="ksc-panel-inner">' +
-        extraMetaHtml(e) +
-        '<div class="ksc-doc-grid">' + docsHtml + '</div>' +
-        '<div class="ksc-foot">' +
-          '<div class="ksc-prog"><div class="ksc-prog-fill" style="width:' + e.completion + '%"></div></div>' +
-          '<span style="font-size:11px;color:var(--ink-3)">' + recvDocs.length + ' of ' + (recvDocs.length + pendDocs.length) + ' docs received</span>' +
-          '<button class="btn-ghost" style="height:30px;padding:0 13px;font-size:12.5px" onclick="fromKpiToDetail(' + e.row + ')" type="button">View details</button>' +
-        '</div>' +
-      '</div></div>' +
-    '</div>';
-  }).join('') + '</div>';
-}
+  /* Document section builder */
+  function docSec(arr, secCls, label, dotCls){
+    if (!arr.length) return '';
+    var tag = dotCls === 'pend' ? (kind === 'phase0' ? 'Not submitted' : 'Pending')
+            : dotCls === 'recv' ? 'Received' : 'N/A';
+    return '<div class="kb-sec ' + secCls + '">' + label + '<span class="kb-sec-badge">' + arr.length + '</span></div>' +
+      '<div class="ksc-doc-grid">' + arr.map(function(d){
+        return '<div class="ksc-doc ' + dotCls + '"><span class="ksc-doc-dot"></span>' +
+          '<div><div class="ksc-doc-name">' + esc(d.key) + '</div>' +
+          '<span class="ksc-doc-tag">' + tag + '</span></div></div>';
+      }).join('') + '</div>';
+  }
 
-/* ── Phase 0: not-yet-started seller cards ───────────────────────────── */
-function buildPhase0Cards(list){
-  if (!list || !list.length) return '<div class="empty-cell">No Phase 0 sellers found.</div>';
-  var entityHeader = fieldByType.entity;
-  var sorted = list.slice().sort(function(a,b){
-    var na = nameHeader ? a.meta[nameHeader] : '';
-    var nb = nameHeader ? b.meta[nameHeader] : '';
-    return String(na).localeCompare(String(nb));
-  });
-  return '<div class="kpi-cards-list">' + sorted.map(function(e, idx){
-    var nm  = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
-    var ent = entityHeader ? (e.meta[entityHeader] || '') : '';
-    var tv  = fieldByType.turnover ? formatTurnover(e.meta[fieldByType.turnover]) : '';
-    var sub = [ent, tv].filter(Boolean).join(' · ');
-    var docs     = ND.docs || [];
-    var pendDocs = docs.filter(function(d){ return (e.docs[d.key]||{}).status !== 'na'; });
-    var naDocs   = docs.filter(function(d){ return (e.docs[d.key]||{}).status === 'na'; });
-    var docsHtml = pendDocs.map(function(d){
-      return '<div class="ksc-doc pend">' +
-        '<span class="ksc-doc-dot"></span>' +
-        '<div><div class="ksc-doc-name">' + esc(d.key) + '</div>' +
-        '<span class="ksc-doc-tag">Not submitted</span></div></div>';
-    }).join('') + naDocs.map(function(d){
-      return '<div class="ksc-doc na">' +
-        '<span class="ksc-doc-dot"></span>' +
-        '<div><div class="ksc-doc-name">' + esc(d.key) + '</div>' +
-        '<span class="ksc-doc-tag">N/A</span></div></div>';
-    }).join('');
-    /* Grey ring for not-started — no progress to show */
-    var ringHtml = ringSvg(0, 40, 4.5, 'var(--fill)', 'var(--fill-2)');
-    return '<div class="ksc" id="ksc-' + e.row + '" style="animation:fadeSlideUp .3s var(--ease) both;animation-delay:' + (idx*18) + 'ms">' +
-      '<button class="ksc-hdr" onclick="toggleKpiCard(' + e.row + ')" type="button">' +
-        '<div class="ksc-av" style="background:var(--fill);color:var(--ink-3)">' + esc(initials(nm)) + '</div>' +
-        '<div class="ksc-info"><div class="ksc-name">' + esc(nm) + '</div>' +
-          (sub ? '<div class="ksc-sub">' + esc(sub) + '</div>' : '<div class="ksc-sub">No entity type on file</div>') + '</div>' +
-        '<div class="ksc-ring">' + ringHtml +
-          '<div class="ksc-ring-lbl" style="color:var(--ink-3)">0%</div></div>' +
-        '<span class="chip mut">' + pendDocs.length + ' required</span>' +
-        '<span class="ksc-chev"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>' +
-      '</button>' +
-      '<div class="ksc-panel"><div class="ksc-panel-inner">' +
-        extraMetaHtml(e) +
-        '<div style="font-size:11.5px;color:var(--ink-3);margin-bottom:10px;padding:8px 10px;background:var(--fill);border-radius:8px">' +
-          'No documents have been received from this seller yet. ' + pendDocs.length + ' document' + (pendDocs.length===1?'':'s') + ' required to complete onboarding.' +
-        '</div>' +
-        '<div class="ksc-doc-grid">' + docsHtml + '</div>' +
-        '<div class="ksc-foot">' +
-          '<div class="ksc-prog"><div class="ksc-prog-fill" style="width:0%"></div></div>' +
-          '<span style="font-size:11px;color:var(--ink-3)">0 of ' + pendDocs.length + ' docs received</span>' +
-          '<button class="btn-ghost" style="height:30px;padding:0 13px;font-size:12.5px" onclick="fromKpiToDetail(' + e.row + ')" type="button">View seller</button>' +
-        '</div>' +
-      '</div></div>' +
-    '</div>';
-  }).join('') + '</div>';
-}
-
-/* ── Completed: clean verified grid ──────────────────────────────────── */
-function buildCompletedCards(list){
-  if (!list || !list.length) return '<div class="empty-cell">No sellers with all documents received.</div>';
-  var entityHeader = fieldByType.entity;
-  var sorted = list.slice().sort(function(a,b){ return b.received - a.received || b.completion - a.completion; });
-  var chkSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
-  return '<div class="kpi-done-grid">' + sorted.map(function(e){
-    var nm  = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
-    var ent = entityHeader ? (e.meta[entityHeader] || '') : '';
-    var tv  = fieldByType.turnover ? formatTurnover(e.meta[fieldByType.turnover]) : '';
-    var em = e.extraMeta || {};
-    var emKeys = Object.keys(em).filter(function(k){ return em[k]; });
-    var emAttrs = emKeys.length ? '<div class="ksc-done-attrs">' + emKeys.map(function(k){
-      return '<span class="ksc-done-attr"><span class="ksc-done-attr-lbl">' + esc(k) + '</span>' +
-             '<span class="ksc-done-attr-val">' + esc(em[k]) + '</span></span>';
-    }).join('') + '</div>' : '';
-    return '<div class="ksc-done" onclick="fromKpiToDetail(' + e.row + ')">' +
-      '<div class="ksc-done-top">' +
-        '<div class="ksc-done-chk">' + chkSvg + '</div>' +
-        '<div style="min-width:0"><div class="ksc-done-name">' + esc(nm) + '</div>' +
-          (ent ? '<div class="ksc-done-sub">' + esc(ent) + (tv ? ' · ' + esc(tv) : '') + '</div>' : '') + '</div>' +
+  var panelHtml = attrsHtml;
+  if (kind === 'phase0'){
+    panelHtml +=
+      '<div style="font-size:11.5px;color:var(--ink-3);padding:8px 10px;background:var(--fill);border-radius:8px;margin-bottom:10px">' +
+        'No documents received yet. ' + pendDocs.length + ' document' + (pendDocs.length===1?'':'s') + ' required to complete onboarding.' +
       '</div>' +
-      emAttrs +
-      '<div class="ksc-done-footer">' +
-        '<span>' + e.received + ' documents received</span>' +
-        '<span class="chip ok">All clear</span>' +
-      '</div>' +
+      docSec(pendDocs, 'kb-sec-pend', 'Required',       'pend') +
+      docSec(naDocs,   'kb-sec-na',   'Not Applicable', 'na');
+  } else {
+    panelHtml +=
+      docSec(pendDocs, 'kb-sec-pend', 'Missing',        'pend') +
+      docSec(naDocs,   'kb-sec-na',   'Not Applicable', 'na')   +
+      docSec(recvDocs, 'kb-sec-recv', 'Received',       'recv');
+  }
+
+  var totalApp = pendDocs.length + recvDocs.length;
+  panelHtml +=
+    '<div class="ksc-foot">' +
+      '<div class="ksc-prog"><div class="ksc-prog-fill" style="width:' + (kind === 'phase0' ? 0 : e.completion) + '%"></div></div>' +
+      '<span style="font-size:11px;color:var(--ink-3)">' + recvDocs.length + ' of ' + totalApp + ' docs received</span>' +
+      '<button class="btn-ghost" style="height:30px;padding:0 13px;font-size:12px" onclick="fromKpiToDetail(' + e.row + ')" type="button">View details</button>' +
     '</div>';
-  }).join('') + '</div>';
+
+  /* Card header decorations */
+  var ringClr = kind === 'completed' ? 'var(--rk-green)' :
+    kind === 'phase0' ? 'var(--fill-2)' :
+    e.completion >= 75 ? 'var(--rk-green)' : e.completion >= 40 ? 'var(--amber)' : '#e05252';
+  var ringHtml = ringSvg(kind === 'phase0' ? 0 : e.completion, 40, 4.5, 'var(--fill)', ringClr);
+  var ringLbl  = kind === 'phase0' ? '0%' : Math.round(e.completion) + '%';
+  var chipHtml = kind === 'completed' ? '<span class="chip ok">Complete</span>' :
+    kind === 'phase0' ? '<span class="chip mut">' + pendDocs.length + ' required</span>' :
+    statusChip(e);
+  var avStyle  = kind === 'completed' ? ' style="background:var(--rk-green-tint);color:var(--rk-green-ink)"' :
+    kind === 'phase0'  ? ' style="background:var(--fill);color:var(--ink-3)"' : '';
+
+  return '<div class="ksc" id="ksc-' + e.row + '" style="animation:fadeSlideUp .28s var(--ease) both;animation-delay:' + (idx*18) + 'ms">' +
+    '<button class="ksc-hdr" onclick="toggleKpiCard(' + e.row + ')" type="button">' +
+      '<div class="ksc-av"' + avStyle + '>' + esc(initials(nm)) + '</div>' +
+      '<div class="ksc-info"><div class="ksc-name">' + esc(nm) + '</div>' +
+        (sub ? '<div class="ksc-sub">' + esc(sub) + '</div>' : '') + '</div>' +
+      '<div class="ksc-ring">' + ringHtml +
+        '<div class="ksc-ring-lbl"' + (kind === 'phase0' ? ' style="color:var(--ink-3)"' : '') + '>' + ringLbl + '</div></div>' +
+      chipHtml +
+      '<span class="ksc-chev"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>' +
+    '</button>' +
+    '<div class="ksc-panel"><div class="ksc-panel-inner">' + panelHtml + '</div></div>' +
+  '</div>';
 }
 
 function fromKpiToDetail(row){
-  closeKpi();
-  setTimeout(function(){ openDetail(row); }, 60);
+  openDetail(row); /* detail drawer opens on top of the kanban at z-index 80 */
 }
 
 function closeKpi(){
-  $('kpiScrim').classList.remove('on');
   $('kpiDrawer').classList.remove('on');
   $('kpiDrawer').setAttribute('aria-hidden','true');
   if (!$('detailDrawer').classList.contains('on')) document.body.style.overflow = '';
@@ -1839,8 +1828,11 @@ document.addEventListener('click', function(e){
   if (e.target.closest('[data-close]')) closeDrawers();
 });
 $('scrim').addEventListener('click', function(){ closeDrawers(); });
-$('kpiScrim').addEventListener('click', function(){ closeKpi(); });
-document.addEventListener('keydown', function(e){ if (e.key === 'Escape'){ closeDrawers(); closeKpi(); } });
+document.addEventListener('keydown', function(e){
+  if (e.key !== 'Escape') return;
+  if ($('detailDrawer').classList.contains('on')) closeDrawers();
+  else closeKpi();
+});
 
 /* NBFC switcher */
 $('nbfcNav').addEventListener('click', function(e){
@@ -1858,9 +1850,8 @@ $('subnav').addEventListener('click', function(e){
 });
 
 $('refreshBtn').addEventListener('click', function(){ if (DATA) refresh(false); });
-['q','fltEntity','fltRegion','fltStatus'].forEach(function(id){
-  $(id).addEventListener('input', function(){ if (ND && ND.ok) renderEntities(); });
-});
+$('ovQ').addEventListener('input',           function(){ if (ND && ND.ok) renderOvTable(); });
+$('ovFltStatus').addEventListener('change',  function(){ if (ND && ND.ok) renderOvTable(); });
 
 /* tooltip (delegated) */
 var tipEl = $('tip');
