@@ -952,7 +952,7 @@
 
     <!-- ─── Overview ──────────────────────────────────────────────────── -->
     <section class="view on" id="view-overview">
-      <div class="ov-grid">
+      <div class="ov-grid" style="grid-template-columns:1fr">
         <div class="stack">
           <div class="card">
             <div class="card-h">
@@ -969,19 +969,6 @@
             <div class="facets" id="facets"></div>
           </div>
         </div>
-        <div class="stack">
-          <div class="card">
-            <div class="card-h">
-              <h3>Document status</h3>
-              <div class="legend" style="padding:0">
-                <span><i style="background:var(--rk-green)"></i>Received</span>
-                <span><i style="background:var(--amber)"></i>Pending</span>
-                <span><i style="background:transparent;border:1.5px solid var(--gray-dot)"></i>N/A</span>
-              </div>
-            </div>
-            <div class="docbars" id="docBars"></div>
-          </div>
-        </div>
       </div>
       <!-- All sellers detailed table -->
       <div class="card" id="ovSellersCard">
@@ -995,7 +982,7 @@
           </div>
           <select class="flt" id="ovFltStatus">
             <option value="">All statuses</option>
-            <option value="phase0">Phase 0 · not started</option>
+            <option value="phase0">Phase 0 · identified sellers</option>
             <option value="pending">Has pending docs</option>
             <option value="completed">Completed</option>
           </select>
@@ -1062,7 +1049,6 @@
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
     </button>
   </div>
-  <div class="kpi-sumbar" id="kpiSumbar"></div>
   <div class="drawer-body" id="kpiDrBody"></div>
 </aside>
 
@@ -1146,6 +1132,17 @@ function formatTurnover(raw){
 function docShort(key){
   var s = String(key);
   return s.length > 44 ? s.slice(0, 42).replace(/[ ,;–-]+$/,'') + '…' : s;
+}
+
+/* Parse a vintage string like "1 year", "6 months", "18 months", "2.5 yrs"
+   Returns the number of months, or null if unparseable. */
+function vintageMonths_(str){
+  if (!str) return null;
+  var s = String(str).trim().toLowerCase();
+  var m = s.match(/(\d+(?:\.\d+)?)\s*(year|yr|y(?:\b|r)|month|mon|mo(?:\b|n))/);
+  if (!m) return null;
+  var n = parseFloat(m[1]);
+  return /year|yr/.test(m[2]) ? n * 12 : n;
 }
 
 /* Which requirement column applies to a given entity type (mirrors backend). */
@@ -1332,11 +1329,15 @@ function filterByKind(kind){
 function renderHero(){
   var st = computeStats(ND.entities);
   var th = themeFor(activeNbfcId);
+  var isBuyer = !!ND._buyerPlaceholder;
+  var subLine = isBuyer
+    ? 'Buyer tracking · real-time integration pending'
+    : st.total + ' seller' + (st.total===1?'':'s') + ' submitting documents to ' + esc(ND.name);
   $('nbfcHero').innerHTML =
     '<div class="nh-info">' +
-      '<div class="nh-eyebrow"><i></i>NBFC · Document tracker</div>' +
+      '<div class="nh-eyebrow"><i></i>' + (isBuyer ? 'NBFC · Buyer tracker' : 'NBFC · Document tracker') + '</div>' +
       '<div class="nh-name">' + esc(ND.name) + '</div>' +
-      '<div class="nh-sub">' + st.total + ' seller' + (st.total===1?'':'s') + ' submitting documents to ' + esc(ND.name) + '</div>' +
+      '<div class="nh-sub">' + subLine + '</div>' +
       '<div class="nh-stats">' +
         '<span><i style="background:var(--rk-green)"></i>' + st.received + ' documents received</span>' +
         '<span><i style="background:var(--amber)"></i>' + st.pendingDocs + ' pending</span>' +
@@ -1354,7 +1355,7 @@ function renderKpis(){
   var st = computeStats(ND.entities);
   var cards = [
     { kind:'total',     tone:'total',     icon:ICON.users, num:st.total,     label:'Total Sellers', sub:'All sellers in ' + esc(ND.name) },
-    { kind:'phase0',    tone:'phase0',    icon:ICON.seed,  num:st.phase0,    label:'Phase 0',        sub:'Yet to submit any document' },
+    { kind:'phase0',    tone:'phase0',    icon:ICON.seed,  num:st.phase0,    label:'Phase 0',        sub:'Identified sellers · documents received' },
     { kind:'pending',   tone:'pending',   icon:ICON.clock, num:st.pending,   label:'Pending',        sub:'Documents still awaited' },
     { kind:'completed', tone:'completed', icon:ICON.check, num:st.completed, label:'Completed',      sub:'All required docs received' }
   ];
@@ -1382,9 +1383,6 @@ function renderOverview(){
   var withPending = entities.filter(function(e){ return e.pending > 0; }).length;
   $('attnHint').textContent = withPending ? (withPending + ' need follow-up') : 'All complete';
 
-  /* Document status bars */
-  $('docBars').innerHTML = buildDocBars(docs, entities);
-
   /* Portfolio breakdown — Entity type (Proprietorship/Partnership/Private Limited) + Region */
   var kinds = [];
   if (fieldByType.entity) kinds.push(fieldByType.entity);
@@ -1395,7 +1393,10 @@ function renderOverview(){
     var counts = {};
     entities.forEach(function(e){ var v = e.meta[header] || '—'; counts[v] = (counts[v]||0)+1; });
     var total = entities.length;
-    var chips = Object.keys(counts).sort().map(function(k){
+    var chips = Object.keys(counts).filter(function(k){
+      /* Drop empty, missing-placeholder, and purely-numeric values — those are data artifacts, not real categories */
+      return k && k !== '—' && !/^\d+(\.\d+)?$/.test(k.trim());
+    }).sort().map(function(k){
       var p = total ? Math.round(counts[k] / total * 100) : 0;
       var enc = encodeURIComponent(header) + '::' + encodeURIComponent(k);
       return '<button type="button" class="facet-chip" onclick="openFacet(\'' + enc + '\')">' +
@@ -1523,10 +1524,18 @@ function renderOvTable(){
       extraFields.map(function(f){
         var v  = (e.extraMeta || {})[f] || '';
         var kn = normKey(f);
-        var isElig = kn.indexOf('elig') !== -1;
-        var style  = isElig && String(v).toLowerCase() === 'yes'
-          ? 'color:var(--rk-green-ink);font-weight:700'
-          : isElig && v ? 'color:#DC2626;font-weight:700' : '';
+        var isElig    = kn.indexOf('elig') !== -1;
+        var isVintage = kn === 'vintage' || kn.indexOf('vintage') !== -1;
+        var style = '';
+        if (isElig) {
+          style = String(v).toLowerCase() === 'yes'
+            ? 'color:var(--rk-green-ink);font-weight:700'
+            : v ? 'color:#DC2626;font-weight:700' : '';
+        } else if (isVintage && v) {
+          var vm = vintageMonths_(v);
+          style = vm !== null && vm < 12  ? 'color:#DC2626;font-weight:700' :
+                  vm !== null && vm >= 12 ? 'color:var(--rk-green-ink);font-weight:700' : '';
+        }
         return '<td' + (style ? ' style="' + style + '"' : '') + '>' + esc(v || '—') + '</td>';
       }).join('') +
       '<td>' + (e.pending
@@ -1580,15 +1589,15 @@ function renderMatrix(){
 function openKpi(kind){
   var list = filterByKind(kind);
   var titles = {
-    total:     'All sellers',
-    phase0:    'Phase 0 — yet to submit',
-    pending:   'Pending documents',
+    total:     'All Sellers',
+    phase0:    'Phase 0 — Identified Sellers (Documents Received)',
+    pending:   'Pending Documents',
     completed: 'Completed'
   };
   var subs = {
     total:     list.length + ' seller' + (list.length===1?'':'s') + ' in ' + ND.name,
-    phase0:    list.length + ' onboarded, no documents received yet',
-    pending:   list.length + ' seller' + (list.length===1?'':'s') + ' with documents still awaited',
+    phase0:    list.length + ' seller' + (list.length===1?'':'s') + ' identified · awaiting document submission to NBFC',
+    pending:   list.length + ' seller' + (list.length===1?'':'s') + ' with one or more documents outstanding',
     completed: list.length + ' seller' + (list.length===1?'':'s') + ' with every required document received'
   };
   openKpiDrawer(titles[kind], subs[kind], list, kind);
@@ -1597,13 +1606,6 @@ function openKpi(kind){
 function openKpiDrawer(title, sub, list, kind){
   $('kpiDrTitle').textContent = title;
   $('kpiDrSub').textContent = sub;
-
-  var agg = computeStats(list);
-  $('kpiSumbar').innerHTML =
-    '<span><i style="background:var(--rk-green)"></i><b>' + agg.received + '</b> received</span>' +
-    '<span><i style="background:var(--amber)"></i><b>' + agg.pendingDocs + '</b> pending</span>' +
-    '<span><i style="background:var(--gray-dot)"></i><b>' + agg.na + '</b> N/A</span>' +
-    '<span style="margin-left:auto"><b>' + Math.round(agg.completion) + '%</b> received</span>';
 
   _kscOpen = null;
   $('kpiDrBody').innerHTML = buildKpiTable(list, kind);
@@ -1615,17 +1617,31 @@ function openKpiDrawer(title, sub, list, kind){
 }
 
 function buildKpiTable(list, kind){
-  if (!list || !list.length) return '<div class="empty-cell" style="padding:48px 24px">No sellers in this group.</div>';
-  var sorted = list.slice().sort(function(a,b){
-    if (kind === 'pending')   return b.pending - a.pending || a.completion - b.completion;
-    if (kind === 'completed') return b.received - a.received || b.completion - a.completion;
-    if (kind === 'phase0'){
-      var na = nameHeader ? a.meta[nameHeader] : '', nb = nameHeader ? b.meta[nameHeader] : '';
-      return String(na).localeCompare(String(nb));
-    }
-    return 0;
-  });
-  return '<div class="kb-grid">' + sorted.map(function(e,i){ return buildKbCard(e, i, kind || 'total'); }).join('') + '</div>';
+  /* Seller/buyer detail cards will be populated once real-time integration with the
+     main tracking sheet is active. Counts on the KPI cards reflect live sheet data. */
+  var iconSvg = kind === 'completed'
+    ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--rk-green-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>'
+    : kind === 'pending'
+    ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--amber-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3.2 2"/></svg>'
+    : kind === 'phase0'
+    ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12C12 8 9 5 4 5c0 5 3 8 8 7z"/><path d="M12 10c0-3 3-6 8-6 0 4-3 7-8 6z"/></svg>'
+    : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--nc)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+  var count = list ? list.length : 0;
+  var heading = count === 0
+    ? 'No sellers in this group'
+    : count + ' seller' + (count === 1 ? '' : 's') + ' tracked';
+  var body = count === 0
+    ? 'No sellers currently match this criteria.'
+    : 'Individual seller detail cards will be displayed here once the real-time integration with the main tracking sheet is fully active.';
+  var icoWrap = kind === 'completed' ? 'background:var(--rk-green-tint)' :
+    kind === 'pending' ? 'background:var(--amber-tint)' :
+    kind === 'phase0' ? 'background:var(--fill)' : 'background:rgba(var(--nc-rgb),.12)';
+  return '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 24px;text-align:center;min-height:260px">' +
+    '<div style="width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;' + icoWrap + '">' + iconSvg + '</div>' +
+    '<div style="font-size:16px;font-weight:700;color:var(--ink);letter-spacing:-.02em;margin-bottom:8px">' + esc(heading) + '</div>' +
+    '<div style="font-size:13px;color:var(--ink-3);max-width:380px;line-height:1.6">' + esc(body) + '</div>' +
+    '<div style="margin-top:20px;font-size:12px;font-weight:600;color:var(--ink-3);background:var(--fill);padding:7px 16px;border-radius:980px">Live counts reflect the current Google Sheet</div>' +
+  '</div>';
 }
 
 /* ── Kanban seller card (unified builder) ───────────────────────────────── */

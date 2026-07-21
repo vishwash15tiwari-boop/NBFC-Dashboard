@@ -169,6 +169,10 @@ var ENTITY_DOC_RULES = [
   ['shareholdingpattern',     ['proprietorship']],
 ];
 
+// Documents that are ALWAYS required for every entity type — never marked N/A and
+// never overridden by the optional "Seller Requirement" matrix tab.
+var ALWAYS_REQUIRED_DOC_FRAGMENTS = ['debtprofile'];
+
 /**
  * Maps a raw entity-type string to one of three canonical classes:
  *   'proprietorship' | 'partnership' | 'privatelimited'
@@ -191,8 +195,12 @@ function classifyEntityType_(entityType) {
  * unknown or no rule matches the document header.
  */
 function isDocApplicableByRules_(docHeader, entityClass) {
-  if (!entityClass) return true;
   var docNorm = normKey_(docHeader);
+  // Always-required docs bypass all entity-type exclusion rules.
+  for (var j = 0; j < ALWAYS_REQUIRED_DOC_FRAGMENTS.length; j++) {
+    if (docNorm.indexOf(ALWAYS_REQUIRED_DOC_FRAGMENTS[j]) !== -1) return true;
+  }
+  if (!entityClass) return true;
   for (var i = 0; i < ENTITY_DOC_RULES.length; i++) {
     var fragment  = ENTITY_DOC_RULES[i][0];
     var naClasses = ENTITY_DOC_RULES[i][1];
@@ -376,6 +384,8 @@ function getNbfcData_(ss, tabCfg, matrix) {
         layout.metaIdx.forEach(function (idx) { meta[layout.headers[idx]] = String(row[idx]).trim(); });
         var hasIdentity = layout.metaIdx.some(function (idx) { return String(row[idx]).trim() !== ''; });
         if (!hasIdentity) return;
+        // Skip rows with no seller/buyer name — catches header-like rows leaked into the data range.
+        if (nameHeaderKey && !String(meta[nameHeaderKey] || '').trim()) return;
 
         layout.metaIdx.forEach(function (idx) {
           var h = layout.headers[idx], v = String(row[idx]).trim();
@@ -399,12 +409,15 @@ function getNbfcData_(ss, tabCfg, matrix) {
           var h = layout.headers[idx];
           var req = matchRequirementRow_(matrix, h);
           // Hardcoded entity-type rules take first priority.
+          // Always-required docs (e.g. Debt Profile) are never overridden by the matrix.
           // The optional sheet matrix can further refine when both entity class
           // and a matching requirement row are present.
+          var docNormH = normKey_(h);
+          var alwaysRequired = ALWAYS_REQUIRED_DOC_FRAGMENTS.some(function(f){ return docNormH.indexOf(f) !== -1; });
           var applicable;
           if (!isDocApplicableByRules_(h, entityClass)) {
             applicable = false;
-          } else if (req && entityCol) {
+          } else if (!alwaysRequired && req && entityCol) {
             applicable = !!req.requiredBy[entityCol];
           } else {
             applicable = true;
@@ -490,6 +503,15 @@ function getInitialData() {
   var matrix = readRequirementMatrix_(ss); // gracefully returns empty if tab absent
 
   var nbfcs = CONFIG.NBFC_TABS.map(function (tab) {
+    // StrideOne tracks buyers — integration with the buyer sheet is not yet active.
+    if (tab.id === 'strideone') {
+      return {
+        ok: true, id: tab.id, name: tab.name,
+        entities: [], docs: [], entityColumns: [], entityTypeOptions: [],
+        nameHeader: null, entityHeader: null, metaFields: [], extraMetaFields: [],
+        pendingHeader: null, _buyerPlaceholder: true
+      };
+    }
     return getNbfcData_(ss, tab, matrix);
   });
 
@@ -632,10 +654,12 @@ function saveEntry(nbfcId, payload) {
     layout.docIdx.forEach(function (idx) {
       var h = layout.headers[idx];
       var req = matchRequirementRow_(matrix, h);
+      var docNormSE = normKey_(h);
+      var alwaysReqSE = ALWAYS_REQUIRED_DOC_FRAGMENTS.some(function(f){ return docNormSE.indexOf(f) !== -1; });
       var applicable;
       if (!isDocApplicableByRules_(h, entityClass)) {
         applicable = false;
-      } else if (req && entityCol) {
+      } else if (!alwaysReqSE && req && entityCol) {
         applicable = !!req.requiredBy[entityCol];
       } else {
         applicable = true;
