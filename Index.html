@@ -272,6 +272,7 @@
 
   /* ── KPI hero cards — clickable ─────────────────────────────────────── */
   .kpis{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;margin-top:14px}
+  .kpis.kpis-6{grid-template-columns:repeat(6,1fr)}
   .kpi{
     text-align:left;background:var(--card);border-radius:var(--radius);
     box-shadow:0 0 0 .5px var(--line),var(--shadow-sm);
@@ -659,9 +660,11 @@
   /* ── Responsive ─────────────────────────────────────────────────────── */
   @media (max-width:1280px){
     .kpis{grid-template-columns:repeat(4,1fr)}
+    .kpis.kpis-6{grid-template-columns:repeat(3,1fr)}
   }
   @media (max-width:1000px){
     .kpis{grid-template-columns:repeat(2,1fr)}
+    .kpis.kpis-6{grid-template-columns:repeat(2,1fr)}
     .ov-grid{grid-template-columns:1fr}
     .nbfc-hero{flex-direction:column;align-items:flex-start;gap:20px}
   }
@@ -1414,21 +1417,32 @@ function renderKpis(){
   var mbC         = (DATA && DATA.mbCounts) ? DATA.mbCounts : { sellers: 0, buyers: 0 };
   var isStrideOne = !!ND._buyerPlaceholder;
 
-  // All tabs: 4 cards — Total (Sellers or Buyers) · Phase 0 · Pending · Completed
-  var totalCard = isStrideOne
-    ? { kind:'buyers', tone:'buyers', icon:ICON.buyers, num:mbC.buyers,  label:'Total Buyers',  sub:'Open Marketplace · Completed' }
-    : { kind:'total',  tone:'total',  icon:ICON.users,  num:mbC.sellers, label:'Total Sellers', sub:'Open Marketplace · Completed' };
+  var cards;
+  if (isStrideOne) {
+    // StrideOne: MB Total Sellers · MB Total Buyers · Phase 0 · Eligible · Qualified · Credit Limit · Pending · Completed
+    cards = [
+      { kind:'total',       tone:'total',       icon:ICON.users,  num:mbC.sellers,    label:'Total Sellers', sub:'Open Marketplace · Completed' },
+      { kind:'buyers',      tone:'buyers',       icon:ICON.buyers, num:mbC.buyers,     label:'Total Buyers',  sub:'Open Marketplace · Completed' },
+      { kind:'phase0',      tone:'phase0',       icon:ICON.seed,   num:st.phase0,      label:'Phase 0',       sub:'Identified sellers · in the tracking system' },
+      { kind:'eligible',    tone:'eligible',     icon:ICON.shield, num:st.eligible,    label:'Eligible',      sub:'Sellers marked eligible' },
+      { kind:'qualified',   tone:'qualified',    icon:ICON.award,  num:st.qualified,   label:'Qualified',     sub:'Sellers qualified for financing' },
+      { kind:'creditlimit', tone:'creditlimit',  icon:ICON.card,   num:st.creditLimit, label:'Credit Limit',  sub:'Sellers with credit limit assigned' },
+      { kind:'completed',   tone:'completed',    icon:ICON.check,  num:st.completed,   label:'Completed',     sub:'All required docs received' },
+      { kind:'pending',     tone:'pending',      icon:ICON.clock,  num:st.pending,     label:'Pending',       sub:'Documents still awaited' }
+    ];
+  } else {
+    // Billmart / Capital XB: 6 cards — Phase 0 shown as "Total Sellers", no MB card
+    cards = [
+      { kind:'phase0',      tone:'phase0',      icon:ICON.users,  num:st.phase0,      label:'Total Sellers', sub:'All identified sellers' },
+      { kind:'eligible',    tone:'eligible',    icon:ICON.shield, num:st.eligible,    label:'Eligible',      sub:'Sellers marked eligible' },
+      { kind:'qualified',   tone:'qualified',   icon:ICON.award,  num:st.qualified,   label:'Qualified',     sub:'Sellers qualified for financing' },
+      { kind:'creditlimit', tone:'creditlimit', icon:ICON.card,   num:st.creditLimit, label:'Credit Limit',  sub:'Sellers with credit limit assigned' },
+      { kind:'completed',   tone:'completed',   icon:ICON.check,  num:st.completed,   label:'Completed',     sub:'All required docs received' },
+      { kind:'pending',     tone:'pending',     icon:ICON.clock,  num:st.pending,     label:'Pending',       sub:'Documents still awaited' }
+    ];
+  }
 
-  var cards = [
-    totalCard,
-    { kind:'phase0',      tone:'phase0',      icon:ICON.seed,   num:st.phase0,      label:'Phase 0',      sub:'Identified sellers · in the tracking system' },
-    { kind:'pending',     tone:'pending',     icon:ICON.clock,  num:st.pending,     label:'Pending',      sub:'Documents still awaited' },
-    { kind:'completed',   tone:'completed',   icon:ICON.check,  num:st.completed,   label:'Completed',    sub:'All required docs received' },
-    { kind:'eligible',    tone:'eligible',    icon:ICON.shield, num:st.eligible,    label:'Eligible',     sub:'Sellers marked eligible' },
-    { kind:'qualified',   tone:'qualified',   icon:ICON.award,  num:st.qualified,   label:'Qualified',    sub:'Sellers qualified for financing' },
-    { kind:'creditlimit', tone:'creditlimit', icon:ICON.card,   num:st.creditLimit, label:'Credit Limit', sub:'Sellers with credit limit assigned' }
-  ];
-
+  $('kpis').classList.toggle('kpis-6', !isStrideOne);
   $('kpis').innerHTML = cards.map(function(c, i){
     return '<button type="button" class="kpi kpi-' + c.tone + '" onclick="openKpi(\'' + c.kind + '\')" style="animation-delay:' + (i*60) + 'ms">' +
       '<div class="kpi-top"><span class="kpi-ico">' + c.icon + '</span><span class="kpi-chev">' + ICON.chev + '</span></div>' +
@@ -1437,13 +1451,17 @@ function renderKpis(){
       '<div class="kpi-sub">' + esc(c.sub) + '</div>' +
     '</button>';
   }).join('');
-  animCount($('kpi-' + totalCard.kind), totalCard.num);
+
+  if (isStrideOne) {
+    animCount($('kpi-total'),   mbC.sellers);
+    animCount($('kpi-buyers'),  mbC.buyers);
+  }
   animCount($('kpi-phase0'),      st.phase0);
-  animCount($('kpi-pending'),     st.pending);
-  animCount($('kpi-completed'),   st.completed);
   animCount($('kpi-eligible'),    st.eligible);
   animCount($('kpi-qualified'),   st.qualified);
   animCount($('kpi-creditlimit'), st.creditLimit);
+  animCount($('kpi-completed'),   st.completed);
+  animCount($('kpi-pending'),     st.pending);
 }
 
 /* ═══════════════════════════ Overview view ═════════════════════════════ */
