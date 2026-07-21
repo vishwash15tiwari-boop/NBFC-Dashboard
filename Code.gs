@@ -549,11 +549,15 @@ function getStrideOneStats_(ss) {
     var lastCol = sh.getLastColumn();
 
     // Scan the first 5 rows to find the header row.
+    // The StrideOne sheet has TWO tables: seller rows first, then a buyer table
+    // further down (around row 200+). Scan every row to find the buyer header row
+    // containing the "Priority" column — do not cap at 5.
     var headers = null, priorityIdx = -1, headerRow = 1;
-    for (var r = 1; r <= Math.min(5, sh.getLastRow()); r++) {
-      var hdr = sh.getRange(r, 1, 1, lastCol).getDisplayValues()[0];
+    var allRows = sh.getRange(1, 1, sh.getLastRow(), lastCol).getDisplayValues();
+    for (var r = 0; r < allRows.length; r++) {
+      var hdr = allRows[r];
       for (var c = 0; c < hdr.length; c++) {
-        if (normKey_(hdr[c]) === 'priority') { priorityIdx = c; headerRow = r; headers = hdr; break; }
+        if (normKey_(hdr[c]) === 'priority') { priorityIdx = c; headerRow = r + 1; headers = hdr; break; }
       }
       if (priorityIdx !== -1) break;
     }
@@ -573,9 +577,9 @@ function getStrideOneStats_(ss) {
       if (vintageIdx === -1 && nk.indexOf('vintage')      !== -1) vintageIdx = i;
     }
 
-    var dataRows = sh.getLastRow() - headerRow;
-    if (dataRows < 1) return { phase0: 0, phase0Buyers: [] };
-    var data = sh.getRange(headerRow + 1, 1, dataRows, lastCol).getDisplayValues();
+    // Buyer data rows follow the header row — reuse allRows already in memory.
+    var data = allRows.slice(headerRow); // headerRow is 1-indexed, so slice(headerRow) skips it
+    if (!data.length) return { phase0: 0, phase0Buyers: [] };
 
     var phase0Buyers = [];
     data.forEach(function (row) {
