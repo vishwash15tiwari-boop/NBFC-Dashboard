@@ -1325,17 +1325,17 @@ function computeStats(entities){
   (entities || []).forEach(function(e){
     s.total++;
     s.received += e.received; s.pendingDocs += e.pending; s.na += e.na; s.applicable += e.applicable;
-    if (e.received === 0 && e.applicable > 0) s.phase0++;
     if (e.pending > 0) s.pending++;
     if (e.pending === 0 && e.applicable > 0) s.completed++;
   });
+  s.phase0 = s.total; // Phase 0 = all identified sellers in the tracker
   s.completion = s.applicable ? Math.round(s.received / s.applicable * 1000) / 10 : 0;
   return s;
 }
 
 function filterByKind(kind){
   var ents = ND.entities || [];
-  if (kind === 'phase0')    return ents.filter(function(e){ return e.received === 0 && e.applicable > 0; });
+  if (kind === 'phase0')    return ents.slice(); // all identified sellers
   if (kind === 'pending')   return ents.filter(function(e){ return e.pending > 0; });
   if (kind === 'completed') return ents.filter(function(e){ return e.pending === 0 && e.applicable > 0; });
   return ents.slice();
@@ -1380,7 +1380,7 @@ function renderKpis(){
 
   var cards = [
     totalCard,
-    { kind:'phase0',    tone:'phase0',    icon:ICON.seed,  num:st.phase0,    label:'Phase 0',    sub:'Identified sellers · no documents received yet' },
+    { kind:'phase0',    tone:'phase0',    icon:ICON.seed,  num:st.phase0,    label:'Phase 0',    sub:'Identified sellers · in the tracking system' },
     { kind:'pending',   tone:'pending',   icon:ICON.clock, num:st.pending,   label:'Pending',    sub:'Documents still awaited' },
     { kind:'completed', tone:'completed', icon:ICON.check, num:st.completed, label:'Completed',  sub:'All required docs received' }
   ];
@@ -1533,7 +1533,7 @@ function renderOvTable(){
 
   /* Apply filters */
   var rows = entities.filter(function(e){
-    if (fs === 'phase0'    && !(e.received === 0 && e.applicable > 0)) return false;
+    // phase0 = all sellers — no additional filter
     if (fs === 'pending'   && e.pending === 0) return false;
     if (fs === 'completed' && !(e.pending === 0 && e.applicable > 0)) return false;
     if (q){
