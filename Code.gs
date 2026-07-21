@@ -603,34 +603,133 @@ function debugMbSheet() {
   });
 }
 
+/* ─────────────────────────── CacheService helpers ─────────────────────── */
+// Apps Script CacheService limits each value to 100 KB.
+// Larger payloads (e.g. full tab data) are split across numbered chunk keys.
+
+var CACHE_TTL = 300;    // 5 minutes in seconds
+var CACHE_VER = 'nbfcv1';
+
+function cacheKey_(name){ return 'nbfc_' + name + '_' + CACHE_VER; }
+
+function cacheSet_(cache, name, obj){
+  try {
+    var str = JSON.stringify(obj);
+    var n = 0, entries = {}, i = 0;
+    while (i < str.length){
+      entries[cacheKey_(name) + '_' + n++] = str.substring(i, i + 90000);
+      i += 90000;
+    }
+    entries[cacheKey_(name) + '_n'] = String(n);
+    cache.putAll(entries, CACHE_TTL);
+  } catch(e){ /* ignore write failures */ }
+}
+
+function cacheGet_(cache, name){
+  try {
+    var nStr = cache.get(cacheKey_(name) + '_n');
+    if (!nStr) return null;
+    var count = parseInt(nStr, 10);
+    if (isNaN(count) || count < 1) return null;
+    var keys = [];
+    for (var n = 0; n < count; n++) keys.push(cacheKey_(name) + '_' + n);
+    var map = cache.getAll(keys);
+    var result = '';
+    for (var n = 0; n < count; n++){
+      var chunk = map[cacheKey_(name) + '_' + n];
+      if (chunk == null) return null; // partial expiry — treat as full miss
+      result += chunk;
+    }
+    return JSON.parse(result);
+  } catch(e){ return null; }
+}
+
+function cacheDel_(cache, name){
+  try {
+    var nStr = cache.get(cacheKey_(name) + '_n');
+    var del = [cacheKey_(name) + '_n'];
+    if (nStr){
+      var c = parseInt(nStr, 10);
+      for (var n = 0; n < c; n++) del.push(cacheKey_(name) + '_' + n);
+    }
+    cache.removeAll(del);
+  } catch(e){ /* ignore */ }
+}
+
+function clearAllCache_(){
+  var cache = CacheService.getScriptCache();
+  ['meta', 'tab_billmart', 'tab_capitalxb', 'mb'].forEach(function(k){ cacheDel_(cache, k); });
+}
+
 /* ───────────────────────────────── Read API ───────────────────────────────── */
 
 /**
  * Returns all NBFC tab data in one round trip.
+ *
+ * opts.forceRefresh — when true (sent by the manual Refresh button) bypasses
+ * the cache so users always see the latest sheet data.
+ *
+ * Fast path (all keys in cache): no Sheets API calls → returns in < 200 ms.
+ * Slow path (cache miss): reads sheets and repopulates the cache.
  */
-function getInitialData() {
-  var ss = getSpreadsheet_();
-  var matrix = readRequirementMatrix_(ss); // gracefully returns empty if tab absent
+function getInitialData(opts) {
+  if (opts && opts.forceRefresh) clearAllCache_();
 
-  var nbfcs = CONFIG.NBFC_TABS.map(function (tab) {
-    // StrideOne tracks buyers — integration with the buyer sheet is not yet active.
-    if (tab.id === 'strideone') {
-      return {
-        ok: true, id: tab.id, name: tab.name,
-        entities: [], docs: [], entityColumns: [], entityTypeOptions: [],
-        nameHeader: null, entityHeader: null, metaFields: [], extraMetaFields: [],
-        pendingHeader: null, _buyerPlaceholder: true
-      };
-    }
-    return getNbfcData_(ss, tab, matrix);
+  var cache = CacheService.getScriptCache();
+  var metaC      = cacheGet_(cache, 'meta');
+  var billmartC  = cacheGet_(cache, 'tab_billmart');
+  var capitalxbC = cacheGet_(cache, 'tab_capitalxb');
+  var mbC        = cacheGet_(cache, 'mb');
+
+  // ── Fast path — all data served from cache (no Sheets API calls) ────────
+  if (metaC && billmartC && capitalxbC && mbC) {
+    return {
+      ok: true,
+      sheetUrl: metaC.sheetUrl,
+      sheetName: metaC.sheetName,
+      nbfcs: [
+        billmartC,
+        capitalxbC,
+        { ok: true, id: 'strideone', name: 'StrideOne', entities: [], docs: [],
+          entityColumns: [], entityTypeOptions: [], nameHeader: null,
+          entityHeader: null, metaFields: [], extraMetaFields: [],
+          pendingHeader: null, _buyerPlaceholder: true }
+      ],
+      mbCounts: mbC,
+      generatedAt: metaC.generatedAt
+    };
+  }
+
+  // ── Slow path — read from sheets, populate cache ─────────────────────────
+  var ss = getSpreadsheet_();
+  var matrix = readRequirementMatrix_(ss);
+
+  var billmartData  = getNbfcData_(ss, CONFIG.NBFC_TABS[0], matrix);
+  var capitalxbData = getNbfcData_(ss, CONFIG.NBFC_TABS[1], matrix);
+  var mbData        = getMbCounts_();
+
+  var strideoneData = {
+    ok: true, id: 'strideone', name: 'StrideOne', entities: [], docs: [],
+    entityColumns: [], entityTypeOptions: [], nameHeader: null,
+    entityHeader: null, metaFields: [], extraMetaFields: [],
+    pendingHeader: null, _buyerPlaceholder: true
+  };
+
+  cacheSet_(cache, 'tab_billmart',  billmartData);
+  cacheSet_(cache, 'tab_capitalxb', capitalxbData);
+  cacheSet_(cache, 'mb',            mbData);
+  cacheSet_(cache, 'meta', {
+    sheetUrl:    ss.getUrl(),
+    sheetName:   ss.getName(),
+    generatedAt: new Date().toISOString()
   });
 
   return {
     ok: true,
     sheetUrl: ss.getUrl(),
     sheetName: ss.getName(),
-    nbfcs: nbfcs,
-    mbCounts: getMbCounts_(),
+    nbfcs: [billmartData, capitalxbData, strideoneData],
+    mbCounts: mbData,
     generatedAt: new Date().toISOString()
   };
 }
@@ -813,6 +912,7 @@ function saveEntry(nbfcId, payload) {
     }
 
     SpreadsheetApp.flush();
+    clearAllCache_();          // ensure the response reflects the just-written data
     var fresh = getInitialData();
     fresh.savedRow = writeRow;
     fresh.savedAction = targetRow ? 'updated' : 'created';

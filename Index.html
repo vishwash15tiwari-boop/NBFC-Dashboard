@@ -1294,7 +1294,7 @@ function onData(data){
 function refresh(quiet){
   var btn = $('refreshBtn');
   btn.disabled = true; btn.style.opacity = .55;
-  return run('getInitialData').then(function(d){
+  return run('getInitialData', {forceRefresh: true}).then(function(d){
     onData(d);
     if (!quiet) toast('Refreshed from Google Sheet');
   }).catch(function(err){
