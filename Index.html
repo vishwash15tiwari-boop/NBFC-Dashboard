@@ -1639,30 +1639,14 @@ function openKpiDrawer(title, sub, list, kind){
 }
 
 function buildKpiTable(list, kind){
-  /* Seller/buyer detail cards will be populated once real-time integration with the
-     main tracking sheet is active. Counts on the KPI cards reflect live sheet data. */
-  var iconSvg = kind === 'completed'
-    ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--rk-green-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>'
-    : kind === 'pending'
-    ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--amber-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3.2 2"/></svg>'
-    : kind === 'phase0'
-    ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12C12 8 9 5 4 5c0 5 3 8 8 7z"/><path d="M12 10c0-3 3-6 8-6 0 4-3 7-8 6z"/></svg>'
-    : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--nc)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
-  var count = list ? list.length : 0;
-  var heading = count === 0
-    ? 'No sellers in this group'
-    : count + ' seller' + (count === 1 ? '' : 's') + ' tracked';
-  var body = count === 0
-    ? 'No sellers currently match this criteria.'
-    : 'Individual seller detail cards will be displayed here once the real-time integration with the main tracking sheet is fully active.';
-  var icoWrap = kind === 'completed' ? 'background:var(--rk-green-tint)' :
-    kind === 'pending' ? 'background:var(--amber-tint)' :
-    kind === 'phase0' ? 'background:var(--fill)' : 'background:rgba(var(--nc-rgb),.12)';
-  return '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 24px;text-align:center;min-height:260px">' +
-    '<div style="width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;' + icoWrap + '">' + iconSvg + '</div>' +
-    '<div style="font-size:16px;font-weight:700;color:var(--ink);letter-spacing:-.02em;margin-bottom:8px">' + esc(heading) + '</div>' +
-    '<div style="font-size:13px;color:var(--ink-3);max-width:380px;line-height:1.6">' + esc(body) + '</div>' +
-    '<div style="margin-top:20px;font-size:12px;font-weight:600;color:var(--ink-3);background:var(--fill);padding:7px 16px;border-radius:980px">Live counts reflect the current Google Sheet</div>' +
+  if (!list || !list.length){
+    return '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 24px;text-align:center;min-height:260px">' +
+      '<div style="font-size:15px;font-weight:700;color:var(--ink);letter-spacing:-.02em;margin-bottom:8px">No sellers in this group</div>' +
+      '<div style="font-size:13px;color:var(--ink-3);line-height:1.6">No sellers currently match this criteria.</div>' +
+    '</div>';
+  }
+  return '<div style="display:flex;flex-direction:column;gap:8px">' +
+    list.map(function(e, idx){ return buildKbCard(e, idx, kind); }).join('') +
   '</div>';
 }
 
