@@ -535,14 +535,16 @@ function getMbCounts_() {
           if (vIdx === -1 && nk.indexOf('vertical') !== -1) vIdx = c;
           if (sIdx === -1 && nk.indexOf('onboarding') !== -1) sIdx = c;
         }
-        // Fallback: column F (0-based index 5) if Onboarding header not found
+        // Fallback to column F (0-based index 5) if no "Onboarding" header found
         if (sIdx === -1 && headers.length > 5) sIdx = 5;
+        var mbStatusLower    = MB_STATUS_FILTER.toLowerCase();
+        var mbVerticalLower  = MB_VERTICAL_FILTER.toLowerCase();
         var data = sh.getRange(2, 1, sh.getLastRow() - 1, lastCol).getDisplayValues();
         var uniqueStatus = {};
         data.forEach(function (r) { if (sIdx !== -1) uniqueStatus[String(r[sIdx]).trim()] = true; });
         var count = data.filter(function (r) {
-          var verticalOk = vIdx === -1 || String(r[vIdx]).trim() === MB_VERTICAL_FILTER;
-          var statusOk   = sIdx === -1 || String(r[sIdx]).trim() === MB_STATUS_FILTER;
+          var verticalOk = vIdx === -1 || String(r[vIdx]).trim().toLowerCase() === mbVerticalLower;
+          var statusOk   = sIdx === -1 || String(r[sIdx]).trim().toLowerCase() === mbStatusLower;
           return verticalOk && statusOk;
         }).length;
         return {
