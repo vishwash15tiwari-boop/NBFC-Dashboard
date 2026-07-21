@@ -376,10 +376,15 @@ function getNbfcData_(ss, tabCfg, matrix) {
       var allNotes = dataRange.getNotes();
 
       values.forEach(function (row, i) {
-        // Skip rows whose serial column has non-numeric text (e.g. "No:", "S.No") —
-        // those are header rows accidentally included in the data range.
-        var serialRaw = String(row[layout.serialIdx]).trim();
-        if (serialRaw && isNaN(parseInt(serialRaw, 10)) && /[a-zA-Z]/.test(serialRaw)) return;
+        // Validate the serial (No.) column.  Only count rows that have a
+        // positive integer serial — blank rows, header echo-rows ("No:", "S.No"),
+        // and rows with serial ≤ 0 (data errors / sentinel values) are all skipped.
+        var serialRaw = String(row[layout.serialIdx] == null ? '' : row[layout.serialIdx]).trim();
+        if (!serialRaw) return;                                                    // blank serial → skip
+        var serialParsed = parseInt(serialRaw, 10);
+        if (isNaN(serialParsed) && /[a-zA-Z]/.test(serialRaw)) return;            // "No:", "S.No" → skip
+        if (!isNaN(serialParsed) && serialParsed < 1) return;                     // 0 or negative → skip
+
         var meta = {};
         layout.metaIdx.forEach(function (idx) { meta[layout.headers[idx]] = String(row[idx]).trim(); });
         var hasIdentity = layout.metaIdx.some(function (idx) { return String(row[idx]).trim() !== ''; });
@@ -393,7 +398,7 @@ function getNbfcData_(ss, tabCfg, matrix) {
           (optionValues[h] = optionValues[h] || {})[v] = true;
         });
 
-        var serial = parseInt(row[layout.serialIdx], 10);
+        var serial = isNaN(serialParsed) ? '' : serialParsed;
         var entityType = entityHeaderKey ? (meta[entityHeaderKey] || '') : '';
         var entityCol   = matchEntityColumn_(matrix, entityType);
         var entityClass = classifyEntityType_(entityType);
