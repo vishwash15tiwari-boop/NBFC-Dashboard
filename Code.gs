@@ -725,27 +725,28 @@ function clearAllCache_(){
 function getInitialData(opts) {
   if (opts && opts.forceRefresh) clearAllCache_();
 
-  var cache = CacheService.getScriptCache();
-  var metaC      = cacheGet_(cache, 'meta');
-  var billmartC  = cacheGet_(cache, 'tab_billmart');
-  var capitalxbC = cacheGet_(cache, 'tab_capitalxb');
-  var mbC        = cacheGet_(cache, 'mb');
+  var cache       = CacheService.getScriptCache();
+  var metaC       = cacheGet_(cache, 'meta');
+  var billmartC   = cacheGet_(cache, 'tab_billmart');
+  var capitalxbC  = cacheGet_(cache, 'tab_capitalxb');
+  var strideoneC  = cacheGet_(cache, 'tab_strideone');
+  var mbC         = cacheGet_(cache, 'mb');
 
   // ── Fast path — all data served from cache (no Sheets API calls) ────────
   if (metaC && billmartC && capitalxbC && mbC) {
+    // Use cached StrideOne data if available; otherwise build placeholder with phase0:0.
+    var strideonefast = strideoneC || {
+      ok: true, id: 'strideone', name: 'StrideOne', entities: [], docs: [],
+      entityColumns: [], entityTypeOptions: [], nameHeader: null,
+      entityHeader: null, metaFields: [], extraMetaFields: [],
+      pendingHeader: null, eligibilityHeader: null, qualifiedHeader: null,
+      creditLimitHeader: null, _buyerPlaceholder: true, phase0: 0
+    };
     return {
       ok: true,
       sheetUrl: metaC.sheetUrl,
       sheetName: metaC.sheetName,
-      nbfcs: [
-        billmartC,
-        capitalxbC,
-        { ok: true, id: 'strideone', name: 'StrideOne', entities: [], docs: [],
-          entityColumns: [], entityTypeOptions: [], nameHeader: null,
-          entityHeader: null, metaFields: [], extraMetaFields: [],
-          pendingHeader: null, eligibilityHeader: null, qualifiedHeader: null,
-          creditLimitHeader: null, _buyerPlaceholder: true }
-      ],
+      nbfcs: [billmartC, capitalxbC, strideonefast],
       mbCounts: mbC,
       generatedAt: new Date().toISOString()
     };
@@ -769,9 +770,10 @@ function getInitialData(opts) {
     phase0: strideoneStats.phase0
   };
 
-  cacheSet_(cache, 'tab_billmart',  billmartData);
-  cacheSet_(cache, 'tab_capitalxb', capitalxbData);
-  cacheSet_(cache, 'mb',            mbData);
+  cacheSet_(cache, 'tab_billmart',   billmartData);
+  cacheSet_(cache, 'tab_capitalxb',  capitalxbData);
+  cacheSet_(cache, 'tab_strideone',  strideoneData);
+  cacheSet_(cache, 'mb',             mbData);
   cacheSet_(cache, 'meta', {
     sheetUrl:    ss.getUrl(),
     sheetName:   ss.getName(),
