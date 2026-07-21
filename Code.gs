@@ -513,15 +513,11 @@ var MB_STATUS_FILTER = 'Onboarded';
 
 /**
  * Counts rows in a marketplace tab where:
- *   Vertical column  = MB_VERTICAL_FILTER  ("Open Marketplace")
- *   Status-like column = MB_STATUS_FILTER  ("Onboarded")
+ *   Vertical column = MB_VERTICAL_FILTER ("Open Marketplace")
+ *   AND Status column (exact header "Status") = MB_STATUS_FILTER ("Onboarded")
  *
- * Column detection is flexible: matches any header whose normalised key
- * contains "status" or equals "onboarding", so "Status", "Onboarding Status",
- * "Onboarding" etc. are all found.
- *
- * Also returns debug info (headers + column indices found) so the caller
- * can log it and verify filter strings without opening the Apps Script editor.
+ * Returns _debug so the browser console shows all column headers + every
+ * distinct value in the matched status column — use this to verify filters.
  */
 function getMbCounts_() {
   try {
@@ -530,17 +526,16 @@ function getMbCounts_() {
     function analyseTab(tabName) {
       try {
         var sh = ss.getSheetByName(tabName);
-        if (!sh || sh.getLastRow() < 2) return { count: 0, vCol: null, sCol: null, sampleVals: [] };
+        if (!sh || sh.getLastRow() < 2) return { count: 0, headers: [], vCol: null, sCol: null, sampleVals: [] };
         var lastCol = sh.getLastColumn();
         var headers = sh.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
         var vIdx = -1, sIdx = -1;
         for (var c = 0; c < headers.length; c++) {
           var nk = normKey_(headers[c]);
           if (vIdx === -1 && nk.indexOf('vertical') !== -1) vIdx = c;
-          if (sIdx === -1 && (nk.indexOf('status') !== -1 || nk === 'onboarding')) sIdx = c;
+          if (sIdx === -1 && nk === 'status')               sIdx = c;  // exact match only
         }
         var data = sh.getRange(2, 1, sh.getLastRow() - 1, lastCol).getDisplayValues();
-        // Collect unique status values for debugging (first 10 distinct).
         var uniqueStatus = {};
         data.forEach(function (r) { if (sIdx !== -1) uniqueStatus[String(r[sIdx]).trim()] = true; });
         var count = data.filter(function (r) {
@@ -550,11 +545,12 @@ function getMbCounts_() {
         }).length;
         return {
           count: count,
+          headers: headers,
           vCol: vIdx === -1 ? null : headers[vIdx],
-          sCol: sIdx === -1 ? null : headers[sIdx],
-          sampleVals: Object.keys(uniqueStatus).slice(0, 10)
+          sCol: sIdx === -1 ? '(not found — status filter skipped)' : headers[sIdx],
+          sampleVals: Object.keys(uniqueStatus).slice(0, 20)
         };
-      } catch (e) { return { count: 0, error: String(e.message) }; }
+      } catch (e) { return { count: 0, headers: [], vCol: null, sCol: null, sampleVals: [], error: String(e.message) }; }
     }
 
     var sellerInfo = analyseTab('_mb_sellers');
@@ -564,8 +560,8 @@ function getMbCounts_() {
       sellers: sellerInfo.count,
       buyers:  buyerInfo.count,
       _debug: {
-        sellers: { verticalCol: sellerInfo.vCol, statusCol: sellerInfo.sCol, uniqueStatusVals: sellerInfo.sampleVals },
-        buyers:  { verticalCol: buyerInfo.vCol,  statusCol: buyerInfo.sCol,  uniqueStatusVals: buyerInfo.sampleVals  }
+        sellers: { allHeaders: sellerInfo.headers, verticalCol: sellerInfo.vCol, statusCol: sellerInfo.sCol, uniqueStatusVals: sellerInfo.sampleVals },
+        buyers:  { allHeaders: buyerInfo.headers,  verticalCol: buyerInfo.vCol,  statusCol: buyerInfo.sCol,  uniqueStatusVals: buyerInfo.sampleVals  }
       }
     };
   } catch (e) {
