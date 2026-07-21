@@ -256,7 +256,8 @@
   .nh-ring-lbl span{font-size:9px;font-weight:600;color:rgba(255,255,255,.55);letter-spacing:.09em;text-transform:uppercase;margin-top:3px}
 
   /* ── KPI hero cards — clickable ─────────────────────────────────────── */
-  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:14px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:14px}
+  .kpis.kpis-5{grid-template-columns:repeat(5,1fr)}
   .kpi{
     text-align:left;background:var(--card);border-radius:var(--radius);
     box-shadow:0 0 0 .5px var(--line-2),var(--shadow-sm);
@@ -613,7 +614,8 @@
 
   /* ── Responsive ─────────────────────────────────────────────────────── */
   @media (max-width:1000px){
-    .kpis{grid-template-columns:repeat(3,1fr)}
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .kpis.kpis-5{grid-template-columns:repeat(3,1fr)}
     .ov-grid{grid-template-columns:1fr}
     .nbfc-hero{flex-direction:column;align-items:flex-start;gap:20px}
   }
@@ -1364,15 +1366,21 @@ function renderHero(){
 /* ═══════════════════════════ Hero KPI cards ════════════════════════════ */
 
 function renderKpis(){
-  var st  = computeStats(ND.entities);
-  var mbC = (DATA && DATA.mbCounts) ? DATA.mbCounts : { sellers: 0, buyers: 0 };
+  var st         = computeStats(ND.entities);
+  var mbC        = (DATA && DATA.mbCounts) ? DATA.mbCounts : { sellers: 0, buyers: 0 };
+  var isStrideOne = !!ND._buyerPlaceholder;
+
   var cards = [
     { kind:'total',     tone:'total',     icon:ICON.users,  num:mbC.sellers,  label:'Total Sellers', sub:'Open Marketplace · Onboarded' },
-    { kind:'buyers',    tone:'buyers',    icon:ICON.buyers, num:mbC.buyers,   label:'Total Buyers',  sub:'Open Marketplace · Onboarded' },
     { kind:'phase0',    tone:'phase0',    icon:ICON.seed,   num:st.phase0,    label:'Phase 0',       sub:'Identified sellers · documents received' },
     { kind:'pending',   tone:'pending',   icon:ICON.clock,  num:st.pending,   label:'Pending',       sub:'Documents still awaited' },
     { kind:'completed', tone:'completed', icon:ICON.check,  num:st.completed, label:'Completed',     sub:'All required docs received' }
   ];
+  if (isStrideOne) {
+    cards.splice(1, 0, { kind:'buyers', tone:'buyers', icon:ICON.buyers, num:mbC.buyers, label:'Total Buyers', sub:'Open Marketplace · Onboarded' });
+  }
+
+  $('kpis').classList.toggle('kpis-5', isStrideOne);
   $('kpis').innerHTML = cards.map(function(c, i){
     return '<button type="button" class="kpi kpi-' + c.tone + '" onclick="openKpi(\'' + c.kind + '\')" style="animation-delay:' + (i*60) + 'ms">' +
       '<div class="kpi-top"><span class="kpi-ico">' + c.icon + '</span><span class="kpi-chev">' + ICON.chev + '</span></div>' +
@@ -1382,7 +1390,7 @@ function renderKpis(){
     '</button>';
   }).join('');
   animCount($('kpi-total'),     mbC.sellers);
-  animCount($('kpi-buyers'),    mbC.buyers);
+  if (isStrideOne) animCount($('kpi-buyers'), mbC.buyers);
   animCount($('kpi-phase0'),    st.phase0);
   animCount($('kpi-pending'),   st.pending);
   animCount($('kpi-completed'), st.completed);
