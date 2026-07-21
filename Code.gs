@@ -545,27 +545,56 @@ var MB_STATUS_FILTER = 'Completed';
 function getStrideOneStats_(ss) {
   try {
     var sh = findSheet_(ss, CONFIG.NBFC_TABS[2]);
-    if (!sh || sh.getLastRow() < 2) return { phase0: 0 };
+    if (!sh || sh.getLastRow() < 2) return { phase0: 0, phase0Buyers: [] };
     var lastCol = sh.getLastColumn();
-    // Scan the first 5 rows to locate the header row and Priority column.
-    var priorityIdx = -1, headerRow = 1;
+
+    // Scan the first 5 rows to find the header row.
+    var headers = null, priorityIdx = -1, headerRow = 1;
     for (var r = 1; r <= Math.min(5, sh.getLastRow()); r++) {
       var hdr = sh.getRange(r, 1, 1, lastCol).getDisplayValues()[0];
       for (var c = 0; c < hdr.length; c++) {
-        if (normKey_(hdr[c]) === 'priority') { priorityIdx = c; headerRow = r; break; }
+        if (normKey_(hdr[c]) === 'priority') { priorityIdx = c; headerRow = r; headers = hdr; break; }
       }
       if (priorityIdx !== -1) break;
     }
-    if (priorityIdx === -1) return { phase0: 0 };
+    if (priorityIdx === -1) return { phase0: 0, phase0Buyers: [] };
+
+    // Locate useful columns by header name.
+    var nameIdx = -1, gstIdx = -1, catIdx = -1, stateIdx = -1,
+        contactIdx = -1, regTypeIdx = -1, vintageIdx = -1;
+    for (var i = 0; i < headers.length; i++) {
+      var nk = normKey_(headers[i]);
+      if (nameIdx    === -1 && nk.indexOf('businessname') !== -1) nameIdx    = i;
+      if (gstIdx     === -1 && nk.indexOf('gst')          !== -1) gstIdx     = i;
+      if (catIdx     === -1 && nk.indexOf('category')     !== -1) catIdx     = i;
+      if (stateIdx   === -1 && nk === 'state')                    stateIdx   = i;
+      if (contactIdx === -1 && nk.indexOf('contact')      !== -1) contactIdx = i;
+      if (regTypeIdx === -1 && nk.indexOf('registration') !== -1) regTypeIdx = i;
+      if (vintageIdx === -1 && nk.indexOf('vintage')      !== -1) vintageIdx = i;
+    }
+
     var dataRows = sh.getLastRow() - headerRow;
-    if (dataRows < 1) return { phase0: 0 };
+    if (dataRows < 1) return { phase0: 0, phase0Buyers: [] };
     var data = sh.getRange(headerRow + 1, 1, dataRows, lastCol).getDisplayValues();
-    var count = data.filter(function (row) {
-      return normKey_(String(row[priorityIdx] || '').trim()).indexOf('p0') === 0;
-    }).length;
-    return { phase0: count };
+
+    var phase0Buyers = [];
+    data.forEach(function (row) {
+      if (normKey_(String(row[priorityIdx] || '').trim()).indexOf('p0') !== 0) return;
+      phase0Buyers.push({
+        name:     nameIdx    >= 0 ? String(row[nameIdx]    || '').trim() : '',
+        gst:      gstIdx     >= 0 ? String(row[gstIdx]     || '').trim() : '',
+        category: catIdx     >= 0 ? String(row[catIdx]     || '').trim() : '',
+        state:    stateIdx   >= 0 ? String(row[stateIdx]   || '').trim() : '',
+        contact:  contactIdx >= 0 ? String(row[contactIdx] || '').trim() : '',
+        type:     regTypeIdx >= 0 ? String(row[regTypeIdx] || '').trim() : '',
+        vintage:  vintageIdx >= 0 ? String(row[vintageIdx] || '').trim() : '',
+        priority: String(row[priorityIdx] || '').trim()
+      });
+    });
+
+    return { phase0: phase0Buyers.length, phase0Buyers: phase0Buyers };
   } catch (e) {
-    return { phase0: 0 };
+    return { phase0: 0, phase0Buyers: [] };
   }
 }
 
@@ -767,7 +796,8 @@ function getInitialData(opts) {
     entityHeader: null, metaFields: [], extraMetaFields: [],
     pendingHeader: null, eligibilityHeader: null, qualifiedHeader: null,
     creditLimitHeader: null, _buyerPlaceholder: true,
-    phase0: strideoneStats.phase0
+    phase0: strideoneStats.phase0,
+    phase0Buyers: strideoneStats.phase0Buyers
   };
 
   cacheSet_(cache, 'tab_billmart',   billmartData);
