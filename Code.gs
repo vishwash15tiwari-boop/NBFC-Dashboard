@@ -19,6 +19,11 @@
 // Structure: DRIVE_ROOT / <NBFC name> / <Entity name> / <file>
 var DRIVE_ROOT_ID = '1i5melXCocWrV9rR-3gM75wwSwWy7Dqit';
 
+// Marketplace sheet — source of truth for total active sellers & buyers.
+// Only rows where the Vertical column = MB_VERTICAL_FILTER are counted.
+var MB_SHEET_ID        = '10RJ1D1GXh-f_7a5M3YMAEt8jDQ7X6jQm2-krTNOBts8';
+var MB_VERTICAL_FILTER = 'Open Marketplace';
+
 var CONFIG = {
   // Native Google Sheet ID (already confirmed native; no xlsx conversion needed).
   SOURCE_FILE_ID: '1RoHWbZyHhNKlweWXD4AMSZfB5ONdktPcVayOkpPgjpo',
@@ -498,6 +503,46 @@ function getNbfcData_(ss, tabCfg, matrix) {
   }
 }
 
+/* ──────────────────── Marketplace counts (Open Marketplace vertical) ────── */
+
+/**
+ * Reads the marketplace sheet and returns counts of Open Marketplace
+ * sellers and buyers.  Looks for a column whose header contains "vertical"
+ * and counts rows where that cell equals MB_VERTICAL_FILTER exactly.
+ * Falls back to counting all data rows if the vertical column is absent.
+ */
+function getMbCounts_() {
+  try {
+    var ss = SpreadsheetApp.openById(MB_SHEET_ID);
+
+    function countOmpRows(tabName) {
+      try {
+        var sh = ss.getSheetByName(tabName);
+        if (!sh || sh.getLastRow() < 2) return 0;
+        var lastCol = sh.getLastColumn();
+        var headers = sh.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+        var vIdx = -1;
+        for (var c = 0; c < headers.length; c++) {
+          if (normKey_(headers[c]).indexOf('vertical') !== -1) { vIdx = c; break; }
+        }
+        var data = sh.getRange(2, 1, sh.getLastRow() - 1, lastCol).getDisplayValues();
+        if (vIdx === -1) return data.length; // no vertical column — count all rows
+        return data.filter(function (r) {
+          return String(r[vIdx]).trim() === MB_VERTICAL_FILTER;
+        }).length;
+      } catch (e) { return 0; }
+    }
+
+    return {
+      ok: true,
+      sellers: countOmpRows('_mb_sellers'),
+      buyers:  countOmpRows('_mb_buyers')
+    };
+  } catch (e) {
+    return { ok: false, sellers: 0, buyers: 0, error: String(e.message) };
+  }
+}
+
 /* ───────────────────────────────── Read API ───────────────────────────────── */
 
 /**
@@ -525,6 +570,7 @@ function getInitialData() {
     sheetUrl: ss.getUrl(),
     sheetName: ss.getName(),
     nbfcs: nbfcs,
+    mbCounts: getMbCounts_(),
     generatedAt: new Date().toISOString()
   };
 }

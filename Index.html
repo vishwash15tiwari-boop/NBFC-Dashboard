@@ -256,7 +256,7 @@
   .nh-ring-lbl span{font-size:9px;font-weight:600;color:rgba(255,255,255,.55);letter-spacing:.09em;text-transform:uppercase;margin-top:3px}
 
   /* ── KPI hero cards — clickable ─────────────────────────────────────── */
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:14px}
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:14px}
   .kpi{
     text-align:left;background:var(--card);border-radius:var(--radius);
     box-shadow:0 0 0 .5px var(--line-2),var(--shadow-sm);
@@ -281,11 +281,13 @@
   .kpi-num{font-size:40px;font-weight:700;letter-spacing:-.045em;line-height:1;font-variant-numeric:tabular-nums;color:var(--ink)}
   .kpi-label{font-size:14px;font-weight:600;margin-top:10px;letter-spacing:-.02em;color:var(--ink)}
   .kpi-sub{font-size:12px;color:var(--ink-3);margin-top:3px;letter-spacing:-.005em;line-height:1.4}
-  /* tone: total (brand) */
+  /* tone: total sellers (brand orange) */
   .kpi-total{--kpi-accent:var(--nc)}
   .kpi-total .kpi-ico{background:rgba(var(--nc-rgb),.12);color:var(--nc)}
-  .kpi-placeholder .kpi-num{color:var(--ink-3);font-size:2rem}
-  .kpi-placeholder .kpi-sub{font-style:italic}
+  /* tone: total buyers (blue) */
+  .kpi-buyers{--kpi-accent:#3B82F6}
+  .kpi-buyers .kpi-ico{background:rgba(59,130,246,.1);color:#3B82F6}
+  .kpi-buyers .kpi-num{color:#1D4ED8}
   /* tone: phase 0 (slate/neutral) */
   .kpi-phase0{--kpi-accent:#8E8E93}
   .kpi-phase0 .kpi-ico{background:var(--fill);color:var(--ink-2)}
@@ -611,7 +613,7 @@
 
   /* ── Responsive ─────────────────────────────────────────────────────── */
   @media (max-width:1000px){
-    .kpis{grid-template-columns:repeat(2,1fr)}
+    .kpis{grid-template-columns:repeat(3,1fr)}
     .ov-grid{grid-template-columns:1fr}
     .nbfc-hero{flex-direction:column;align-items:flex-start;gap:20px}
   }
@@ -1174,6 +1176,7 @@ function regionHeader(){
 /* ─── SVG icons ──────────────────────────────────────────────────────── */
 var ICON = {
   users:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  buyers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
   seed:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12C12 8 9 5 4 5c0 5 3 8 8 7z"/><path d="M12 10c0-3 3-6 8-6 0 4-3 7-8 6z"/></svg>',
   clock:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3.2 2"/></svg>',
   check:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>',
@@ -1361,25 +1364,27 @@ function renderHero(){
 /* ═══════════════════════════ Hero KPI cards ════════════════════════════ */
 
 function renderKpis(){
-  var st = computeStats(ND.entities);
+  var st  = computeStats(ND.entities);
+  var mbC = (DATA && DATA.mbCounts) ? DATA.mbCounts : { sellers: 0, buyers: 0 };
   var cards = [
-    { kind:'total',     tone:'total',     icon:ICON.users, num:null,         label:'Total Sellers', sub:'Real-time data coming soon' },
-    { kind:'phase0',    tone:'phase0',    icon:ICON.seed,  num:st.phase0,    label:'Phase 0',       sub:'Identified sellers · documents received' },
-    { kind:'pending',   tone:'pending',   icon:ICON.clock, num:st.pending,   label:'Pending',       sub:'Documents still awaited' },
-    { kind:'completed', tone:'completed', icon:ICON.check, num:st.completed, label:'Completed',     sub:'All required docs received' }
+    { kind:'total',     tone:'total',     icon:ICON.users,  num:mbC.sellers,  label:'Total Sellers', sub:'Open Marketplace · live count' },
+    { kind:'buyers',    tone:'buyers',    icon:ICON.buyers, num:mbC.buyers,   label:'Total Buyers',  sub:'Open Marketplace · live count' },
+    { kind:'phase0',    tone:'phase0',    icon:ICON.seed,   num:st.phase0,    label:'Phase 0',       sub:'Identified sellers · documents received' },
+    { kind:'pending',   tone:'pending',   icon:ICON.clock,  num:st.pending,   label:'Pending',       sub:'Documents still awaited' },
+    { kind:'completed', tone:'completed', icon:ICON.check,  num:st.completed, label:'Completed',     sub:'All required docs received' }
   ];
   $('kpis').innerHTML = cards.map(function(c, i){
-    var placeholder = c.num === null;
-    return '<button type="button" class="kpi kpi-' + c.tone + (placeholder ? ' kpi-placeholder' : '') + '" onclick="openKpi(\'' + c.kind + '\')" style="animation-delay:' + (i*60) + 'ms">' +
+    return '<button type="button" class="kpi kpi-' + c.tone + '" onclick="openKpi(\'' + c.kind + '\')" style="animation-delay:' + (i*60) + 'ms">' +
       '<div class="kpi-top"><span class="kpi-ico">' + c.icon + '</span><span class="kpi-chev">' + ICON.chev + '</span></div>' +
-      '<div class="kpi-num" id="kpi-' + c.kind + '">' + (placeholder ? '—' : '0') + '</div>' +
+      '<div class="kpi-num" id="kpi-' + c.kind + '">0</div>' +
       '<div class="kpi-label">' + c.label + '</div>' +
       '<div class="kpi-sub">' + c.sub + '</div>' +
     '</button>';
   }).join('');
-  // Total Sellers is a placeholder — no animation, keeps showing —
-  animCount($('kpi-phase0'), st.phase0);
-  animCount($('kpi-pending'), st.pending);
+  animCount($('kpi-total'),     mbC.sellers);
+  animCount($('kpi-buyers'),    mbC.buyers);
+  animCount($('kpi-phase0'),    st.phase0);
+  animCount($('kpi-pending'),   st.pending);
   animCount($('kpi-completed'), st.completed);
 }
 
@@ -1609,6 +1614,27 @@ function renderMatrix(){
 /* ═══════════════════════════ KPI drill-down ════════════════════════════ */
 
 function openKpi(kind){
+  // Total Buyers comes from the marketplace sheet — individual records not yet loaded here.
+  if (kind === 'buyers'){
+    var mbC = (DATA && DATA.mbCounts) ? DATA.mbCounts : { buyers: 0 };
+    $('kpiDrTitle').textContent = 'Total Buyers';
+    $('kpiDrSub').textContent   = mbC.buyers + ' buyer' + (mbC.buyers===1?'':'s') + ' · Open Marketplace';
+    _kscOpen = null;
+    $('kpiDrBody').innerHTML =
+      '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 24px;text-align:center;min-height:260px">' +
+        '<div style="width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;background:rgba(59,130,246,.1);color:#3B82F6">' +
+          ICON.buyers +
+        '</div>' +
+        '<div style="font-size:15px;font-weight:700;color:var(--ink);letter-spacing:-.02em;margin-bottom:8px">' + mbC.buyers + ' buyers tracked</div>' +
+        '<div style="font-size:13px;color:var(--ink-3);max-width:360px;line-height:1.6">Buyer detail cards will be available once the StrideOne integration with the buyer tracking sheet is active.</div>' +
+      '</div>';
+    $('kpiDrBody').scrollTop = 0;
+    $('kpiDrawer').classList.add('on');
+    $('kpiDrawer').setAttribute('aria-hidden','false');
+    document.body.style.overflow = 'hidden';
+    return;
+  }
+
   var list = filterByKind(kind);
   var titles = {
     total:     'All Sellers',
