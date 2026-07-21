@@ -147,7 +147,8 @@
     box-shadow:0 1px 0 rgba(255,255,255,.6),0 1px 8px rgba(0,0,0,.04);
   }
   .topbar-brand{display:flex;align-items:center;gap:10px;padding-right:16px;flex:none}
-  .brand-logo{height:34px;width:auto;display:block;border-radius:8px;flex:none}
+  .brand-logo{height:36px;width:auto;display:block;flex:none;color:var(--ink)}
+  .brand-rule{width:1px;height:22px;background:var(--line);flex:none;margin:0 2px}
   .brand-sub{font-size:9.5px;color:var(--ink-3);font-weight:600;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
   .topbar-spacer{flex:1;min-width:8px}
   .topbar-div{width:1px;height:16px;background:var(--line);flex:none;margin:0 10px}
@@ -932,7 +933,18 @@
 <!-- ─── Topbar: brand + NBFC switcher + actions ───────────────────────────── -->
 <header class="topbar">
   <div class="topbar-brand">
-    <img class="brand-logo" src="data:image/png;base64,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" alt="recykal" />
+    <svg class="brand-logo" width="192" height="36" viewBox="0 0 192 36" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Recykal">
+      <!-- Circular leaf mark: two interlocking C-shapes -->
+      <g transform="translate(18,18)" fill="currentColor">
+        <path d="M0,13 C9,13 15,7 15,0 C15,-7 9,-13 0,-13 C1,-9 2,-5 2,0 C2,5 1,9 0,13Z"/>
+        <path d="M0,-13 C-9,-13 -15,-7 -15,0 C-15,7 -9,13 0,13 C-1,9 -2,5 -2,0 C-2,-5 -1,-9 0,-13Z"/>
+      </g>
+      <!-- recykal wordmark -->
+      <text x="44" y="23" font-family="-apple-system,BlinkMacSystemFont,'SF Pro Text','Inter','Helvetica Neue',Arial,sans-serif" font-size="19" font-weight="800" fill="currentColor" letter-spacing="-0.5">recykal</text>
+      <!-- Sustainable Circularity tagline -->
+      <text x="44" y="32" font-family="-apple-system,BlinkMacSystemFont,'SF Pro Text','Inter','Helvetica Neue',Arial,sans-serif" font-size="7" font-weight="600" fill="var(--ink-3)" letter-spacing="0.7">SUSTAINABLE CIRCULARITY</text>
+    </svg>
+    <div class="brand-rule"></div>
     <div class="brand-sub">NBFC Tracker</div>
   </div>
   <nav id="nbfcNav" aria-label="NBFC"></nav>
