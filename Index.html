@@ -148,8 +148,13 @@
   }
   .topbar-brand{display:flex;align-items:center;gap:10px;padding-right:16px;flex:none}
   .brand-logo{height:36px;width:auto;display:block;flex:none;color:var(--ink)}
+  .brand-icon{fill:var(--rk-green)}
+  .brand-tagline-text{fill:var(--ink-3)}
   .brand-rule{width:1px;height:22px;background:var(--line);flex:none;margin:0 2px}
   .brand-sub{font-size:9.5px;color:var(--ink-3);font-weight:600;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+  @media (prefers-color-scheme:dark){.brand-icon{fill:#30D158}}
+  :root[data-theme="dark"] .brand-icon{fill:#30D158}
+  :root[data-theme="light"] .brand-icon{fill:var(--rk-green)}
   .topbar-spacer{flex:1;min-width:8px}
   .topbar-div{width:1px;height:16px;background:var(--line);flex:none;margin:0 10px}
   .sync{font-size:11.5px;color:var(--ink-3);line-height:1.5;white-space:nowrap}
@@ -933,16 +938,13 @@
 <!-- ─── Topbar: brand + NBFC switcher + actions ───────────────────────────── -->
 <header class="topbar">
   <div class="topbar-brand">
-    <svg class="brand-logo" width="192" height="36" viewBox="0 0 192 36" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Recykal">
-      <!-- Circular leaf mark: two interlocking C-shapes -->
-      <g transform="translate(18,18)" fill="currentColor">
-        <path d="M0,13 C9,13 15,7 15,0 C15,-7 9,-13 0,-13 C1,-9 2,-5 2,0 C2,5 1,9 0,13Z"/>
-        <path d="M0,-13 C-9,-13 -15,-7 -15,0 C-15,7 -9,13 0,13 C-1,9 -2,5 -2,0 C-2,-5 -1,-9 0,-13Z"/>
+    <svg class="brand-logo" width="176" height="36" viewBox="0 0 176 36" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Recykal">
+      <g class="brand-icon" transform="translate(18,18)">
+        <path d="M0,12 C8,12 14,6.5 14,0 C14,-6.5 8,-12 0,-12 C1.5,-8.5 3,-4.5 3,0 C3,4.5 1.5,8.5 0,12Z"/>
+        <path d="M0,-12 C-8,-12 -14,-6.5 -14,0 C-14,6.5 -8,12 0,12 C-1.5,8.5 -3,4.5 -3,0 C-3,-4.5 -1.5,-8.5 0,-12Z"/>
       </g>
-      <!-- recykal wordmark -->
-      <text x="44" y="23" font-family="-apple-system,BlinkMacSystemFont,'SF Pro Text','Inter','Helvetica Neue',Arial,sans-serif" font-size="19" font-weight="800" fill="currentColor" letter-spacing="-0.5">recykal</text>
-      <!-- Sustainable Circularity tagline -->
-      <text x="44" y="32" font-family="-apple-system,BlinkMacSystemFont,'SF Pro Text','Inter','Helvetica Neue',Arial,sans-serif" font-size="7" font-weight="600" fill="var(--ink-3)" letter-spacing="0.7">SUSTAINABLE CIRCULARITY</text>
+      <text x="42" y="23" font-family="-apple-system,BlinkMacSystemFont,'SF Pro Text','Inter','Helvetica Neue',Arial,sans-serif" font-size="18" font-weight="800" fill="currentColor" letter-spacing="-0.5">recykal</text>
+      <text class="brand-tagline-text" x="42" y="31.5" font-family="-apple-system,BlinkMacSystemFont,'SF Pro Text','Inter','Helvetica Neue',Arial,sans-serif" font-size="7" font-weight="600" letter-spacing="0.7">SUSTAINABLE CIRCULARITY</text>
     </svg>
     <div class="brand-rule"></div>
     <div class="brand-sub">NBFC Tracker</div>
