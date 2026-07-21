@@ -394,8 +394,12 @@ function getNbfcData_(ss, tabCfg, matrix) {
         layout.metaIdx.forEach(function (idx) { meta[layout.headers[idx]] = String(row[idx]).trim(); });
         var hasIdentity = layout.metaIdx.some(function (idx) { return String(row[idx]).trim() !== ''; });
         if (!hasIdentity) return;
-        // Skip rows with no seller/buyer name — catches header-like rows leaked into the data range.
-        if (nameHeaderKey && !String(meta[nameHeaderKey] || '').trim()) return;
+        // Validate the seller/buyer name column:
+        //   • must be present and non-empty
+        //   • must not be purely numeric (e.g. "1") — those are data artifacts, not real entity names
+        var sellerName = nameHeaderKey ? String(meta[nameHeaderKey] || '').trim() : '';
+        if (nameHeaderKey && !sellerName) return;
+        if (nameHeaderKey && /^\d+(\.\d+)?$/.test(sellerName)) return;
 
         layout.metaIdx.forEach(function (idx) {
           var h = layout.headers[idx], v = String(row[idx]).trim();
