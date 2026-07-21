@@ -271,11 +271,11 @@
   .nh-ring-lbl span{font-size:9px;font-weight:600;color:rgba(255,255,255,.55);letter-spacing:.09em;text-transform:uppercase;margin-top:3px}
 
   /* ── KPI hero cards — clickable ─────────────────────────────────────── */
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:14px}
+  .kpis{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;margin-top:14px}
   .kpi{
     text-align:left;background:var(--card);border-radius:var(--radius);
     box-shadow:0 0 0 .5px var(--line),var(--shadow-sm);
-    padding:20px 20px 18px;display:flex;flex-direction:column;
+    padding:18px 16px 16px;display:flex;flex-direction:column;
     cursor:pointer;position:relative;overflow:hidden;
     transition:transform .22s var(--ease),box-shadow .28s var(--ease);
     animation:fadeUp .5s var(--ease-out) both;
@@ -306,7 +306,7 @@
   .kpi-chev{color:var(--ink-3);opacity:.45;transition:transform .2s var(--ease),opacity .2s;flex:none}
   .kpi-chev svg{width:16px;height:16px}
   .kpi:hover .kpi-chev{opacity:.9;transform:translateX(3px)}
-  .kpi-num{font-size:42px;font-weight:700;letter-spacing:-.05em;line-height:1;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .kpi-num{font-size:38px;font-weight:700;letter-spacing:-.05em;line-height:1;font-variant-numeric:tabular-nums;color:var(--ink)}
   .kpi-label{font-size:14px;font-weight:600;margin-top:10px;letter-spacing:-.02em;color:var(--ink)}
   .kpi-sub{font-size:12px;color:var(--ink-3);margin-top:3px;letter-spacing:-.005em;line-height:1.4}
   /* tone: total sellers (brand orange) */
@@ -327,6 +327,21 @@
   .kpi-completed{--kpi-accent:var(--rk-green)}
   .kpi-completed .kpi-ico{background:var(--rk-green-tint);color:var(--rk-green-ink)}
   .kpi-completed .kpi-num{color:var(--rk-green-ink)}
+  /* tone: eligible (cyan) */
+  .kpi-eligible{--kpi-accent:#0891B2}
+  .kpi-eligible .kpi-ico{background:rgba(8,145,178,.11);color:#0E7490}
+  .kpi-eligible .kpi-num{color:#0E7490}
+  .kpi-eligible:hover{box-shadow:0 0 0 .5px rgba(8,145,178,.22),var(--shadow-md),0 8px 32px rgba(8,145,178,.12)}
+  /* tone: qualified (indigo) */
+  .kpi-qualified{--kpi-accent:#4F46E5}
+  .kpi-qualified .kpi-ico{background:rgba(79,70,229,.10);color:#4338CA}
+  .kpi-qualified .kpi-num{color:#4338CA}
+  .kpi-qualified:hover{box-shadow:0 0 0 .5px rgba(79,70,229,.22),var(--shadow-md),0 8px 32px rgba(79,70,229,.12)}
+  /* tone: credit limit (violet) */
+  .kpi-creditlimit{--kpi-accent:#7C3AED}
+  .kpi-creditlimit .kpi-ico{background:rgba(124,58,237,.10);color:#6D28D9}
+  .kpi-creditlimit .kpi-num{color:#6D28D9}
+  .kpi-creditlimit:hover{box-shadow:0 0 0 .5px rgba(124,58,237,.22),var(--shadow-md),0 8px 32px rgba(124,58,237,.12)}
 
   /* ── Secondary view switcher ────────────────────────────────────────── */
   .subnav{display:inline-flex;background:var(--fill);border-radius:11px;padding:3px;gap:2px;margin:20px 0 2px}
@@ -642,6 +657,9 @@
   .btn-primary:focus-visible{outline-color:rgba(255,255,255,.8)}
 
   /* ── Responsive ─────────────────────────────────────────────────────── */
+  @media (max-width:1280px){
+    .kpis{grid-template-columns:repeat(4,1fr)}
+  }
   @media (max-width:1000px){
     .kpis{grid-template-columns:repeat(2,1fr)}
     .ov-grid{grid-template-columns:1fr}
@@ -1092,6 +1110,9 @@ var activeNbfcId = null;
 var ND = null;              // active nbfc object
 var fieldByType = {};       // gst / date / entity / turnover → header (active NBFC)
 var nameHeader = null;      // active NBFC's business-name header
+var eligibilityHeader = null;
+var qualifiedHeader = null;
+var creditLimitHeader = null;
 var lastFocusRefresh = 0;
 
 /* Per-NBFC accent theming. Keys are backend tab ids (see Code.gs CONFIG.NBFC_TABS). */
@@ -1182,6 +1203,9 @@ var ICON = {
   seed:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12C12 8 9 5 4 5c0 5 3 8 8 7z"/><path d="M12 10c0-3 3-6 8-6 0 4-3 7-8 6z"/></svg>',
   clock:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3.2 2"/></svg>',
   check:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>',
+  shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>',
+  award:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>',
+  card:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>',
   chev:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
 };
 
@@ -1282,6 +1306,9 @@ function switchNbfc(id){
 function setNd(){
   ND = NBFCS[activeNbfcId];
   fieldByType = {}; nameHeader = ND.nameHeader || null;
+  eligibilityHeader = ND.eligibilityHeader || null;
+  qualifiedHeader   = ND.qualifiedHeader   || null;
+  creditLimitHeader = ND.creditLimitHeader || null;
   (ND.metaFields || []).forEach(function(f){
     if (f.type !== 'text' && !fieldByType[f.type]) fieldByType[f.type] = f.key;
     if (!nameHeader && normKey(f.key).indexOf('name') !== -1) nameHeader = f.key;
@@ -1321,12 +1348,17 @@ function renderNbfcError(){
    • pending   — has at least one document still awaited (pending > 0)
    • completed — every required document received (pending === 0, applicable > 0) */
 function computeStats(entities){
-  var s = {total:0, phase0:0, pending:0, completed:0, received:0, pendingDocs:0, na:0, applicable:0};
+  var s = {total:0, phase0:0, pending:0, completed:0, received:0, pendingDocs:0, na:0, applicable:0,
+           eligible:0, qualified:0, creditLimit:0};
   (entities || []).forEach(function(e){
     s.total++;
     s.received += e.received; s.pendingDocs += e.pending; s.na += e.na; s.applicable += e.applicable;
     if (e.pending > 0) s.pending++;
     if (e.pending === 0 && e.applicable > 0) s.completed++;
+    var em = e.extraMeta || {};
+    if (eligibilityHeader && String(em[eligibilityHeader] || '').trim().toLowerCase() === 'yes') s.eligible++;
+    if (qualifiedHeader   && String(em[qualifiedHeader]   || '').trim().toLowerCase() === 'yes') s.qualified++;
+    if (creditLimitHeader && String(em[creditLimitHeader] || '').trim()) s.creditLimit++;
   });
   s.phase0 = s.total; // Phase 0 = all identified sellers in the tracker
   s.completion = s.applicable ? Math.round(s.received / s.applicable * 1000) / 10 : 0;
@@ -1335,9 +1367,18 @@ function computeStats(entities){
 
 function filterByKind(kind){
   var ents = ND.entities || [];
-  if (kind === 'phase0')    return ents.slice(); // all identified sellers
-  if (kind === 'pending')   return ents.filter(function(e){ return e.pending > 0; });
-  if (kind === 'completed') return ents.filter(function(e){ return e.pending === 0 && e.applicable > 0; });
+  if (kind === 'phase0')      return ents.slice();
+  if (kind === 'pending')     return ents.filter(function(e){ return e.pending > 0; });
+  if (kind === 'completed')   return ents.filter(function(e){ return e.pending === 0 && e.applicable > 0; });
+  if (kind === 'eligible')    return ents.filter(function(e){
+    return eligibilityHeader && String((e.extraMeta||{})[eligibilityHeader]||'').trim().toLowerCase() === 'yes';
+  });
+  if (kind === 'qualified')   return ents.filter(function(e){
+    return qualifiedHeader && String((e.extraMeta||{})[qualifiedHeader]||'').trim().toLowerCase() === 'yes';
+  });
+  if (kind === 'creditlimit') return ents.filter(function(e){
+    return creditLimitHeader && String((e.extraMeta||{})[creditLimitHeader]||'').trim();
+  });
   return ents.slice();
 }
 
@@ -1380,9 +1421,12 @@ function renderKpis(){
 
   var cards = [
     totalCard,
-    { kind:'phase0',    tone:'phase0',    icon:ICON.seed,  num:st.phase0,    label:'Phase 0',    sub:'Identified sellers · in the tracking system' },
-    { kind:'pending',   tone:'pending',   icon:ICON.clock, num:st.pending,   label:'Pending',    sub:'Documents still awaited' },
-    { kind:'completed', tone:'completed', icon:ICON.check, num:st.completed, label:'Completed',  sub:'All required docs received' }
+    { kind:'phase0',      tone:'phase0',      icon:ICON.seed,   num:st.phase0,      label:'Phase 0',      sub:'Identified sellers · in the tracking system' },
+    { kind:'pending',     tone:'pending',     icon:ICON.clock,  num:st.pending,     label:'Pending',      sub:'Documents still awaited' },
+    { kind:'completed',   tone:'completed',   icon:ICON.check,  num:st.completed,   label:'Completed',    sub:'All required docs received' },
+    { kind:'eligible',    tone:'eligible',    icon:ICON.shield, num:st.eligible,    label:'Eligible',     sub: eligibilityHeader  || 'Eligibility (col AG)' },
+    { kind:'qualified',   tone:'qualified',   icon:ICON.award,  num:st.qualified,   label:'Qualified',    sub: qualifiedHeader    || 'Qualified (col AH)' },
+    { kind:'creditlimit', tone:'creditlimit', icon:ICON.card,   num:st.creditLimit, label:'Credit Limit', sub: creditLimitHeader  || 'Credit Limit (col AI)' }
   ];
 
   $('kpis').innerHTML = cards.map(function(c, i){
@@ -1390,13 +1434,16 @@ function renderKpis(){
       '<div class="kpi-top"><span class="kpi-ico">' + c.icon + '</span><span class="kpi-chev">' + ICON.chev + '</span></div>' +
       '<div class="kpi-num" id="kpi-' + c.kind + '">0</div>' +
       '<div class="kpi-label">' + c.label + '</div>' +
-      '<div class="kpi-sub">' + c.sub + '</div>' +
+      '<div class="kpi-sub">' + esc(c.sub) + '</div>' +
     '</button>';
   }).join('');
   animCount($('kpi-' + totalCard.kind), totalCard.num);
-  animCount($('kpi-phase0'),    st.phase0);
-  animCount($('kpi-pending'),   st.pending);
-  animCount($('kpi-completed'), st.completed);
+  animCount($('kpi-phase0'),      st.phase0);
+  animCount($('kpi-pending'),     st.pending);
+  animCount($('kpi-completed'),   st.completed);
+  animCount($('kpi-eligible'),    st.eligible);
+  animCount($('kpi-qualified'),   st.qualified);
+  animCount($('kpi-creditlimit'), st.creditLimit);
 }
 
 /* ═══════════════════════════ Overview view ═════════════════════════════ */
@@ -1647,19 +1694,26 @@ function openKpi(kind){
   }
 
   var list = filterByKind(kind);
+  var n = list.length, s = n === 1 ? '' : 's';
   var titles = {
-    total:     'All Sellers',
-    phase0:    'Phase 0 — Identified Sellers (Documents Received)',
-    pending:   'Pending Documents',
-    completed: 'Completed'
+    total:       'All Sellers',
+    phase0:      'Phase 0 — Identified Sellers',
+    pending:     'Pending Documents',
+    completed:   'Completed',
+    eligible:    'Eligible Sellers',
+    qualified:   'Qualified Sellers',
+    creditlimit: 'Credit Limit Assigned'
   };
   var subs = {
-    total:     list.length + ' seller' + (list.length===1?'':'s') + ' in ' + ND.name,
-    phase0:    list.length + ' seller' + (list.length===1?'':'s') + ' identified and tracked in ' + ND.name,
-    pending:   list.length + ' seller' + (list.length===1?'':'s') + ' with one or more documents outstanding',
-    completed: list.length + ' seller' + (list.length===1?'':'s') + ' with every required document received'
+    total:       n + ' seller' + s + ' in ' + ND.name,
+    phase0:      n + ' seller' + s + ' identified and tracked in ' + ND.name,
+    pending:     n + ' seller' + s + ' with one or more documents outstanding',
+    completed:   n + ' seller' + s + ' with every required document received',
+    eligible:    n + ' seller' + s + ' marked eligible in ' + ND.name,
+    qualified:   n + ' seller' + s + ' qualified for financing in ' + ND.name,
+    creditlimit: n + ' seller' + s + ' with a credit limit assigned in ' + ND.name
   };
-  openKpiDrawer(titles[kind], subs[kind], list, kind);
+  openKpiDrawer(titles[kind] || kind, subs[kind] || '', list, kind);
 }
 
 function openKpiDrawer(title, sub, list, kind){
@@ -1704,6 +1758,11 @@ function buildKbCard(e, idx, kind){
   var ent  = (fieldByType.entity && e.meta[fieldByType.entity]) || '';
   var tv   = fieldByType.turnover ? formatTurnover(e.meta[fieldByType.turnover]) : '';
   var sub  = [ent, tv].filter(Boolean).join(' · ');
+  // For credit limit drawer: surface the credit limit amount in the sub-line
+  if (kind === 'creditlimit' && creditLimitHeader) {
+    var cl = ((e.extraMeta || {})[creditLimitHeader] || '').trim();
+    if (cl) sub = (sub ? sub + ' · ' : '') + 'Credit Limit: ₹' + cl;
+  }
 
   var pendDocs = docs.filter(function(d){ return (e.docs[d.key]||{}).status === 'pending'; });
   var recvDocs = docs.filter(function(d){ return (e.docs[d.key]||{}).status === 'received'; });

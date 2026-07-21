@@ -480,6 +480,16 @@ function getNbfcData_(ss, tabCfg, matrix) {
       if (!covered) entityOptions[label] = true;
     });
 
+    // Detect the three funnel-stage column headers from the extra-meta range.
+    var eligibilityHeader = null, qualifiedHeader = null, creditLimitHeader = null;
+    layout.extraMetaIdx.forEach(function(idx){
+      var h = layout.headers[idx];
+      var n = normKey_(h);
+      if (!eligibilityHeader && n.indexOf('elig') !== -1) eligibilityHeader = h;
+      if (!qualifiedHeader  && n.indexOf('qualif') !== -1) qualifiedHeader = h;
+      if (!creditLimitHeader && n.indexOf('credit') !== -1) creditLimitHeader = h;
+    });
+
     return {
       ok: true,
       id: tabCfg.id,
@@ -495,7 +505,10 @@ function getNbfcData_(ss, tabCfg, matrix) {
         return { key: h, type: metaFieldType_(h), options: Object.keys(optionValues[h] || {}).sort() };
       }),
       extraMetaFields: layout.extraMetaIdx.map(function (idx) { return layout.headers[idx]; }),
-      pendingHeader: layout.headers[layout.pendingIdx]
+      pendingHeader: layout.headers[layout.pendingIdx],
+      eligibilityHeader: eligibilityHeader,
+      qualifiedHeader:   qualifiedHeader,
+      creditLimitHeader: creditLimitHeader
     };
   } catch (e) {
     return {
@@ -503,7 +516,8 @@ function getNbfcData_(ss, tabCfg, matrix) {
       id: tabCfg.id, name: tabCfg.name,
       entities: [], docs: [], entityColumns: [], entityTypeOptions: [],
       nameHeader: null, entityHeader: null, metaFields: [],
-      extraMetaFields: [], pendingHeader: null
+      extraMetaFields: [], pendingHeader: null,
+      eligibilityHeader: null, qualifiedHeader: null, creditLimitHeader: null
     };
   }
 }
@@ -694,7 +708,8 @@ function getInitialData(opts) {
         { ok: true, id: 'strideone', name: 'StrideOne', entities: [], docs: [],
           entityColumns: [], entityTypeOptions: [], nameHeader: null,
           entityHeader: null, metaFields: [], extraMetaFields: [],
-          pendingHeader: null, _buyerPlaceholder: true }
+          pendingHeader: null, eligibilityHeader: null, qualifiedHeader: null,
+          creditLimitHeader: null, _buyerPlaceholder: true }
       ],
       mbCounts: mbC,
       generatedAt: new Date().toISOString()
@@ -713,7 +728,8 @@ function getInitialData(opts) {
     ok: true, id: 'strideone', name: 'StrideOne', entities: [], docs: [],
     entityColumns: [], entityTypeOptions: [], nameHeader: null,
     entityHeader: null, metaFields: [], extraMetaFields: [],
-    pendingHeader: null, _buyerPlaceholder: true
+    pendingHeader: null, eligibilityHeader: null, qualifiedHeader: null,
+    creditLimitHeader: null, _buyerPlaceholder: true
   };
 
   cacheSet_(cache, 'tab_billmart',  billmartData);
