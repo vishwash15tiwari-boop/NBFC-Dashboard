@@ -39,6 +39,10 @@ var CONFIG = {
     { id: 'strideone', name: 'StrideOne',  maxCol: 40, docStartCol: 12, docEndCol: 27 },
   ],
 
+  // Funnel-stage columns (1-indexed): AG=33, AH=34, AI=35.
+  // These are fixed positions in all three NBFC tabs.
+  FUNNEL_COLS: { eligibility: 33, qualified: 34, creditLimit: 35 },
+
   // Optional: entity-type → document applicability matrix tab.
   REQUIREMENT: { name: 'Seller Requirement', index: -1, signature: ['documents', 'proprietor'] },
 
@@ -480,15 +484,11 @@ function getNbfcData_(ss, tabCfg, matrix) {
       if (!covered) entityOptions[label] = true;
     });
 
-    // Detect the three funnel-stage column headers from the extra-meta range.
-    var eligibilityHeader = null, qualifiedHeader = null, creditLimitHeader = null;
-    layout.extraMetaIdx.forEach(function(idx){
-      var h = layout.headers[idx];
-      var n = normKey_(h);
-      if (!eligibilityHeader && n.indexOf('elig') !== -1) eligibilityHeader = h;
-      if (!qualifiedHeader  && n.indexOf('qualif') !== -1) qualifiedHeader = h;
-      if (!creditLimitHeader && n.indexOf('credit') !== -1) creditLimitHeader = h;
-    });
+    // Read the three funnel-stage column headers by their fixed 1-indexed positions.
+    var fc = CONFIG.FUNNEL_COLS;
+    var eligibilityHeader = fc.eligibility  ? (layout.headers[fc.eligibility  - 1] || null) : null;
+    var qualifiedHeader   = fc.qualified    ? (layout.headers[fc.qualified    - 1] || null) : null;
+    var creditLimitHeader = fc.creditLimit  ? (layout.headers[fc.creditLimit  - 1] || null) : null;
 
     return {
       ok: true,

@@ -1424,9 +1424,9 @@ function renderKpis(){
     { kind:'phase0',      tone:'phase0',      icon:ICON.seed,   num:st.phase0,      label:'Phase 0',      sub:'Identified sellers · in the tracking system' },
     { kind:'pending',     tone:'pending',     icon:ICON.clock,  num:st.pending,     label:'Pending',      sub:'Documents still awaited' },
     { kind:'completed',   tone:'completed',   icon:ICON.check,  num:st.completed,   label:'Completed',    sub:'All required docs received' },
-    { kind:'eligible',    tone:'eligible',    icon:ICON.shield, num:st.eligible,    label:'Eligible',     sub: eligibilityHeader  || 'Eligibility (col AG)' },
-    { kind:'qualified',   tone:'qualified',   icon:ICON.award,  num:st.qualified,   label:'Qualified',    sub: qualifiedHeader    || 'Qualified (col AH)' },
-    { kind:'creditlimit', tone:'creditlimit', icon:ICON.card,   num:st.creditLimit, label:'Credit Limit', sub: creditLimitHeader  || 'Credit Limit (col AI)' }
+    { kind:'eligible',    tone:'eligible',    icon:ICON.shield, num:st.eligible,    label:'Eligible',     sub:'Sellers marked eligible' },
+    { kind:'qualified',   tone:'qualified',   icon:ICON.award,  num:st.qualified,   label:'Qualified',    sub:'Sellers qualified for financing' },
+    { kind:'creditlimit', tone:'creditlimit', icon:ICON.card,   num:st.creditLimit, label:'Credit Limit', sub:'Sellers with credit limit assigned' }
   ];
 
   $('kpis').innerHTML = cards.map(function(c, i){
