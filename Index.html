@@ -1299,26 +1299,25 @@ function renderNbfcError(){
 
 /* Bucket definitions (per NBFC tab):
    • total     — every seller in the tab
-   • phase0    — onboarded but yet to submit any document (received === 0)
+   • phase0    — all identified sellers (Phase 0 = everyone in the system)
    • pending   — has at least one document still awaited (pending > 0)
-   • completed — every required document received (pending === 0, applicable > 0)
-   Phase 0 is a subset of Pending; each card is an independent lens. */
+   • completed — every required document received (pending === 0, applicable > 0) */
 function computeStats(entities){
   var s = {total:0, phase0:0, pending:0, completed:0, received:0, pendingDocs:0, na:0, applicable:0};
   (entities || []).forEach(function(e){
     s.total++;
     s.received += e.received; s.pendingDocs += e.pending; s.na += e.na; s.applicable += e.applicable;
-    if (e.received === 0 && e.applicable > 0) s.phase0++;
     if (e.pending > 0) s.pending++;
     if (e.pending === 0 && e.applicable > 0) s.completed++;
   });
+  s.phase0 = s.total; // Phase 0 = all identified sellers
   s.completion = s.applicable ? Math.round(s.received / s.applicable * 1000) / 10 : 0;
   return s;
 }
 
 function filterByKind(kind){
   var ents = ND.entities || [];
-  if (kind === 'phase0')    return ents.filter(function(e){ return e.received === 0 && e.applicable > 0; });
+  if (kind === 'phase0')    return ents.slice(); // all identified sellers
   if (kind === 'pending')   return ents.filter(function(e){ return e.pending > 0; });
   if (kind === 'completed') return ents.filter(function(e){ return e.pending === 0 && e.applicable > 0; });
   return ents.slice();
@@ -1495,7 +1494,7 @@ function renderOvTable(){
 
   /* Apply filters */
   var rows = entities.filter(function(e){
-    if (fs === 'phase0'    && !(e.received === 0 && e.applicable > 0)) return false;
+    // phase0 = all sellers — no filter needed
     if (fs === 'pending'   && e.pending === 0) return false;
     if (fs === 'completed' && !(e.pending === 0 && e.applicable > 0)) return false;
     if (q){
@@ -1596,7 +1595,7 @@ function openKpi(kind){
   };
   var subs = {
     total:     list.length + ' seller' + (list.length===1?'':'s') + ' in ' + ND.name,
-    phase0:    list.length + ' seller' + (list.length===1?'':'s') + ' identified · awaiting document submission to NBFC',
+    phase0:    list.length + ' seller' + (list.length===1?'':'s') + ' identified and tracked in ' + ND.name,
     pending:   list.length + ' seller' + (list.length===1?'':'s') + ' with one or more documents outstanding',
     completed: list.length + ' seller' + (list.length===1?'':'s') + ' with every required document received'
   };
