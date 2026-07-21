@@ -507,14 +507,19 @@ function getNbfcData_(ss, tabCfg, matrix) {
   }
 }
 
-/* ──────────────────── Marketplace counts (Open Marketplace · Onboarded) ─── */
+/* ──────────────────── Marketplace counts (Open Marketplace · Completed) ─── */
 
-var MB_STATUS_FILTER = 'Onboarded';
+// Accepted status values (case-sensitive, as they appear in the sheet).
+// "Onboarding Status" column value expected to be one of these.
+var MB_STATUS_FILTER = 'Completed';
 
 /**
  * Counts rows in a marketplace tab where:
- *   Vertical = "Open Marketplace"  AND  Status = "Onboarded"
- * Header detection is case-insensitive; both columns must be present.
+ *   Vertical column contains "Open Marketplace"
+ *   AND any column whose header contains "status" or "onboard" = MB_STATUS_FILTER
+ *
+ * Column detection is case-insensitive and matches partial names so
+ * "Status", "Onboarding Status", "Onboarding" etc. are all found.
  */
 function getMbCounts_() {
   try {
@@ -529,8 +534,9 @@ function getMbCounts_() {
         var vIdx = -1, sIdx = -1;
         for (var c = 0; c < headers.length; c++) {
           var nk = normKey_(headers[c]);
-          if (vIdx === -1 && nk.indexOf('vertical') !== -1) vIdx = c;
-          if (sIdx === -1 && nk === 'status')               sIdx = c;
+          if (vIdx === -1 && nk.indexOf('vertical')  !== -1) vIdx = c;
+          // Match "Status", "Onboarding Status", "Onboarding", etc.
+          if (sIdx === -1 && (nk.indexOf('status') !== -1 || nk === 'onboarding')) sIdx = c;
         }
         var data = sh.getRange(2, 1, sh.getLastRow() - 1, lastCol).getDisplayValues();
         return data.filter(function (r) {
@@ -549,6 +555,36 @@ function getMbCounts_() {
   } catch (e) {
     return { ok: false, sellers: 0, buyers: 0, error: String(e.message) };
   }
+}
+
+/**
+ * Debug helper — run this directly in the Apps Script editor (not deployed).
+ * Logs the actual column headers and unique values for status/vertical/onboarding
+ * columns so you can verify MB_VERTICAL_FILTER and MB_STATUS_FILTER are correct.
+ */
+function debugMbSheet() {
+  var ss = SpreadsheetApp.openById(MB_SHEET_ID);
+  ['_mb_sellers', '_mb_buyers'].forEach(function (tabName) {
+    var sh = ss.getSheetByName(tabName);
+    if (!sh) { Logger.log(tabName + ': TAB NOT FOUND'); return; }
+    var lastCol = sh.getLastColumn();
+    var lastRow = sh.getLastRow();
+    var headers = sh.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+    Logger.log('\n=== ' + tabName + ' === (' + (lastRow - 1) + ' data rows)');
+    Logger.log('All headers: ' + JSON.stringify(headers));
+
+    if (lastRow < 2) return;
+    var sampleRows = Math.min(lastRow - 1, 200);
+    var data = sh.getRange(2, 1, sampleRows, lastCol).getDisplayValues();
+    headers.forEach(function (h, i) {
+      var nk = normKey_(h);
+      if (nk.indexOf('status') !== -1 || nk.indexOf('vertical') !== -1 || nk.indexOf('onboard') !== -1) {
+        var uniq = {};
+        data.forEach(function (r) { uniq[String(r[i]).trim()] = true; });
+        Logger.log('  Col "' + h + '" [' + i + '] unique values: ' + JSON.stringify(Object.keys(uniq)));
+      }
+    });
+  });
 }
 
 /* ───────────────────────────────── Read API ───────────────────────────────── */
