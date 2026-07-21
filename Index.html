@@ -1725,8 +1725,7 @@ function buildKbCard(e, idx, kind){
   /* Document section builder */
   function docSec(arr, secCls, label, dotCls){
     if (!arr.length) return '';
-    var tag = dotCls === 'pend' ? (kind === 'phase0' ? 'Not submitted' : 'Pending')
-            : dotCls === 'recv' ? 'Received' : 'N/A';
+    var tag = dotCls === 'pend' ? 'Pending' : dotCls === 'recv' ? 'Received' : 'N/A';
     return '<div class="kb-sec ' + secCls + '">' + label + '<span class="kb-sec-badge">' + arr.length + '</span></div>' +
       '<div class="ksc-doc-grid">' + arr.map(function(d){
         return '<div class="ksc-doc ' + dotCls + '"><span class="ksc-doc-dot"></span>' +
@@ -1735,40 +1734,26 @@ function buildKbCard(e, idx, kind){
       }).join('') + '</div>';
   }
 
-  var panelHtml = attrsHtml;
-  if (kind === 'phase0'){
-    panelHtml +=
-      '<div style="font-size:11.5px;color:var(--ink-3);padding:8px 10px;background:var(--fill);border-radius:8px;margin-bottom:10px">' +
-        'No documents received yet. ' + pendDocs.length + ' document' + (pendDocs.length===1?'':'s') + ' required to complete onboarding.' +
-      '</div>' +
-      docSec(pendDocs, 'kb-sec-pend', 'Required',       'pend') +
-      docSec(naDocs,   'kb-sec-na',   'Not Applicable', 'na');
-  } else {
-    panelHtml +=
-      docSec(pendDocs, 'kb-sec-pend', 'Missing',        'pend') +
-      docSec(naDocs,   'kb-sec-na',   'Not Applicable', 'na')   +
-      docSec(recvDocs, 'kb-sec-recv', 'Received',       'recv');
-  }
+  var panelHtml = attrsHtml +
+    docSec(pendDocs, 'kb-sec-pend', 'Missing',        'pend') +
+    docSec(naDocs,   'kb-sec-na',   'Not Applicable', 'na')   +
+    docSec(recvDocs, 'kb-sec-recv', 'Received',       'recv');
 
   var totalApp = pendDocs.length + recvDocs.length;
   panelHtml +=
     '<div class="ksc-foot">' +
-      '<div class="ksc-prog"><div class="ksc-prog-fill" style="width:' + (kind === 'phase0' ? 0 : e.completion) + '%"></div></div>' +
+      '<div class="ksc-prog"><div class="ksc-prog-fill" style="width:' + e.completion + '%"></div></div>' +
       '<span style="font-size:11px;color:var(--ink-3)">' + recvDocs.length + ' of ' + totalApp + ' docs received</span>' +
       '<button class="btn-ghost" style="height:30px;padding:0 13px;font-size:12px" onclick="fromKpiToDetail(' + e.row + ')" type="button">View details</button>' +
     '</div>';
 
   /* Card header decorations */
-  var ringClr = kind === 'completed' ? 'var(--rk-green)' :
-    kind === 'phase0' ? 'var(--fill-2)' :
+  var ringClr = kind === 'completed' || e.completion === 100 ? 'var(--rk-green)' :
     e.completion >= 75 ? 'var(--rk-green)' : e.completion >= 40 ? 'var(--amber)' : '#e05252';
-  var ringHtml = ringSvg(kind === 'phase0' ? 0 : e.completion, 40, 4.5, 'var(--fill)', ringClr);
-  var ringLbl  = kind === 'phase0' ? '0%' : Math.round(e.completion) + '%';
-  var chipHtml = kind === 'completed' ? '<span class="chip ok">Complete</span>' :
-    kind === 'phase0' ? '<span class="chip mut">' + pendDocs.length + ' required</span>' :
-    statusChip(e);
-  var avStyle  = kind === 'completed' ? ' style="background:var(--rk-green-tint);color:var(--rk-green-ink)"' :
-    kind === 'phase0'  ? ' style="background:var(--fill);color:var(--ink-3)"' : '';
+  var ringHtml = ringSvg(e.completion, 40, 4.5, 'var(--fill)', ringClr);
+  var ringLbl  = Math.round(e.completion) + '%';
+  var chipHtml = kind === 'completed' ? '<span class="chip ok">Complete</span>' : statusChip(e);
+  var avStyle  = kind === 'completed' ? ' style="background:var(--rk-green-tint);color:var(--rk-green-ink)"' : '';
 
   return '<div class="ksc" id="ksc-' + e.row + '" style="animation:fadeSlideUp .28s var(--ease) both;animation-delay:' + (idx*18) + 'ms">' +
     '<button class="ksc-hdr" onclick="toggleKpiCard(' + e.row + ')" type="button">' +
@@ -1776,7 +1761,7 @@ function buildKbCard(e, idx, kind){
       '<div class="ksc-info"><div class="ksc-name">' + esc(nm) + '</div>' +
         (sub ? '<div class="ksc-sub">' + esc(sub) + '</div>' : '') + '</div>' +
       '<div class="ksc-ring">' + ringHtml +
-        '<div class="ksc-ring-lbl"' + (kind === 'phase0' ? ' style="color:var(--ink-3)"' : '') + '>' + ringLbl + '</div></div>' +
+        '<div class="ksc-ring-lbl">' + ringLbl + '</div></div>' +
       chipHtml +
       '<span class="ksc-chev"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>' +
     '</button>' +
