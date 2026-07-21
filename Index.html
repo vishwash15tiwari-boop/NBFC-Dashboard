@@ -370,10 +370,18 @@
   }
   .attn-prog{height:3px;background:var(--fill);border-radius:2px;overflow:hidden;margin-top:12px}
   .attn-prog-fill{height:100%;background:var(--rk-green);border-radius:2px;transition:width .5s var(--ease-out)}
-  .attn-pend{
-    font-size:11.5px;color:var(--ink-3);margin-top:8px;line-height:1.55;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
-    letter-spacing:-.005em;
+  .attn-checklist{margin-top:10px;display:flex;flex-direction:column;gap:4px}
+  .attn-check-item{
+    display:flex;align-items:flex-start;gap:6px;
+    font-size:11px;color:var(--ink-2);line-height:1.45;letter-spacing:-.005em;
+  }
+  .attn-check-item .aci{
+    flex:none;width:12px;height:12px;margin-top:1px;
+    color:var(--amber-ink);opacity:.7;
+  }
+  .attn-check-more{
+    font-size:10.5px;color:var(--ink-3);padding-left:18px;
+    margin-top:1px;font-style:italic;
   }
   /* chips */
   .chip{
@@ -1435,6 +1443,8 @@ function buildDocBars(docs, rows){
 }
 
 /* Attention cards from entity rows */
+var CHK_BOX = '<svg class="aci" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x=".65" y=".65" width="10.7" height="10.7" rx="2.5" stroke="currentColor" stroke-width="1.3"/></svg>';
+
 function buildAttnCards(rows, docs){
   var withPending = (rows||[]).slice().sort(function(a,b){ return b.pending-a.pending||a.completion-b.completion; }).filter(function(r){ return r.pending>0; });
   if (!withPending.length) return '<div class="empty-cell" style="padding:24px 12px">All checklists are complete.</div>';
@@ -1444,8 +1454,18 @@ function buildAttnCards(rows, docs){
     var nm = nameHeader ? r.meta[nameHeader] : ('Row '+r.row);
     var tv = tvHeader ? formatTurnover(r.meta[tvHeader]) : '';
     var ent = entityHeader ? (r.meta[entityHeader]||'') : '';
-    var pendingNames = (docs||[]).filter(function(d){ return (r.docs[d.key]||{}).status==='pending'; })
-      .map(function(d){ return d.key; }).join(' · ');
+    var pendingDocs = (docs||[]).filter(function(d){ return (r.docs[d.key]||{}).status==='pending'; })
+      .map(function(d){ return d.key; });
+    var maxShow = 5;
+    var shown = pendingDocs.slice(0, maxShow);
+    var more  = pendingDocs.length - shown.length;
+    var checklist =
+      '<div class="attn-checklist">' +
+        shown.map(function(name){
+          return '<div class="attn-check-item">' + CHK_BOX + '<span>' + esc(name) + '</span></div>';
+        }).join('') +
+        (more > 0 ? '<div class="attn-check-more">+' + more + ' more</div>' : '') +
+      '</div>';
     return '<div class="attn-card" onclick="openDetail('+r.row+')" style="animation-delay:'+(i*55)+'ms">'+
       '<div class="attn-head">'+
         '<div class="avatar">'+esc(initials(nm))+'</div>'+
@@ -1458,7 +1478,7 @@ function buildAttnCards(rows, docs){
         '<span class="attn-cnt">'+r.pending+' pending</span>'+
       '</div>'+
       '<div class="attn-prog"><div class="attn-prog-fill" style="width:'+r.completion+'%"></div></div>'+
-      '<div class="attn-pend" title="'+esc(pendingNames)+'">'+esc(pendingNames)+'</div>'+
+      checklist+
     '</div>';
   }).join('');
 }
