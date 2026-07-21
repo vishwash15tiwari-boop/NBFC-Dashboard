@@ -507,50 +507,66 @@ function getNbfcData_(ss, tabCfg, matrix) {
   }
 }
 
-/* ──────────────────── Marketplace counts (Open Marketplace · Completed) ─── */
+/* ──────────── Marketplace counts (Open Marketplace · Onboarded) ─── */
 
-// Accepted status values (case-sensitive, as they appear in the sheet).
-// "Onboarding Status" column value expected to be one of these.
-var MB_STATUS_FILTER = 'Completed';
+var MB_STATUS_FILTER = 'Onboarded';
 
 /**
  * Counts rows in a marketplace tab where:
- *   Vertical column contains "Open Marketplace"
- *   AND any column whose header contains "status" or "onboard" = MB_STATUS_FILTER
+ *   Vertical column  = MB_VERTICAL_FILTER  ("Open Marketplace")
+ *   Status-like column = MB_STATUS_FILTER  ("Onboarded")
  *
- * Column detection is case-insensitive and matches partial names so
- * "Status", "Onboarding Status", "Onboarding" etc. are all found.
+ * Column detection is flexible: matches any header whose normalised key
+ * contains "status" or equals "onboarding", so "Status", "Onboarding Status",
+ * "Onboarding" etc. are all found.
+ *
+ * Also returns debug info (headers + column indices found) so the caller
+ * can log it and verify filter strings without opening the Apps Script editor.
  */
 function getMbCounts_() {
   try {
     var ss = SpreadsheetApp.openById(MB_SHEET_ID);
 
-    function countOmpRows(tabName) {
+    function analyseTab(tabName) {
       try {
         var sh = ss.getSheetByName(tabName);
-        if (!sh || sh.getLastRow() < 2) return 0;
+        if (!sh || sh.getLastRow() < 2) return { count: 0, vCol: null, sCol: null, sampleVals: [] };
         var lastCol = sh.getLastColumn();
         var headers = sh.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
         var vIdx = -1, sIdx = -1;
         for (var c = 0; c < headers.length; c++) {
           var nk = normKey_(headers[c]);
-          if (vIdx === -1 && nk.indexOf('vertical')  !== -1) vIdx = c;
-          // Match "Status", "Onboarding Status", "Onboarding", etc.
+          if (vIdx === -1 && nk.indexOf('vertical') !== -1) vIdx = c;
           if (sIdx === -1 && (nk.indexOf('status') !== -1 || nk === 'onboarding')) sIdx = c;
         }
         var data = sh.getRange(2, 1, sh.getLastRow() - 1, lastCol).getDisplayValues();
-        return data.filter(function (r) {
+        // Collect unique status values for debugging (first 10 distinct).
+        var uniqueStatus = {};
+        data.forEach(function (r) { if (sIdx !== -1) uniqueStatus[String(r[sIdx]).trim()] = true; });
+        var count = data.filter(function (r) {
           var verticalOk = vIdx === -1 || String(r[vIdx]).trim() === MB_VERTICAL_FILTER;
           var statusOk   = sIdx === -1 || String(r[sIdx]).trim() === MB_STATUS_FILTER;
           return verticalOk && statusOk;
         }).length;
-      } catch (e) { return 0; }
+        return {
+          count: count,
+          vCol: vIdx === -1 ? null : headers[vIdx],
+          sCol: sIdx === -1 ? null : headers[sIdx],
+          sampleVals: Object.keys(uniqueStatus).slice(0, 10)
+        };
+      } catch (e) { return { count: 0, error: String(e.message) }; }
     }
 
+    var sellerInfo = analyseTab('_mb_sellers');
+    var buyerInfo  = analyseTab('_mb_buyers');
     return {
-      ok: true,
-      sellers: countOmpRows('_mb_sellers'),
-      buyers:  countOmpRows('_mb_buyers')
+      ok:      true,
+      sellers: sellerInfo.count,
+      buyers:  buyerInfo.count,
+      _debug: {
+        sellers: { verticalCol: sellerInfo.vCol, statusCol: sellerInfo.sCol, uniqueStatusVals: sellerInfo.sampleVals },
+        buyers:  { verticalCol: buyerInfo.vCol,  statusCol: buyerInfo.sCol,  uniqueStatusVals: buyerInfo.sampleVals  }
+      }
     };
   } catch (e) {
     return { ok: false, sellers: 0, buyers: 0, error: String(e.message) };

@@ -1211,6 +1211,8 @@ function onData(data){
   DATA = data;
   NBFCS = {}; NBFC_ORDER = [];
   (data.nbfcs || []).forEach(function(n){ NBFCS[n.id] = n; NBFC_ORDER.push(n.id); });
+  // Log MB debug info so filter strings can be verified in browser console.
+  if (data.mbCounts && data.mbCounts._debug) console.log('[MB debug]', JSON.stringify(data.mbCounts._debug, null, 2));
 
   if (!NBFC_ORDER.length){
     $('loading').style.display = 'none';
