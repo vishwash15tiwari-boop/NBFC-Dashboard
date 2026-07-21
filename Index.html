@@ -284,6 +284,8 @@
   /* tone: total (brand) */
   .kpi-total{--kpi-accent:var(--nc)}
   .kpi-total .kpi-ico{background:rgba(var(--nc-rgb),.12);color:var(--nc)}
+  .kpi-placeholder .kpi-num{color:var(--ink-3);font-size:2rem}
+  .kpi-placeholder .kpi-sub{font-style:italic}
   /* tone: phase 0 (slate/neutral) */
   .kpi-phase0{--kpi-accent:#8E8E93}
   .kpi-phase0 .kpi-ico{background:var(--fill);color:var(--ink-2)}
@@ -1353,20 +1355,21 @@ function renderHero(){
 function renderKpis(){
   var st = computeStats(ND.entities);
   var cards = [
-    { kind:'total',     tone:'total',     icon:ICON.users, num:st.total,     label:'Total Sellers', sub:'All sellers in ' + esc(ND.name) },
-    { kind:'phase0',    tone:'phase0',    icon:ICON.seed,  num:st.phase0,    label:'Phase 0',        sub:'Identified sellers · documents received' },
-    { kind:'pending',   tone:'pending',   icon:ICON.clock, num:st.pending,   label:'Pending',        sub:'Documents still awaited' },
-    { kind:'completed', tone:'completed', icon:ICON.check, num:st.completed, label:'Completed',      sub:'All required docs received' }
+    { kind:'total',     tone:'total',     icon:ICON.users, num:null,         label:'Total Sellers', sub:'Real-time data coming soon' },
+    { kind:'phase0',    tone:'phase0',    icon:ICON.seed,  num:st.phase0,    label:'Phase 0',       sub:'Identified sellers · documents received' },
+    { kind:'pending',   tone:'pending',   icon:ICON.clock, num:st.pending,   label:'Pending',       sub:'Documents still awaited' },
+    { kind:'completed', tone:'completed', icon:ICON.check, num:st.completed, label:'Completed',     sub:'All required docs received' }
   ];
   $('kpis').innerHTML = cards.map(function(c, i){
-    return '<button type="button" class="kpi kpi-' + c.tone + '" onclick="openKpi(\'' + c.kind + '\')" style="animation-delay:' + (i*60) + 'ms">' +
+    var placeholder = c.num === null;
+    return '<button type="button" class="kpi kpi-' + c.tone + (placeholder ? ' kpi-placeholder' : '') + '" onclick="openKpi(\'' + c.kind + '\')" style="animation-delay:' + (i*60) + 'ms">' +
       '<div class="kpi-top"><span class="kpi-ico">' + c.icon + '</span><span class="kpi-chev">' + ICON.chev + '</span></div>' +
-      '<div class="kpi-num" id="kpi-' + c.kind + '">0</div>' +
+      '<div class="kpi-num" id="kpi-' + c.kind + '">' + (placeholder ? '—' : '0') + '</div>' +
       '<div class="kpi-label">' + c.label + '</div>' +
       '<div class="kpi-sub">' + c.sub + '</div>' +
     '</button>';
   }).join('');
-  animCount($('kpi-total'), st.total);
+  // Total Sellers is a placeholder — no animation, keeps showing —
   animCount($('kpi-phase0'), st.phase0);
   animCount($('kpi-pending'), st.pending);
   animCount($('kpi-completed'), st.completed);
