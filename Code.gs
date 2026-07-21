@@ -507,17 +507,17 @@ function getNbfcData_(ss, tabCfg, matrix) {
   }
 }
 
-/* ──────────── Marketplace counts (Open Marketplace · Onboarded) ─── */
+/* ──────────── Marketplace counts (Open Marketplace · Completed) ─── */
 
-var MB_STATUS_FILTER = 'Onboarded';
+var MB_STATUS_FILTER = 'Completed';
 
 /**
  * Counts rows in a marketplace tab where:
  *   Vertical column = MB_VERTICAL_FILTER ("Open Marketplace")
- *   AND Status column (exact header "Status") = MB_STATUS_FILTER ("Onboarded")
+ *   AND Onboarding column (header "Onboarding", fallback col F) = MB_STATUS_FILTER ("Completed")
  *
  * Returns _debug so the browser console shows all column headers + every
- * distinct value in the matched status column — use this to verify filters.
+ * distinct value in the matched onboarding column — use this to verify filters.
  */
 function getMbCounts_() {
   try {
@@ -533,8 +533,10 @@ function getMbCounts_() {
         for (var c = 0; c < headers.length; c++) {
           var nk = normKey_(headers[c]);
           if (vIdx === -1 && nk.indexOf('vertical') !== -1) vIdx = c;
-          if (sIdx === -1 && nk === 'status')               sIdx = c;  // exact match only
+          if (sIdx === -1 && nk.indexOf('onboarding') !== -1) sIdx = c;
         }
+        // Fallback: column F (0-based index 5) if Onboarding header not found
+        if (sIdx === -1 && headers.length > 5) sIdx = 5;
         var data = sh.getRange(2, 1, sh.getLastRow() - 1, lastCol).getDisplayValues();
         var uniqueStatus = {};
         data.forEach(function (r) { if (sIdx !== -1) uniqueStatus[String(r[sIdx]).trim()] = true; });
