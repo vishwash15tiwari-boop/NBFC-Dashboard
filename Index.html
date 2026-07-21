@@ -558,6 +558,52 @@
   .kpi-sumbar b{color:var(--ink);font-weight:700}
   .kpi-sumbar i{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:0}
 
+  /* ── KPI pending seller cards ────────────────────────────────────────── */
+  .pending-card{display:flex;align-items:flex-start;gap:14px;padding:14px 20px;cursor:pointer;border-radius:14px;margin:0 4px;border-bottom:1px solid var(--line-2);transition:background .18s}
+  .pending-card:last-child{border-bottom:none}
+  .pending-card:hover{background:rgba(var(--nc-rgb),.07)}
+  .pc-body{flex:1;min-width:0}
+  .pc-name{font-size:14px;font-weight:700;letter-spacing:-.02em;color:var(--ink)}
+  .pc-meta{font-size:11.5px;color:var(--ink-3);margin-top:3px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .pc-docs{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+  .pc-doc-chip{font-size:10.5px;padding:3px 8px;border-radius:980px;background:rgba(255,159,10,.13);color:#c06a00;font-weight:500;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+  .pc-doc-more{font-size:10.5px;padding:3px 8px;border-radius:980px;background:var(--fill);color:var(--ink-3);font-weight:500}
+  .pc-prog{height:3px;background:var(--fill);border-radius:2px;overflow:hidden;margin-top:10px}
+  .pc-prog-fill{height:100%;background:var(--rk-green);border-radius:2px;transition:width .6s cubic-bezier(.22,1,.36,1)}
+  .pc-right{display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex:none;padding-top:2px;min-width:52px}
+  .pc-badge{font-size:26px;font-weight:700;color:#c06a00;letter-spacing:-.04em;font-variant-numeric:tabular-nums;line-height:1}
+  .pc-badge-lbl{font-size:9px;color:var(--ink-3);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+  .pc-chev-ico{color:var(--ink-3);opacity:.4;margin-top:5px}
+  /* ── KPI pending drill-down detail ──────────────────────────────────── */
+  .kpi-back{display:none;align-items:center;gap:4px;height:30px;padding:0 10px 0 6px;font-size:13px;font-weight:500;color:var(--nc);border-radius:8px;transition:background .15s;flex:none;cursor:pointer;border:none;background:none}
+  .kpi-back:hover{background:rgba(var(--nc-rgb),.10)}
+  .kpi-back svg{width:16px;height:16px}
+  #kpiDrDetail{flex:1;overflow-y:auto;display:none}
+  .kpi-detail-seller{display:flex;align-items:flex-start;gap:16px;padding:16px 24px 18px;border-bottom:1px solid var(--line-2)}
+  .kpi-detail-nums{display:flex;gap:24px;margin-top:12px;flex-wrap:wrap}
+  .kpi-detail-num .v{font-size:22px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1}
+  .kpi-detail-num .k{font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-top:3px}
+  .pend-section-hd{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:700;color:var(--ink-3);letter-spacing:.08em;text-transform:uppercase;padding:16px 24px 6px}
+  .pend-doc-item{display:flex;align-items:flex-start;gap:13px;padding:10px 24px;transition:background .15s}
+  .pend-doc-item:hover{background:rgba(var(--nc-rgb),.05)}
+  .pend-doc-ico{width:38px;height:38px;border-radius:10px;background:rgba(255,159,10,.13);display:flex;align-items:center;justify-content:center;flex:none;color:#c06a00}
+  .pend-doc-ico svg{width:17px;height:17px}
+  .pend-doc-info{flex:1;min-width:0}
+  .pend-doc-name{font-size:13.5px;font-weight:600;color:var(--ink);letter-spacing:-.015em;line-height:1.3}
+  .pend-doc-note{font-size:12px;color:var(--ink-3);margin-top:3px;line-height:1.45}
+  @media(prefers-color-scheme:dark){
+    .pc-doc-chip{background:rgba(255,214,10,.14);color:#FFD60A}
+    .pend-doc-ico{background:rgba(255,214,10,.14);color:#FFD60A}
+    .pc-badge{color:#FFD60A}
+    .pending-card:hover{background:rgba(var(--nc-rgb),.14)}
+    .pend-doc-item:hover{background:rgba(255,255,255,.04)}
+  }
+  :root[data-theme="dark"] .pc-doc-chip{background:rgba(255,214,10,.14);color:#FFD60A}
+  :root[data-theme="dark"] .pend-doc-ico{background:rgba(255,214,10,.14);color:#FFD60A}
+  :root[data-theme="dark"] .pc-badge{color:#FFD60A}
+  :root[data-theme="dark"] .pending-card:hover{background:rgba(var(--nc-rgb),.14)}
+  :root[data-theme="dark"] .pend-doc-item:hover{background:rgba(255,255,255,.04)}
+
   /* ── Toast / spinner / states ───────────────────────────────────────── */
   .toast{
     position:fixed;bottom:28px;left:50%;transform:translate(-50%,20px);
@@ -889,6 +935,10 @@
 <div class="scrim" id="kpiScrim"></div>
 <aside class="drawer" id="kpiDrawer" aria-hidden="true">
   <div class="drawer-h">
+    <button class="kpi-back" id="kpiBackBtn" onclick="backToPendingList()" aria-label="Back to pending list">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      Pending
+    </button>
     <div style="flex:1;min-width:0">
       <h2 id="kpiDrTitle"></h2>
       <div class="meta-line" id="kpiDrSub"></div>
@@ -899,6 +949,7 @@
   </div>
   <div class="kpi-sumbar" id="kpiSumbar"></div>
   <div class="drawer-body" id="kpiDrBody"></div>
+  <div id="kpiDrDetail"></div>
 </aside>
 
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span id="toastMsg"></span></div>
@@ -1173,7 +1224,7 @@ function renderHero(){
     '<div class="nh-info">' +
       '<div class="nh-eyebrow"><i></i>NBFC · Document tracker</div>' +
       '<div class="nh-name">' + esc(ND.name) + '</div>' +
-      '<div class="nh-sub">' + st.total + ' seller' + (st.total===1?'':'s') + ' submitting documents to ' + esc(ND.name) + '</div>' +
+      '<div class="nh-sub">' + st.total + ' ' + (ND.entityLabel||'Seller').toLowerCase() + (st.total===1?'':'s') + ' submitting documents to ' + esc(ND.name) + '</div>' +
       '<div class="nh-stats">' +
         '<span><i style="background:var(--rk-green)"></i>' + st.received + ' documents received</span>' +
         '<span><i style="background:var(--amber)"></i>' + st.pendingDocs + ' pending</span>' +
@@ -1189,11 +1240,13 @@ function renderHero(){
 
 function renderKpis(){
   var st = computeStats(ND.entities);
+  var el = ND.entityLabel || 'Seller';
+  var elp = el + 's';
   var cards = [
-    { kind:'total',     tone:'total',     icon:ICON.users, num:st.total,     label:'Total Sellers', sub:'All sellers in ' + esc(ND.name) },
-    { kind:'phase0',    tone:'phase0',    icon:ICON.seed,  num:st.phase0,    label:'Phase 0',        sub:'Yet to submit any document' },
-    { kind:'pending',   tone:'pending',   icon:ICON.clock, num:st.pending,   label:'Pending',        sub:'Documents still awaited' },
-    { kind:'completed', tone:'completed', icon:ICON.check, num:st.completed, label:'Completed',      sub:'All required docs received' }
+    { kind:'total',     tone:'total',     icon:ICON.users, num:st.total,     label:'Total ' + elp, sub:'All ' + elp.toLowerCase() + ' in ' + esc(ND.name) },
+    { kind:'phase0',    tone:'phase0',    icon:ICON.seed,  num:st.phase0,    label:'Phase 0',       sub:'Yet to submit any document' },
+    { kind:'pending',   tone:'pending',   icon:ICON.clock, num:st.pending,   label:'Pending',       sub:'Documents still awaited' },
+    { kind:'completed', tone:'completed', icon:ICON.check, num:st.completed, label:'Completed',     sub:'All required docs received' }
   ];
   $('kpis').innerHTML = cards.map(function(c, i){
     return '<button type="button" class="kpi kpi-' + c.tone + '" onclick="openKpi(\'' + c.kind + '\')" style="animation-delay:' + (i*60) + 'ms">' +
@@ -1410,22 +1463,32 @@ function renderMatrix(){
 
 function openKpi(kind){
   var list = filterByKind(kind);
+  var el = (ND.entityLabel || 'Seller').toLowerCase();
+  var elp = el + 's';
+  var n = list.length, ns = n + ' ' + (n===1 ? el : elp);
   var titles = {
-    total:     'All sellers',
+    total:     'All ' + elp,
     phase0:    'Phase 0 — yet to submit',
     pending:   'Pending documents',
     completed: 'Completed'
   };
   var subs = {
-    total:     list.length + ' seller' + (list.length===1?'':'s') + ' in ' + ND.name,
-    phase0:    list.length + ' onboarded, no documents received yet',
-    pending:   list.length + ' seller' + (list.length===1?'':'s') + ' with documents still awaited',
-    completed: list.length + ' seller' + (list.length===1?'':'s') + ' with every required document received'
+    total:     ns + ' in ' + ND.name,
+    phase0:    ns + ' onboarded, no documents received yet',
+    pending:   ns + ' with documents still awaited',
+    completed: ns + ' with every required document received'
   };
   openKpiDrawer(titles[kind], subs[kind], list, kind);
 }
 
 function openKpiDrawer(title, sub, list, kind){
+  // Reset back button and detail panel
+  $('kpiBackBtn').style.display = 'none';
+  $('kpiDrDetail').style.display = 'none';
+  $('kpiDrDetail').innerHTML = '';
+  $('kpiDrBody').style.display = '';
+  $('kpiSumbar').style.display = '';
+
   $('kpiDrTitle').textContent = title;
   $('kpiDrSub').textContent = sub;
 
@@ -1445,7 +1508,8 @@ function openKpiDrawer(title, sub, list, kind){
 }
 
 function buildKpiTable(list, kind){
-  if (!list || !list.length) return '<div class="empty-cell">No sellers in this group.</div>';
+  if (!list || !list.length) return '<div class="empty-cell">No ' + (ND.entityLabel||'seller').toLowerCase() + 's in this group.</div>';
+  if (kind === 'pending') return buildPendingCards(list);
   var entityHeader = fieldByType.entity;
   var hasTv = !!fieldByType.turnover;
   var showPending = kind === 'pending';
@@ -1489,10 +1553,110 @@ function fromKpiToDetail(row){
   setTimeout(function(){ openDetail(row); }, 60);
 }
 
+/* ── Pending seller cards (level 1) ─────────────────────────────────── */
+
+function buildPendingCards(list){
+  var sorted = list.slice().sort(function(a,b){ return b.pending - a.pending || a.completion - b.completion; });
+  var docIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+  return sorted.map(function(e){
+    var nm = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
+    var entityType = fieldByType.entity ? (e.meta[fieldByType.entity] || '') : '';
+    var pendingDocs = (ND.docs||[]).filter(function(d){ return (e.docs[d.key]||{}).status==='pending'; });
+    var chips = pendingDocs.slice(0,3).map(function(d){
+      return '<span class="pc-doc-chip" title="'+esc(d.key)+'">'+esc(d.key)+'</span>';
+    }).join('');
+    var more = pendingDocs.length > 3 ? '<span class="pc-doc-more">+' + (pendingDocs.length-3) + ' more</span>' : '';
+    var prog = e.applicable ? Math.round((e.received/e.applicable)*100) : 0;
+    var chevIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+    return '<div class="pending-card" onclick="openPendingDetail(' + e.row + ')">' +
+      '<div class="pc-body">' +
+        '<div class="pc-name">' + esc(nm) + '</div>' +
+        (entityType ? '<div class="pc-meta"><span>' + esc(entityType) + '</span></div>' : '') +
+        '<div class="pc-docs">' + chips + more + '</div>' +
+        '<div class="pc-prog"><div class="pc-prog-fill" style="width:' + prog + '%"></div></div>' +
+      '</div>' +
+      '<div class="pc-right">' +
+        '<div class="pc-badge">' + e.pending + '</div>' +
+        '<div class="pc-badge-lbl">pending</div>' +
+        '<div class="pc-chev-ico">' + chevIco + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* ── Pending detail (level 2) ───────────────────────────────────────── */
+
+function openPendingDetail(row){
+  var e = (ND.entities||[]).filter(function(x){ return x.row===row; })[0];
+  if (!e) return;
+  var nm = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
+  var entityType = fieldByType.entity ? (e.meta[fieldByType.entity] || '') : '';
+  var pendingDocs = (ND.docs||[]).filter(function(d){ return (e.docs[d.key]||{}).status==='pending'; });
+
+  var prog = e.applicable ? Math.round((e.received/e.applicable)*100) : 0;
+  var docIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+
+  var header =
+    '<div class="kpi-detail-seller">' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:17px;font-weight:700;letter-spacing:-.025em;color:var(--ink)">' + esc(nm) + '</div>' +
+        (entityType ? '<div style="font-size:12px;color:var(--ink-3);margin-top:3px">' + esc(entityType) + '</div>' : '') +
+        '<div class="kpi-detail-nums">' +
+          '<div class="kpi-detail-num"><div class="v">' + e.pending + '</div><div class="k">Pending</div></div>' +
+          '<div class="kpi-detail-num"><div class="v">' + e.received + '</div><div class="k">Received</div></div>' +
+          '<div class="kpi-detail-num"><div class="v">' + prog + '%</div><div class="k">Progress</div></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  var docList = '<div class="pend-section-hd"><span>' + pendingDocs.length + ' document' + (pendingDocs.length===1?'':'s') + ' awaited</span></div>' +
+    pendingDocs.map(function(d){
+      var cell = e.docs[d.key] || {};
+      var note = cell.note || 'Not yet submitted';
+      return '<div class="pend-doc-item">' +
+        '<div class="pend-doc-ico">' + docIco + '</div>' +
+        '<div class="pend-doc-info">' +
+          '<div class="pend-doc-name">' + esc(d.key) + '</div>' +
+          '<div class="pend-doc-note">' + esc(note) + '</div>' +
+        '</div>' +
+        '<span class="chip warn" style="flex:none;align-self:center">Pending</span>' +
+      '</div>';
+    }).join('');
+
+  $('kpiDrDetail').innerHTML = header + docList;
+
+  // Slide: hide list, show detail
+  $('kpiDrBody').style.display = 'none';
+  $('kpiSumbar').style.display = 'none';
+  $('kpiDrTitle').textContent = nm;
+  $('kpiDrSub').textContent = e.pending + ' document' + (e.pending===1?'':'s') + ' pending';
+  $('kpiBackBtn').style.display = 'flex';
+  $('kpiDrDetail').style.display = 'block';
+}
+
+/* ── Back to seller card list ───────────────────────────────────────── */
+
+function backToPendingList(){
+  $('kpiBackBtn').style.display = 'none';
+  $('kpiDrDetail').style.display = 'none';
+  $('kpiDrDetail').innerHTML = '';
+  $('kpiDrBody').style.display = '';
+  $('kpiSumbar').style.display = '';
+  var el = (ND.entityLabel||'Seller').toLowerCase();
+  var list = filterByKind('pending');
+  $('kpiDrTitle').textContent = 'Pending documents';
+  $('kpiDrSub').textContent = list.length + ' ' + el + (list.length===1?'':'s') + ' with documents still awaited';
+}
+
 function closeKpi(){
   $('kpiScrim').classList.remove('on');
   $('kpiDrawer').classList.remove('on');
   $('kpiDrawer').setAttribute('aria-hidden','true');
+  $('kpiBackBtn').style.display = 'none';
+  $('kpiDrDetail').style.display = 'none';
+  $('kpiDrDetail').innerHTML = '';
+  $('kpiDrBody').style.display = '';
+  $('kpiSumbar').style.display = '';
   if (!$('detailDrawer').classList.contains('on')) document.body.style.overflow = '';
 }
 

@@ -27,9 +27,9 @@ var CONFIG = {
   // maxCol caps how far right the tab is read so scratch columns to the right
   // never pollute KPIs, cards, the matrix, or form saves.
   NBFC_TABS: [
-    { id: 'billmart',  name: 'Billmart',   maxCol: 40 },
-    { id: 'capitalxb', name: 'Capital XB', maxCol: 40 },
-    { id: 'strideone', name: 'StrideOne',  maxCol: 40 },
+    { id: 'billmart',  name: 'Billmart',   maxCol: 40, entityLabel: 'Seller' },
+    { id: 'capitalxb', name: 'Capital XB', maxCol: 40, entityLabel: 'Seller' },
+    { id: 'strideone', name: 'StrideOne',  maxCol: 40, entityLabel: 'Buyer'  },
   ],
 
   // Optional: entity-type → document applicability matrix tab.
@@ -265,11 +265,16 @@ function getNbfcData_(ss, tabCfg, matrix) {
     var layout = readTrackerLayout_(sh, tabCfg.maxCol);
 
     var nameHeaderKey = null, entityHeaderKey = null;
-    layout.metaIdx.forEach(function (idx) {
-      var h = layout.headers[idx];
-      if (!nameHeaderKey && normKey_(h).indexOf('name') !== -1) nameHeaderKey = h;
-      if (!entityHeaderKey && metaFieldType_(h) === 'entity') entityHeaderKey = h;
+    var verticalIdx = -1, onboardingIdx = -1;
+    layout.headers.forEach(function (h, idx) {
+      var n = normKey_(h);
+      if (!nameHeaderKey && layout.metaIdx.indexOf(idx) !== -1 && n.indexOf('name') !== -1) nameHeaderKey = h;
+      if (!entityHeaderKey && layout.metaIdx.indexOf(idx) !== -1 && metaFieldType_(h) === 'entity') entityHeaderKey = h;
+      if (n === 'vertical' || n === 'verticals') verticalIdx = idx;
+      if (n === 'onboarding') onboardingIdx = idx;
     });
+    // Fallback: column F (0-based index 5) for Onboarding if not found by name
+    if (onboardingIdx === -1 && layout.headers.length > 5) onboardingIdx = 5;
 
     // Build doc list — match each column against the requirement matrix
     var docs = layout.docIdx.map(function (idx) {
@@ -296,6 +301,16 @@ function getNbfcData_(ss, tabCfg, matrix) {
         layout.metaIdx.forEach(function (idx) { meta[layout.headers[idx]] = String(row[idx]).trim(); });
         var hasIdentity = layout.metaIdx.some(function (idx) { return String(row[idx]).trim() !== ''; });
         if (!hasIdentity) return;
+
+        // Filter: only "Open Marketplace" vertical + "Completed" onboarding
+        if (verticalIdx !== -1) {
+          var vert = String(row[verticalIdx] || '').trim().toLowerCase();
+          if (vert && vert !== 'open marketplace') return;
+        }
+        if (onboardingIdx !== -1) {
+          var onb = String(row[onboardingIdx] || '').trim().toLowerCase();
+          if (onb && onb !== 'completed') return;
+        }
 
         layout.metaIdx.forEach(function (idx) {
           var h = layout.headers[idx], v = String(row[idx]).trim();
@@ -361,6 +376,7 @@ function getNbfcData_(ss, tabCfg, matrix) {
       ok: true,
       id: tabCfg.id,
       name: tabCfg.name,
+      entityLabel: tabCfg.entityLabel || 'Seller',
       entities: entities,
       docs: docs,
       entityColumns: matrix.entityColumns,
