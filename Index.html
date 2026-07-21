@@ -1418,15 +1418,18 @@ function renderKpis(){
   var isStrideOne = !!ND._buyerPlaceholder;
 
   var cards;
+  // For StrideOne, Phase 0 = P-0 priority buyers counted by the backend.
+  var stridePhase0 = (isStrideOne && ND.phase0 != null) ? ND.phase0 : st.phase0;
+
   if (isStrideOne) {
-    // StrideOne: MB Total Sellers · MB Total Buyers · Phase 0 · Eligible · Qualified · Credit Limit · Pending · Completed
+    // StrideOne: MB Total Sellers · MB Total Buyers · Phase 0 (P-0 buyers) · Eligible · Qualified · Credit Limit · Completed · Pending
     cards = [
       { kind:'total',       tone:'total',       icon:ICON.users,  num:mbC.sellers,    label:'Total Sellers', sub:'Open Marketplace · Completed' },
       { kind:'buyers',      tone:'buyers',       icon:ICON.buyers, num:mbC.buyers,     label:'Total Buyers',  sub:'Open Marketplace · Completed' },
-      { kind:'phase0',      tone:'phase0',       icon:ICON.seed,   num:st.phase0,      label:'Phase 0',       sub:'Identified sellers · in the tracking system' },
-      { kind:'eligible',    tone:'eligible',     icon:ICON.shield, num:st.eligible,    label:'Eligible',      sub:'Sellers marked eligible' },
-      { kind:'qualified',   tone:'qualified',    icon:ICON.award,  num:st.qualified,   label:'Qualified',     sub:'Sellers qualified for financing' },
-      { kind:'creditlimit', tone:'creditlimit',  icon:ICON.card,   num:st.creditLimit, label:'Credit Limit',  sub:'Sellers with credit limit assigned' },
+      { kind:'phase0',      tone:'phase0',       icon:ICON.seed,   num:stridePhase0,   label:'Phase 0',       sub:'P-0 priority buyers' },
+      { kind:'eligible',    tone:'eligible',     icon:ICON.shield, num:st.eligible,    label:'Eligible',      sub:'Buyers marked eligible' },
+      { kind:'qualified',   tone:'qualified',    icon:ICON.award,  num:st.qualified,   label:'Qualified',     sub:'Buyers qualified for financing' },
+      { kind:'creditlimit', tone:'creditlimit',  icon:ICON.card,   num:st.creditLimit, label:'Credit Limit',  sub:'Buyers with credit limit assigned' },
       { kind:'completed',   tone:'completed',    icon:ICON.check,  num:st.completed,   label:'Completed',     sub:'All required docs received' },
       { kind:'pending',     tone:'pending',      icon:ICON.clock,  num:st.pending,     label:'Pending',       sub:'Documents still awaited' }
     ];
@@ -1456,7 +1459,7 @@ function renderKpis(){
     animCount($('kpi-total'),   mbC.sellers);
     animCount($('kpi-buyers'),  mbC.buyers);
   }
-  animCount($('kpi-phase0'),      st.phase0);
+  animCount($('kpi-phase0'),      stridePhase0);
   animCount($('kpi-eligible'),    st.eligible);
   animCount($('kpi-qualified'),   st.qualified);
   animCount($('kpi-creditlimit'), st.creditLimit);

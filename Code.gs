@@ -534,6 +534,41 @@ var MB_STATUS_FILTER = 'Completed';
  * Returns _debug so the browser console shows all column headers + every
  * distinct value in the matched onboarding column — use this to verify filters.
  */
+
+/* ─────────────────── StrideOne buyer stats (Priority column) ──────────── */
+
+/**
+ * Reads the StrideOne tab and counts rows whose Priority column value
+ * starts with "P0" (case-insensitive, hyphens stripped).
+ * Covers "P0-Top Buyer", "P0", "P-0", etc.
+ */
+function getStrideOneStats_(ss) {
+  try {
+    var sh = findSheet_(ss, CONFIG.NBFC_TABS[2]);
+    if (!sh || sh.getLastRow() < 2) return { phase0: 0 };
+    var lastCol = sh.getLastColumn();
+    // Scan the first 5 rows to locate the header row and Priority column.
+    var priorityIdx = -1, headerRow = 1;
+    for (var r = 1; r <= Math.min(5, sh.getLastRow()); r++) {
+      var hdr = sh.getRange(r, 1, 1, lastCol).getDisplayValues()[0];
+      for (var c = 0; c < hdr.length; c++) {
+        if (normKey_(hdr[c]) === 'priority') { priorityIdx = c; headerRow = r; break; }
+      }
+      if (priorityIdx !== -1) break;
+    }
+    if (priorityIdx === -1) return { phase0: 0 };
+    var dataRows = sh.getLastRow() - headerRow;
+    if (dataRows < 1) return { phase0: 0 };
+    var data = sh.getRange(headerRow + 1, 1, dataRows, lastCol).getDisplayValues();
+    var count = data.filter(function (row) {
+      return normKey_(String(row[priorityIdx] || '').trim()).indexOf('p0') === 0;
+    }).length;
+    return { phase0: count };
+  } catch (e) {
+    return { phase0: 0 };
+  }
+}
+
 function getMbCounts_() {
   try {
     var ss = SpreadsheetApp.openById(MB_SHEET_ID);
@@ -720,16 +755,18 @@ function getInitialData(opts) {
   var ss = getSpreadsheet_();
   var matrix = readRequirementMatrix_(ss);
 
-  var billmartData  = getNbfcData_(ss, CONFIG.NBFC_TABS[0], matrix);
-  var capitalxbData = getNbfcData_(ss, CONFIG.NBFC_TABS[1], matrix);
-  var mbData        = getMbCounts_();
+  var billmartData    = getNbfcData_(ss, CONFIG.NBFC_TABS[0], matrix);
+  var capitalxbData   = getNbfcData_(ss, CONFIG.NBFC_TABS[1], matrix);
+  var mbData          = getMbCounts_();
+  var strideoneStats  = getStrideOneStats_(ss);
 
   var strideoneData = {
     ok: true, id: 'strideone', name: 'StrideOne', entities: [], docs: [],
     entityColumns: [], entityTypeOptions: [], nameHeader: null,
     entityHeader: null, metaFields: [], extraMetaFields: [],
     pendingHeader: null, eligibilityHeader: null, qualifiedHeader: null,
-    creditLimitHeader: null, _buyerPlaceholder: true
+    creditLimitHeader: null, _buyerPlaceholder: true,
+    phase0: strideoneStats.phase0
   };
 
   cacheSet_(cache, 'tab_billmart',  billmartData);
