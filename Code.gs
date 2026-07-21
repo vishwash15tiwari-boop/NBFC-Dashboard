@@ -209,7 +209,7 @@ function isDocApplicableByRules_(docHeader, entityClass) {
   for (var i = 0; i < ENTITY_DOC_RULES.length; i++) {
     var fragment  = ENTITY_DOC_RULES[i][0];
     var naClasses = ENTITY_DOC_RULES[i][1];
-    if (docNorm.indexOf(fragment) !== -1 || fragment.indexOf(docNorm) !== -1) {
+    if (docNorm.indexOf(fragment) !== -1) {
       if (naClasses.indexOf(entityClass) !== -1) return false;
     }
   }
@@ -502,7 +502,8 @@ function getNbfcData_(ss, tabCfg, matrix) {
       ok: false, error: String(e.message),
       id: tabCfg.id, name: tabCfg.name,
       entities: [], docs: [], entityColumns: [], entityTypeOptions: [],
-      nameHeader: null, entityHeader: null, metaFields: []
+      nameHeader: null, entityHeader: null, metaFields: [],
+      extraMetaFields: [], pendingHeader: null
     };
   }
 }
@@ -635,8 +636,8 @@ function cacheGet_(cache, name){
     for (var n = 0; n < count; n++) keys.push(cacheKey_(name) + '_' + n);
     var map = cache.getAll(keys);
     var result = '';
-    for (var n = 0; n < count; n++){
-      var chunk = map[cacheKey_(name) + '_' + n];
+    for (var j = 0; j < count; j++){
+      var chunk = map[cacheKey_(name) + '_' + j];
       if (chunk == null) return null; // partial expiry — treat as full miss
       result += chunk;
     }
@@ -658,7 +659,7 @@ function cacheDel_(cache, name){
 
 function clearAllCache_(){
   var cache = CacheService.getScriptCache();
-  ['meta', 'tab_billmart', 'tab_capitalxb', 'mb'].forEach(function(k){ cacheDel_(cache, k); });
+  ['meta', 'tab_billmart', 'tab_capitalxb', 'tab_strideone', 'mb'].forEach(function(k){ cacheDel_(cache, k); });
 }
 
 /* ───────────────────────────────── Read API ───────────────────────────────── */
@@ -696,7 +697,7 @@ function getInitialData(opts) {
           pendingHeader: null, _buyerPlaceholder: true }
       ],
       mbCounts: mbC,
-      generatedAt: metaC.generatedAt
+      generatedAt: new Date().toISOString()
     };
   }
 
@@ -998,6 +999,7 @@ function uploadDocument(payload) {
     if (sh && targetRow && docColIdx >= 0) {
       sh.getRange(targetRow, docColIdx + 1).setNote(fileUrl);
       SpreadsheetApp.flush();
+      clearAllCache_();
       var fresh = getInitialData();
       fresh.savedRow = targetRow;
       fresh.uploadedDoc = payload.docKey;

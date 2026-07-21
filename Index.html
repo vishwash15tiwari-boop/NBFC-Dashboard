@@ -644,7 +644,6 @@
   /* ── Responsive ─────────────────────────────────────────────────────── */
   @media (max-width:1000px){
     .kpis{grid-template-columns:repeat(2,1fr)}
-    .kpis.kpis-5{grid-template-columns:repeat(3,1fr)}
     .ov-grid{grid-template-columns:1fr}
     .nbfc-hero{flex-direction:column;align-items:flex-start;gap:20px}
   }
@@ -772,8 +771,7 @@
     *{animation-duration:.01ms!important;transition-duration:.01ms!important}
   }
 
-  /* ── KPI drill-down — enhanced Pending / Completed views ───────────────── */
-  .kpi-cards-list{display:flex;flex-direction:column;gap:8px;padding:16px 24px 24px}
+  /* ── KPI drill-down — card accordion rows ───────────────────────────── */
   .ksc{
     background:var(--card);border-radius:16px;
     box-shadow:0 0 0 .5px var(--line),var(--shadow-sm);
@@ -828,34 +826,6 @@
   .ksc-foot{display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid var(--line-2);gap:10px}
   .ksc-prog{height:4px;background:var(--fill);border-radius:2px;overflow:hidden;flex:1;max-width:120px}
   .ksc-prog-fill{height:100%;background:var(--rk-green);border-radius:2px;transition:width .5s var(--ease-out)}
-  /* Completed grid */
-  .kpi-done-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;padding:16px 24px 24px}
-  .ksc-done{
-    background:var(--card);border-radius:15px;padding:15px 16px;
-    box-shadow:0 0 0 1px rgba(0,166,81,.24),var(--shadow-sm);
-    transition:all .22s var(--ease);cursor:pointer;
-  }
-  .ksc-done:hover{transform:translateY(-2px);box-shadow:0 0 0 1px rgba(0,166,81,.42),var(--shadow-md),0 8px 28px rgba(0,166,81,.10)}
-  .ksc-done:active{transform:translateY(0)}
-  .ksc-done-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-  .ksc-done-chk{
-    width:30px;height:30px;border-radius:50%;flex:none;
-    background:var(--rk-green-tint);color:var(--rk-green-ink);
-    display:flex;align-items:center;justify-content:center;
-  }
-  .ksc-done-name{font-size:12.5px;font-weight:700;letter-spacing:-.015em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .ksc-done-sub{font-size:11px;color:var(--ink-3);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .ksc-done-footer{font-size:11px;color:var(--rk-green-ink);font-weight:600;padding-top:9px;border-top:1px solid var(--line-2);display:flex;align-items:center;justify-content:space-between}
-  /* Extra seller attributes (Vintage, Eligibility) shown per card */
-  .ksc-em-row{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 12px}
-  .ksc-em-item{display:flex;align-items:baseline;gap:5px;background:var(--fill);border-radius:7px;padding:4px 10px;font-size:11.5px}
-  .ksc-em-lbl{color:var(--ink-3);font-weight:500}
-  .ksc-em-val{color:var(--ink-2);font-weight:600}
-  /* Extra attrs on completed tiles */
-  .ksc-done-attrs{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0 10px}
-  .ksc-done-attr{display:flex;align-items:baseline;gap:4px;background:var(--fill);border-radius:6px;padding:3px 8px;font-size:11px}
-  .ksc-done-attr-lbl{color:var(--ink-3);font-weight:500}
-  .ksc-done-attr-val{color:var(--ink-2);font-weight:600}
   @media(prefers-color-scheme:dark){
     .ksc-doc.na{background:rgba(255,255,255,.04)}
     .ksc-doc.recv{background:rgba(0,166,81,.10);border-color:rgba(0,166,81,.22)}
@@ -866,7 +836,6 @@
   :root[data-theme="dark"] .ksc-doc.pend{background:rgba(245,158,11,.10);border-color:rgba(245,158,11,.24)}
 
   /* ── Kanban full-screen overlay (overrides .drawer for #kpiDrawer) ──────── */
-  #kpiScrim{display:none!important}
   #kpiDrawer{
     top:0;right:0;bottom:0;left:0;
     width:100%;border-radius:0;
@@ -887,13 +856,6 @@
     -webkit-backdrop-filter:blur(20px) saturate(180%);
   }
   #kpiDrawer .drawer-h h2{font-size:20px;font-weight:700;letter-spacing:-.03em}
-  #kpiSumbar{
-    padding:12px 24px;flex-shrink:0;
-    background:rgba(120,120,128,.08);
-    border-bottom:1px solid var(--line-2);
-    backdrop-filter:blur(12px);
-    -webkit-backdrop-filter:blur(12px);
-  }
   #kpiDrBody{padding:22px 26px 44px;background:var(--surface)}
   /* ── Kanban card grid ──────────────────────────────────────────────────── */
   .kb-grid{
@@ -938,12 +900,10 @@
   }
   @media(prefers-color-scheme:dark){
     #kpiDrawer .drawer-h{background:rgba(28,28,30,.96)}
-    #kpiSumbar{background:rgba(255,255,255,.06)}
     #kpiDrBody{background:#000}
     .kb-attr-elig-no{background:rgba(220,38,38,.18)}
   }
   :root[data-theme="dark"] #kpiDrawer .drawer-h{background:rgba(28,28,30,.96)}
-  :root[data-theme="dark"] #kpiSumbar{background:rgba(255,255,255,.06)}
   :root[data-theme="dark"] #kpiDrBody{background:#000}
   :root[data-theme="dark"] .kb-attr-elig-no{background:rgba(220,38,38,.18)}
 </style>
@@ -1104,7 +1064,6 @@
 </aside>
 
 <!-- ─── KPI drill-down drawer (table) ─────────────────────────────────────── -->
-<div class="scrim" id="kpiScrim"></div>
 <aside class="drawer" id="kpiDrawer" aria-hidden="true">
   <div class="drawer-h">
     <div style="flex:1;min-width:0">
@@ -1211,17 +1170,6 @@ function vintageMonths_(str){
   return /year|yr/.test(m[2]) ? n * 12 : n;
 }
 
-/* Which requirement column applies to a given entity type (mirrors backend). */
-function entityColumnFor(entityType){
-  var cols = (ND && ND.entityColumns) || [];
-  var e = normKey(entityType); if (!e) return null;
-  var best = null, len = 0;
-  cols.forEach(function(label){
-    var n = normKey(label);
-    if ((e.indexOf(n) !== -1 || n.indexOf(e) !== -1) && n.length > len){ best = label; len = n.length; }
-  });
-  return best;
-}
 function regionHeader(){
   var f = (ND.metaFields || []).filter(function(f){ return normKey(f.key) === 'region'; })[0];
   return f ? f.key : '';
@@ -1261,6 +1209,7 @@ function boot(){
 
 function onData(data){
   DATA = data;
+  lastFocusRefresh = Date.now();
   NBFCS = {}; NBFC_ORDER = [];
   (data.nbfcs || []).forEach(function(n){ NBFCS[n.id] = n; NBFC_ORDER.push(n.id); });
   // Log MB debug info so filter strings can be verified in browser console.
@@ -1376,17 +1325,17 @@ function computeStats(entities){
   (entities || []).forEach(function(e){
     s.total++;
     s.received += e.received; s.pendingDocs += e.pending; s.na += e.na; s.applicable += e.applicable;
+    if (e.received === 0 && e.applicable > 0) s.phase0++;
     if (e.pending > 0) s.pending++;
     if (e.pending === 0 && e.applicable > 0) s.completed++;
   });
-  s.phase0 = s.total; // Phase 0 = all identified sellers
   s.completion = s.applicable ? Math.round(s.received / s.applicable * 1000) / 10 : 0;
   return s;
 }
 
 function filterByKind(kind){
   var ents = ND.entities || [];
-  if (kind === 'phase0')    return ents.slice(); // all identified sellers
+  if (kind === 'phase0')    return ents.filter(function(e){ return e.received === 0 && e.applicable > 0; });
   if (kind === 'pending')   return ents.filter(function(e){ return e.pending > 0; });
   if (kind === 'completed') return ents.filter(function(e){ return e.pending === 0 && e.applicable > 0; });
   return ents.slice();
@@ -1431,12 +1380,11 @@ function renderKpis(){
 
   var cards = [
     totalCard,
-    { kind:'phase0',    tone:'phase0',    icon:ICON.seed,  num:st.phase0,    label:'Phase 0',    sub:'Identified sellers · documents received' },
+    { kind:'phase0',    tone:'phase0',    icon:ICON.seed,  num:st.phase0,    label:'Phase 0',    sub:'Identified sellers · no documents received yet' },
     { kind:'pending',   tone:'pending',   icon:ICON.clock, num:st.pending,   label:'Pending',    sub:'Documents still awaited' },
     { kind:'completed', tone:'completed', icon:ICON.check, num:st.completed, label:'Completed',  sub:'All required docs received' }
   ];
 
-  $('kpis').classList.remove('kpis-5');
   $('kpis').innerHTML = cards.map(function(c, i){
     return '<button type="button" class="kpi kpi-' + c.tone + '" onclick="openKpi(\'' + c.kind + '\')" style="animation-delay:' + (i*60) + 'ms">' +
       '<div class="kpi-top"><span class="kpi-ico">' + c.icon + '</span><span class="kpi-chev">' + ICON.chev + '</span></div>' +
@@ -1585,7 +1533,7 @@ function renderOvTable(){
 
   /* Apply filters */
   var rows = entities.filter(function(e){
-    // phase0 = all sellers — no filter needed
+    if (fs === 'phase0'    && !(e.received === 0 && e.applicable > 0)) return false;
     if (fs === 'pending'   && e.pending === 0) return false;
     if (fs === 'completed' && !(e.pending === 0 && e.applicable > 0)) return false;
     if (q){
@@ -1601,7 +1549,7 @@ function renderOvTable(){
     return true;
   });
 
-  var colCount = 4 + (hasGst?1:0) + (rh?1:0) + extraFields.length;
+  var colCount = 6 + (hasGst?1:0) + (rh?1:0) + extraFields.length;
 
   $('ovSellersBody').innerHTML = rows.length ? rows.map(function(e){
     var nm = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
@@ -1766,9 +1714,11 @@ function buildKbCard(e, idx, kind){
   var emKeys = Object.keys(em).filter(function(k){ return em[k]; });
   var attrsHtml = emKeys.length ? '<div class="kb-attrs">' + emKeys.map(function(k){
     var v = em[k], kn = normKey(k);
-    var isElig = kn.indexOf('elig') !== -1;
+    var isElig    = kn.indexOf('elig') !== -1;
+    var isVintage = kn === 'vintage' || kn.indexOf('vintage') !== -1;
     var cls = isElig && String(v).toLowerCase() === 'yes' ? 'kb-attr-elig-yes' :
-              isElig ? 'kb-attr-elig-no' : 'kb-attr-vintage';
+              isElig ? 'kb-attr-elig-no' :
+              isVintage ? 'kb-attr-vintage' : '';
     var icon = isElig && String(v).toLowerCase() === 'yes'
       ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>'
       : isElig
@@ -1803,11 +1753,11 @@ function buildKbCard(e, idx, kind){
     '</div>';
 
   /* Card header decorations */
-  var ringClr = kind === 'completed' || e.completion === 100 ? 'var(--rk-green)' :
-    e.completion >= 75 ? 'var(--rk-green)' : e.completion >= 40 ? 'var(--amber)' : '#e05252';
+  var ringClr = (kind === 'completed' || e.completion === 100 || e.completion >= 75)
+    ? 'var(--rk-green)' : e.completion >= 40 ? 'var(--amber)' : '#e05252';
   var ringHtml = ringSvg(e.completion, 40, 4.5, 'var(--fill)', ringClr);
   var ringLbl  = Math.round(e.completion) + '%';
-  var chipHtml = kind === 'completed' ? '<span class="chip ok">Complete</span>' : statusChip(e);
+  var chipHtml = kind === 'completed' ? '<span class="chip ok">Completed</span>' : statusChip(e);
   var avStyle  = kind === 'completed' ? ' style="background:var(--rk-green-tint);color:var(--rk-green-ink)"' : '';
 
   return '<div class="ksc" id="ksc-' + e.row + '" style="animation:fadeSlideUp .28s var(--ease) both;animation-delay:' + (idx*18) + 'ms">' +
@@ -1870,7 +1820,7 @@ function openDetail(row){
       (kind==='pending'?'warn':kind==='received'?'ok':'mut') + '">' + arr.length + '</span></h4>' +
       arr.map(function(d){
         var drvHtml = d.driveUrl
-          ? '<a href="' + esc(d.driveUrl) + '" target="_blank" rel="noopener" class="drive-link" style="display:inline-flex;margin-top:5px">' +
+          ? '<a href="' + esc(d.driveUrl) + '" target="_blank" rel="noopener" class="drive-link">' +
               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>View in Drive</a>'
           : '';
         return '<div class="doc-item"><span class="di-ico">' + ICO[kind] + '</span>' +
