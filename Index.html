@@ -961,6 +961,12 @@
   }
   #kpiDrawer .drawer-h h2{font-size:19px;font-weight:700;letter-spacing:-.03em;color:var(--ink)}
   #kpiDrawer .drawer-h .meta-line{margin-top:5px;font-size:12.5px;color:var(--ink-3)}
+  #kpiSearchWrap{position:relative;margin-top:12px}
+  #kpiSearchWrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--ink-3)}
+  #kpiSearch{width:100%;box-sizing:border-box;padding:7px 10px 7px 32px;font-size:13px;font-family:inherit;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);color:var(--ink);outline:none}
+  #kpiSearch:focus{border-color:var(--nc);box-shadow:0 0 0 3px rgba(var(--nc-rgb),.12)}
+  #kpiSearch::placeholder{color:var(--ink-3)}
+  #kpiNoResults{display:none;padding:48px 24px;text-align:center;font-size:13px;color:var(--ink-3)}
   /* body is the scroll region — both axes; sticky header comes from .tbl th */
   #kpiDrBody{flex:1;min-height:0;overflow:auto;padding:0;background:var(--surface)}
   #kpiDrBody table.tbl{min-width:840px}
@@ -1154,15 +1160,22 @@
 <div class="scrim" id="scrim"></div>
 <!-- ─── KPI drill-down drawer (table) ─────────────────────────────────────── -->
 <aside class="drawer" id="kpiDrawer" aria-hidden="true">
-  <div class="drawer-h">
-    <div style="flex:1;min-width:0">
-      <h2 id="kpiDrTitle"></h2>
-      <div class="meta-line" id="kpiDrSub"></div>
+  <div class="drawer-h" style="flex-direction:column;gap:0">
+    <div style="display:flex;align-items:flex-start;width:100%">
+      <div style="flex:1;min-width:0">
+        <h2 id="kpiDrTitle"></h2>
+        <div class="meta-line" id="kpiDrSub"></div>
+      </div>
+      <button class="x-btn" onclick="closeKpi()" aria-label="Close">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
     </div>
-    <button class="x-btn" onclick="closeKpi()" aria-label="Close">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-    </button>
+    <div id="kpiSearchWrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input id="kpiSearch" type="search" placeholder="Search by name, GST, region…" oninput="kpiFilter()" autocomplete="off">
+    </div>
   </div>
+  <div id="kpiNoResults">No sellers match your search.</div>
   <div class="drawer-body" id="kpiDrBody"></div>
 </aside>
 
@@ -1857,12 +1870,18 @@ function openKpi(kind){
   openKpiDrawer(titles[kind] || kind, subs[kind] || '', list, kind);
 }
 
+var _kpiList = [], _kpiKind = '';
+
 function openKpiDrawer(title, sub, list, kind){
   $('kpiDrTitle').textContent = title;
   $('kpiDrSub').textContent = sub;
 
   _kscOpen = null;
-  $('kpiDrBody').innerHTML = buildKpiTable(list, kind);
+  _kpiList = list || [];
+  _kpiKind = kind || '';
+  var si = $('kpiSearch'); if(si){ si.value = ''; }
+  $('kpiNoResults').style.display = 'none';
+  $('kpiDrBody').innerHTML = buildKpiTable(_kpiList, _kpiKind);
   $('kpiDrBody').scrollTop = 0;
   $('kpiDrBody').scrollLeft = 0;
 
@@ -1870,6 +1889,25 @@ function openKpiDrawer(title, sub, list, kind){
   $('kpiDrawer').classList.add('on');
   $('kpiDrawer').setAttribute('aria-hidden','false');
   document.body.style.overflow = 'hidden';
+}
+
+function kpiFilter(){
+  var q = ($('kpiSearch').value || '').trim().toLowerCase();
+  if(!q){
+    $('kpiDrBody').innerHTML = buildKpiTable(_kpiList, _kpiKind);
+    $('kpiNoResults').style.display = 'none';
+    return;
+  }
+  var filtered = _kpiList.filter(function(e){
+    var name = (e.name || '').toLowerCase();
+    var gst  = (e.gst  || '').toLowerCase();
+    var reg  = (e.region || (e.extraMeta && e.extraMeta[Object.keys(e.extraMeta||{}).find(function(k){ return k.toLowerCase().includes('region'); })||'']) || '').toString().toLowerCase();
+    var ent  = (e.entityType || (e.extraMeta && e.extraMeta[Object.keys(e.extraMeta||{}).find(function(k){ return k.toLowerCase().includes('entity'); })||'']) || '').toString().toLowerCase();
+    return name.includes(q) || gst.includes(q) || reg.includes(q) || ent.includes(q);
+  });
+  $('kpiDrBody').innerHTML = buildKpiTable(filtered, _kpiKind);
+  $('kpiNoResults').style.display = filtered.length ? 'none' : 'block';
+  $('kpiDrBody').scrollTop = 0;
 }
 
 function buildP0BuyerList(buyers){
