@@ -1462,14 +1462,14 @@ function computeStats(entities){
   (entities || []).forEach(function(e){
     s.total++;
     s.received += e.received; s.pendingDocs += e.pending; s.na += e.na; s.applicable += e.applicable;
-    if (e.pending > 0) s.pending++;
     if (e.pending === 0 && e.applicable > 0) s.completed++;
     var em = e.extraMeta || {};
     if (eligibilityHeader && String(em[eligibilityHeader] || '').trim().toLowerCase() === 'yes') s.eligible++;
     if (qualifiedHeader   && String(em[qualifiedHeader]   || '').trim().toLowerCase() === 'yes') s.qualified++;
     if (creditLimitHeader && String(em[creditLimitHeader] || '').trim()) s.creditLimit++;
   });
-  s.phase0 = s.total; // Phase 0 = all identified sellers in the tracker
+  s.phase0 = s.total;
+  s.pending = Math.max(0, s.eligible - s.completed);
   s.completion = s.applicable ? Math.round(s.received / s.applicable * 1000) / 10 : 0;
   return s;
 }
@@ -1477,7 +1477,10 @@ function computeStats(entities){
 function filterByKind(kind){
   var ents = ND.entities || [];
   if (kind === 'phase0')      return ents.slice();
-  if (kind === 'pending')     return ents.filter(function(e){ return e.pending > 0; });
+  if (kind === 'pending')     return ents.filter(function(e){
+    var isEligible = eligibilityHeader && String((e.extraMeta||{})[eligibilityHeader]||'').trim().toLowerCase() === 'yes';
+    return isEligible && !(e.pending === 0 && e.applicable > 0);
+  });
   if (kind === 'completed')   return ents.filter(function(e){ return e.pending === 0 && e.applicable > 0; });
   if (kind === 'eligible')    return ents.filter(function(e){
     return eligibilityHeader && String((e.extraMeta||{})[eligibilityHeader]||'').trim().toLowerCase() === 'yes';
