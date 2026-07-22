@@ -1494,7 +1494,7 @@ function filterByKind(kind){
 function renderHero(){
   var st = computeStats(ND.entities);
   var th = themeFor(activeNbfcId);
-  var isBuyer = !!ND._buyerPlaceholder;
+  var isBuyer = (ND.id === 'strideone');
   var subLine = isBuyer
     ? 'Buyer tracking · real-time integration pending'
     : st.total + ' seller' + (st.total===1?'':'s') + ' submitting documents to ' + esc(ND.name);
@@ -1511,7 +1511,7 @@ function renderHero(){
 function renderKpis(){
   var st          = computeStats(ND.entities);
   var mbC         = (DATA && DATA.mbCounts) ? DATA.mbCounts : { sellers: 0, buyers: 0 };
-  var isStrideOne = !!ND._buyerPlaceholder;
+  var isStrideOne = (ND.id === 'strideone');
 
   var cards;
   // For StrideOne, Phase 0 = P-0 priority buyers counted by the backend.
@@ -1765,7 +1765,7 @@ function renderMatrix(){
 
 function openKpi(kind){
   // StrideOne Phase 0 — render P-0 buyer cards from ND.phase0Buyers
-  if (kind === 'phase0' && ND._buyerPlaceholder) {
+  if (kind === 'phase0' && ND.id === 'strideone') {
     var buyers = ND.phase0Buyers || [];
     var bn = buyers.length, bs = bn === 1 ? '' : 's';
     $('kpiDrTitle').textContent = 'Phase 0 — Identified Buyers';
