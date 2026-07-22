@@ -147,14 +147,15 @@
     box-shadow:0 1px 0 rgba(255,255,255,.6),0 1px 8px rgba(0,0,0,.04);
   }
   .topbar-brand{display:flex;align-items:center;gap:10px;padding-right:16px;flex:none}
-  .brand-logo{height:36px;width:auto;display:block;flex:none;color:var(--ink)}
-  .brand-tagline-text{fill:var(--ink-3)}
-  .leaf-hl{stroke:#fff}
+  .brand-mark{height:32px;width:auto;display:block;flex:none;mix-blend-mode:multiply}
+  .brand-wordmark{display:flex;flex-direction:column;justify-content:center;gap:1px}
+  .brand-wname{font-size:17px;font-weight:800;letter-spacing:-.02em;color:var(--ink);line-height:1.15;white-space:nowrap}
+  .brand-wtag{font-size:8px;font-weight:400;color:var(--ink-3);white-space:nowrap}
   .brand-rule{width:1px;height:22px;background:var(--line);flex:none;margin:0 2px}
   .brand-sub{font-size:9.5px;color:var(--ink-3);font-weight:600;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
-  @media (prefers-color-scheme:dark){.leaf-hl{stroke:var(--surface)}}
-  :root[data-theme="dark"] .leaf-hl{stroke:var(--surface)}
-  :root[data-theme="light"] .leaf-hl{stroke:#fff}
+  @media (prefers-color-scheme:dark){.brand-mark{filter:invert(1);mix-blend-mode:screen}}
+  :root[data-theme="dark"] .brand-mark{filter:invert(1);mix-blend-mode:screen}
+  :root[data-theme="light"] .brand-mark{filter:none;mix-blend-mode:multiply}
   .topbar-spacer{flex:1;min-width:8px}
   .topbar-div{width:1px;height:16px;background:var(--line);flex:none;margin:0 10px}
   .sync{font-size:11.5px;color:var(--ink-3);line-height:1.5;white-space:nowrap}
@@ -1447,7 +1448,7 @@ function renderKpis(){
       { kind:'buyers',      tone:'buyers',      icon:ICON.buyers, num:mbC.buyers,     label:'Total Buyers',  sub:'Open Marketplace · Completed' },
       { kind:'phase0',      tone:'phase0',      icon:ICON.seed,   num:stridePhase0,   label:'Phase 0',       sub:'P-0 priority buyers' },
       { kind:'eligible',    tone:'eligible',    icon:ICON.shield, num:st.eligible,    label:'Eligible',      sub:'Buyers marked eligible' },
-      { kind:'qualified',   tone:'qualified',   icon:ICON.award,  num:st.qualified,   label:'Qualified',     sub:'Buyers qualified for financing' },
+      { kind:'qualified',   tone:'qualified',   icon:ICON.award,  num:st.qualified,   label:'Logged In',     sub:'Buyers logged in' },
       { kind:'creditlimit', tone:'creditlimit', icon:ICON.card,   num:st.creditLimit, label:'Credit Limit',  sub:'Buyers with credit limit assigned' },
       { kind:'completed',   tone:'completed',   icon:ICON.check,  num:st.completed,   label:'Completed',     sub:'All required docs received' },
       { kind:'pending',     tone:'pending',     icon:ICON.clock,  num:st.pending,     label:'Pending',       sub:'Documents still awaited' }
@@ -1457,7 +1458,7 @@ function renderKpis(){
     cards = [
       { kind:'phase0',      tone:'phase0',      icon:ICON.users,  num:st.phase0,      label:'Total Sellers', sub:'All identified sellers' },
       { kind:'eligible',    tone:'eligible',    icon:ICON.shield, num:st.eligible,    label:'Eligible',      sub:'Sellers marked eligible' },
-      { kind:'qualified',   tone:'qualified',   icon:ICON.award,  num:st.qualified,   label:'Qualified',     sub:'Sellers qualified for financing' },
+      { kind:'qualified',   tone:'qualified',   icon:ICON.award,  num:st.qualified,   label:'Logged In',     sub:'Sellers logged in' },
       { kind:'creditlimit', tone:'creditlimit', icon:ICON.card,   num:st.creditLimit, label:'Credit Limit',  sub:'Sellers with credit limit assigned' },
       { kind:'completed',   tone:'completed',   icon:ICON.check,  num:st.completed,   label:'Completed',     sub:'All required docs received' },
       { kind:'pending',     tone:'pending',     icon:ICON.clock,  num:st.pending,     label:'Pending',       sub:'Documents still awaited' }
@@ -1755,7 +1756,7 @@ function openKpi(kind){
     pending:     'Pending Documents',
     completed:   'Completed',
     eligible:    'Eligible Sellers',
-    qualified:   'Qualified Sellers',
+    qualified:   'Logged In Sellers',
     creditlimit: 'Credit Limit Assigned'
   };
   var subs = {
@@ -1764,7 +1765,7 @@ function openKpi(kind){
     pending:     n + ' seller' + s + ' with one or more documents outstanding',
     completed:   n + ' seller' + s + ' with every required document received',
     eligible:    n + ' seller' + s + ' marked eligible in ' + ND.name,
-    qualified:   n + ' seller' + s + ' qualified for financing in ' + ND.name,
+    qualified:   n + ' seller' + s + ' logged in to ' + ND.name,
     creditlimit: n + ' seller' + s + ' with a credit limit assigned in ' + ND.name
   };
   openKpiDrawer(titles[kind] || kind, subs[kind] || '', list, kind);
