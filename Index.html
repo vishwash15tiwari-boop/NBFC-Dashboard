@@ -1529,7 +1529,7 @@ function renderKpis(){
     cards = [
       { kind:'buyers',      tone:'buyers',      icon:ICON.buyers, num:mbC.buyers,     label:'Total Buyers',  sub:'Open Marketplace · Completed' },
       { kind:'phase0',      tone:'phase0',      icon:ICON.seed,   num:stridePhase0,   label:'Phase 0',       sub:'P-0 priority buyers' },
-      { kind:'eligible',    tone:'eligible',    icon:ICON.shield, num:st.eligible,    label:'Eligible',      sub:'Buyers marked eligible' },
+      { kind:'eligible',    tone:'eligible',    icon:ICON.shield, num:st.eligible,    label:'First Check',   sub:'Pre-screening passed' },
       { kind:'qualified',   tone:'qualified',   icon:ICON.award,  num:st.qualified,   label:'Logged In',     sub:'Buyers logged in' },
       { kind:'creditlimit', tone:'creditlimit', icon:ICON.card,   num:st.creditLimit, label:'Credit Limit',  sub:'Buyers with credit limit assigned' },
       { kind:'completed',   tone:'completed',   icon:ICON.check,  num:st.completed,   label:'Completed',     sub:'All required docs received' },
@@ -1539,7 +1539,7 @@ function renderKpis(){
     // Billmart / Capital XB: 6 cards — Phase 0 shown as "Total Sellers", no MB card
     cards = [
       { kind:'phase0',      tone:'phase0',      icon:ICON.users,  num:st.phase0,      label:'Total Sellers', sub:'All identified sellers' },
-      { kind:'eligible',    tone:'eligible',    icon:ICON.shield, num:st.eligible,    label:'Eligible',      sub:'Sellers marked eligible' },
+      { kind:'eligible',    tone:'eligible',    icon:ICON.shield, num:st.eligible,    label:'First Check',   sub:'Pre-screening passed' },
       { kind:'qualified',   tone:'qualified',   icon:ICON.award,  num:st.qualified,   label:'Logged In',     sub:'Sellers logged in' },
       { kind:'creditlimit', tone:'creditlimit', icon:ICON.card,   num:st.creditLimit, label:'Credit Limit',  sub:'Sellers with credit limit assigned' },
       { kind:'completed',   tone:'completed',   icon:ICON.check,  num:st.completed,   label:'Completed',     sub:'All required docs received' },
@@ -1841,7 +1841,7 @@ function openKpi(kind){
     phase0:      'Total Sellers',
     pending:     'Pending Documents',
     completed:   'Completed',
-    eligible:    'Eligible Sellers',
+    eligible:    'First Check / Pre-Screening',
     qualified:   'Logged In Sellers',
     creditlimit: 'Credit Limit Assigned'
   };
@@ -1850,7 +1850,7 @@ function openKpi(kind){
     phase0:      n + ' seller' + s + ' tracked in ' + ND.name,
     pending:     n + ' seller' + s + ' with one or more documents outstanding',
     completed:   n + ' seller' + s + ' with every required document received',
-    eligible:    n + ' seller' + s + ' marked eligible in ' + ND.name,
+    eligible:    n + ' seller' + s + ' passed first check / pre-screening in ' + ND.name,
     qualified:   n + ' seller' + s + ' logged in to ' + ND.name,
     creditlimit: n + ' seller' + s + ' with a credit limit assigned in ' + ND.name
   };
