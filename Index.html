@@ -271,13 +271,14 @@
   .nh-ring-lbl span{font-size:10px;font-weight:600;color:rgba(255,255,255,.64);letter-spacing:.1em;text-transform:uppercase;margin-top:4px}
 
   /* ── KPI hero cards — clickable ─────────────────────────────────────── */
-  .kpis{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;margin-top:14px}
-  .kpis.kpis-6{grid-template-columns:repeat(6,1fr)}
+  .kpis{display:flex;flex-wrap:nowrap;gap:12px;margin-top:14px;overflow-x:auto}
+  .kpis.kpis-6{flex-wrap:nowrap}
   .kpi{
     text-align:left;background:var(--card);border-radius:var(--radius);
     box-shadow:0 0 0 1px var(--line),var(--shadow-sm);
     padding:18px 16px 16px;display:flex;flex-direction:column;
     cursor:pointer;position:relative;overflow:hidden;
+    flex:1 1 0;min-width:120px;
     transition:transform .22s var(--ease),box-shadow .28s var(--ease);
     animation:fadeUp .5s var(--ease-out) both;
   }
@@ -743,13 +744,7 @@
   .btn-primary:focus-visible{outline-color:rgba(255,255,255,.8)}
 
   /* ── Responsive ─────────────────────────────────────────────────────── */
-  @media (max-width:1280px){
-    .kpis{grid-template-columns:repeat(4,1fr)}
-    .kpis.kpis-6{grid-template-columns:repeat(3,1fr)}
-  }
   @media (max-width:1000px){
-    .kpis{grid-template-columns:repeat(2,1fr)}
-    .kpis.kpis-6{grid-template-columns:repeat(2,1fr)}
     .ov-grid{grid-template-columns:1fr}
     .nbfc-hero{flex-direction:column;align-items:flex-start;gap:20px}
   }
@@ -764,7 +759,6 @@
     .nh-name{font-size:30px}
   }
   @media (max-width:560px){
-    .kpis{grid-template-columns:1fr}
     .attn{grid-template-columns:1fr}
     .facets{grid-template-columns:1fr}
     .drawer{top:0;right:0;bottom:0;width:100vw;border-radius:0;transform:translateX(calc(100% + 140px))}
