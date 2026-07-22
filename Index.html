@@ -1593,30 +1593,6 @@ function renderOverview(){
     ? (withPending + (withPending === 1 ? ' seller needs' : ' sellers need') + ' follow-up.')
     : 'Every document is in.';
 
-  /* Portfolio breakdown — Entity type (Proprietorship/Partnership/Private Limited) + Region */
-  var kinds = [];
-  if (fieldByType.entity) kinds.push(fieldByType.entity);
-  var rh = regionHeader();
-  if (rh) kinds.push(rh);
-
-  $('facets').innerHTML = kinds.length ? kinds.map(function(header){
-    var counts = {};
-    entities.forEach(function(e){ var v = e.meta[header] || '—'; counts[v] = (counts[v]||0)+1; });
-    var total = entities.length;
-    var chips = Object.keys(counts).filter(function(k){
-      /* Drop empty, missing-placeholder, and purely-numeric values — those are data artifacts, not real categories */
-      return k && k !== '—' && !/^\d+(\.\d+)?$/.test(k.trim());
-    }).sort().map(function(k){
-      var p = total ? Math.round(counts[k] / total * 100) : 0;
-      var enc = encodeURIComponent(header) + '::' + encodeURIComponent(k);
-      return '<button type="button" class="facet-chip" onclick="openFacet(\'' + enc + '\')">' +
-        '<div class="fc-top"><span>' + esc(k) + '</span><b>' + counts[k] + '</b></div>' +
-        '<div class="facet-bar" style="width:' + p + '%"></div>' +
-      '</button>';
-    }).join('');
-    return '<div class="facet"><h4>' + esc(header) + '</h4><div class="facet-row">' + chips + '</div></div>';
-  }).join('') : '<div class="empty-cell">No breakdown fields found.</div>';
-
   renderOvTable();
 }
 
