@@ -22,6 +22,10 @@
     --amber-tint:#FFF6E0;
     --amber-ink:#7A4D06;
     --gray-dot:#C7C7CC;
+    /* Follow-up remark accent — indigo "info", distinct from status green/amber */
+    --remark-ink:#4338CA;
+    --remark-tint:rgba(79,70,229,.07);
+    --remark-bd:rgba(79,70,229,.22);
 
     /* NBFC brand accent — overwritten live by applyNbfcTheme(). Default = Billmart. */
     --nc:#E85D04;
@@ -68,6 +72,9 @@
       --gray-dot:#48484A;
       --rk-green-ink:#30D158;
       --amber-ink:#FFD60A;
+      --remark-ink:#A5B4FC;
+      --remark-tint:rgba(129,140,248,.13);
+      --remark-bd:rgba(129,140,248,.30);
       --shadow-sm:0 1px 2px rgba(0,0,0,.5),0 3px 10px rgba(0,0,0,.42);
       --shadow-md:0 6px 16px rgba(0,0,0,.5),0 16px 40px rgba(0,0,0,.55);
       --shadow-lg:0 18px 44px rgba(0,0,0,.62),0 44px 92px rgba(0,0,0,.72);
@@ -86,6 +93,9 @@
     --gray-dot:#48484A;
     --rk-green-ink:#30D158;
     --amber-ink:#FFD60A;
+    --remark-ink:#A5B4FC;
+    --remark-tint:rgba(129,140,248,.13);
+    --remark-bd:rgba(129,140,248,.30);
     --shadow-sm:0 1px 2px rgba(0,0,0,.5),0 3px 10px rgba(0,0,0,.42);
     --shadow-md:0 6px 16px rgba(0,0,0,.5),0 16px 40px rgba(0,0,0,.55);
     --shadow-lg:0 18px 44px rgba(0,0,0,.62),0 44px 92px rgba(0,0,0,.72);
@@ -103,6 +113,9 @@
     --gray-dot:#C7C7CC;
     --rk-green-ink:#036B36;
     --amber-ink:#7A4D06;
+    --remark-ink:#4338CA;
+    --remark-tint:rgba(79,70,229,.07);
+    --remark-bd:rgba(79,70,229,.22);
     --shadow-sm:0 1px 2px rgba(18,20,28,.04),0 2px 6px rgba(18,20,28,.05);
     --shadow-md:0 4px 10px rgba(18,20,28,.06),0 12px 28px rgba(18,20,28,.09);
     --shadow-lg:0 14px 32px rgba(18,20,28,.12),0 36px 74px rgba(18,20,28,.17);
@@ -673,6 +686,73 @@
     padding:5px 11px;text-decoration:none;transition:background .15s;
   }
   .det-sheet-link:hover{background:rgba(0,166,81,.18)}
+
+  /* ── Follow-up remark (Plastic-Remarks tab, joined by GST) ──────────── */
+  /* Detail-view remark card */
+  .remark-card{
+    background:var(--remark-tint);border-radius:16px;
+    box-shadow:inset 0 0 0 1px var(--remark-bd);
+    padding:14px 16px;margin-bottom:12px;
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .remark-card-h{
+    display:flex;align-items:center;gap:8px;
+    font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--remark-ink);
+  }
+  .remark-card-h svg{width:14px;height:14px;flex:none}
+  .remark-card-body{
+    font-size:14px;font-weight:500;color:var(--ink);line-height:1.5;
+    letter-spacing:-.01em;white-space:pre-wrap;word-break:break-word;
+  }
+  .eta-pill{
+    margin-left:auto;display:inline-flex;align-items:center;gap:5px;
+    font-size:11px;font-weight:700;letter-spacing:.01em;text-transform:none;
+    color:var(--remark-ink);background:var(--card);
+    box-shadow:inset 0 0 0 1px var(--remark-bd);
+    border-radius:980px;padding:3px 10px;white-space:nowrap;
+    font-variant-numeric:tabular-nums;
+  }
+  .eta-pill svg{width:12px;height:12px;flex:none}
+  /* ETA badge in tables */
+  .eta-badge{
+    display:inline-flex;align-items:center;gap:4px;white-space:nowrap;
+    font-size:11px;font-weight:600;color:var(--remark-ink);
+    background:var(--remark-tint);box-shadow:inset 0 0 0 1px var(--remark-bd);
+    border-radius:7px;padding:2px 8px;font-variant-numeric:tabular-nums;
+  }
+  /* Remark cell in overview table — clamp to 2 lines */
+  td.remark-cell{max-width:260px}
+  td.remark-cell .rc-txt{
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+    overflow:hidden;font-size:12px;color:var(--ink-2);line-height:1.4;letter-spacing:-.01em;
+  }
+  /* Remark strip on KPI kanban card */
+  .kb-remark{
+    margin:2px 0 6px;padding:9px 11px;border-radius:10px;
+    background:var(--remark-tint);box-shadow:inset 0 0 0 1px var(--remark-bd);
+    display:flex;flex-direction:column;gap:5px;
+  }
+  .kb-remark-h{
+    display:flex;align-items:center;gap:6px;
+    font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--remark-ink);
+  }
+  .kb-remark-h svg{width:12px;height:12px;flex:none}
+  .kb-remark-txt{
+    font-size:12px;color:var(--ink-2);line-height:1.45;letter-spacing:-.01em;
+    white-space:pre-wrap;word-break:break-word;
+  }
+  /* Remark snippet on attention card */
+  .attn-remark{
+    margin-top:8px;padding:7px 10px;border-radius:9px;
+    background:var(--remark-tint);box-shadow:inset 0 0 0 1px var(--remark-bd);
+    display:flex;gap:6px;align-items:flex-start;
+  }
+  .attn-remark svg{width:12px;height:12px;flex:none;margin-top:2px;color:var(--remark-ink)}
+  .attn-remark .ar-txt{
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+    font-size:11.5px;color:var(--ink-2);line-height:1.4;letter-spacing:-.01em;
+  }
   .det-sheet-link svg{width:11px;height:11px;flex:none}
   @media(max-width:600px){
     .modal-scrim{padding:0}
@@ -1187,6 +1267,7 @@
     </div>
     <div class="modal-body">
       <div class="det-stats" id="dvStats"></div>
+      <div id="dvRemark"></div>
       <div class="det-sections">
         <div class="di-card">
           <div class="di-card-h">Seller Information</div>
@@ -1238,6 +1319,20 @@ function initials(name){
 }
 function pct(n){ return (Math.round(n*10)/10) + '%'; }
 function normKey(s){ return String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]+/g,''); }
+
+/* ── Follow-up remark helpers (data from the Plastic-Remarks tab) ─────── */
+var REMARK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+var ETA_ICON    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+function hasRemark(e){ return !!(e && (e.remarks || e.eta)); }
+function etaPill(eta){ return eta ? '<span class="eta-pill">' + ETA_ICON + 'ETA · ' + esc(eta) + '</span>' : ''; }
+/* Detail-view remark card — '' when the seller has neither a remark nor an ETA */
+function remarkCard(e){
+  if (!hasRemark(e)) return '';
+  return '<div class="remark-card">' +
+      '<div class="remark-card-h">' + REMARK_ICON + 'Follow-up Remark' + etaPill(e.eta) + '</div>' +
+      (e.remarks ? '<div class="remark-card-body">' + esc(e.remarks) + '</div>' : '') +
+    '</div>';
+}
 
 function animCount(el, to, dur){
   if (!el) return;
@@ -1621,6 +1716,12 @@ function buildAttnCards(rows, docs){
         }).join('') +
         (more > 0 ? '<div class="attn-check-more">+' + more + ' more</div>' : '') +
       '</div>';
+    /* Follow-up remark snippet (from Plastic-Remarks, joined by GST) */
+    var remarkSnip = hasRemark(r) ? '<div class="attn-remark">' + REMARK_ICON +
+      '<span class="ar-txt">' +
+        (r.eta ? '<b>ETA ' + esc(r.eta) + '</b>' + (r.remarks ? ' · ' : '') : '') +
+        esc(r.remarks || '') +
+      '</span></div>' : '';
     return '<div class="attn-card" onclick="openDetail('+r.row+')" style="animation-delay:'+(i*55)+'ms">'+
       '<div class="attn-head">'+
         '<div class="avatar">'+esc(initials(nm))+'</div>'+
@@ -1634,6 +1735,7 @@ function buildAttnCards(rows, docs){
       '</div>'+
       '<div class="attn-prog"><div class="attn-prog-fill" style="width:'+r.completion+'%"></div></div>'+
       checklist+
+      remarkSnip+
     '</div>';
   }).join('');
 }
@@ -1661,6 +1763,7 @@ function renderOvTable(){
     Object.keys(e.extraMeta || {}).forEach(function(k){ if (k) extraFieldSet[k] = 1; });
   });
   var extraFields = Object.keys(extraFieldSet);
+  var anyRemark = entities.some(hasRemark);   // only add ETA/Remarks cols when present
 
   /* Header row */
   $('ovSellersHead').innerHTML = '<tr><th>#</th><th>Seller</th>' +
@@ -1668,7 +1771,8 @@ function renderOvTable(){
     (rh ? '<th>Region</th>' : '') +
     '<th>Entity Type</th>' +
     extraFields.map(function(f){ return '<th>' + esc(f) + '</th>'; }).join('') +
-    '<th>Pending</th><th>Completion</th><th>Status</th></tr>';
+    '<th>Pending</th><th>Completion</th><th>Status</th>' +
+    (anyRemark ? '<th>ETA</th><th>Remarks</th>' : '') + '</tr>';
 
   /* Apply filters */
   var rows = entities.filter(function(e){
@@ -1681,14 +1785,15 @@ function renderOvTable(){
         hasGst ? (e.meta[fieldByType.gst] || '') : '',
         fieldByType.entity ? (e.meta[fieldByType.entity] || '') : '',
         rh ? (e.meta[rh] || '') : '',
-        extraFields.map(function(f){ return (e.extraMeta || {})[f] || ''; }).join(' ')
+        extraFields.map(function(f){ return (e.extraMeta || {})[f] || ''; }).join(' '),
+        e.remarks || '', e.eta || ''
       ].join(' ').toLowerCase();
       if (hay.indexOf(q) === -1) return false;
     }
     return true;
   });
 
-  var colCount = 6 + (hasGst?1:0) + (rh?1:0) + extraFields.length;
+  var colCount = 6 + (hasGst?1:0) + (rh?1:0) + extraFields.length + (anyRemark ? 2 : 0);
 
   $('ovSellersBody').innerHTML = rows.length ? rows.map(function(e){
     var nm = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
@@ -1720,6 +1825,10 @@ function renderOvTable(){
         : '<span style="color:var(--ink-3)">0</span>') + '</td>' +
       '<td><div class="prog-cell"><div class="track"><div class="fill" style="width:' + e.completion + '%"></div></div><span>' + pct(e.completion) + '</span></div></td>' +
       '<td>' + statusChip(e) + '</td>' +
+      (anyRemark
+        ? '<td>' + (e.eta ? '<span class="eta-badge">' + esc(e.eta) + '</span>' : '<span style="color:var(--ink-3)">—</span>') + '</td>' +
+          '<td class="remark-cell">' + (e.remarks ? '<div class="rc-txt" title="' + esc(e.remarks) + '">' + esc(e.remarks) + '</div>' : '<span style="color:var(--ink-3)">—</span>') + '</td>'
+        : '') +
     '</tr>';
   }).join('') : '<tr><td colspan="' + colCount + '" class="empty-cell">No sellers match.</td></tr>';
 
@@ -1858,7 +1967,8 @@ function kpiFilter(){
     var gst  = (e.gst  || '').toLowerCase();
     var reg  = (e.region || (e.extraMeta && e.extraMeta[Object.keys(e.extraMeta||{}).find(function(k){ return k.toLowerCase().includes('region'); })||'']) || '').toString().toLowerCase();
     var ent  = (e.entityType || (e.extraMeta && e.extraMeta[Object.keys(e.extraMeta||{}).find(function(k){ return k.toLowerCase().includes('entity'); })||'']) || '').toString().toLowerCase();
-    return name.includes(q) || gst.includes(q) || reg.includes(q) || ent.includes(q);
+    var rmk  = ((e.remarks || '') + ' ' + (e.eta || '')).toLowerCase();
+    return name.includes(q) || gst.includes(q) || reg.includes(q) || ent.includes(q) || rmk.includes(q);
   });
   $('kpiDrBody').innerHTML = buildKpiTable(filtered, _kpiKind);
   $('kpiNoResults').style.display = filtered.length ? 'none' : 'block';
@@ -1901,10 +2011,12 @@ function buildKpiTable(list, kind){
   }
   var hasGst = !!fieldByType.gst;
   var rh = regionHeader();
+  var anyRemark = list.some(hasRemark);   // add ETA/Remarks cols only when present
   var head = '<tr><th>#</th><th>Seller</th>' +
     (hasGst ? '<th>GST</th>' : '') +
     (rh ? '<th>Region</th>' : '') +
-    '<th>Entity Type</th><th>Received</th><th>Pending</th><th>Completion</th><th>Status</th></tr>';
+    '<th>Entity Type</th><th>Received</th><th>Pending</th><th>Completion</th><th>Status</th>' +
+    (anyRemark ? '<th>ETA</th><th>Remarks</th>' : '') + '</tr>';
   var body = list.map(function(e){
     var nm = nameHeader ? e.meta[nameHeader] : ('Row ' + e.row);
     return '<tr onclick="openDetail(' + e.row + ')">' +
@@ -1919,6 +2031,10 @@ function buildKpiTable(list, kind){
         : '<span style="color:var(--ink-3)">0</span>') + '</td>' +
       '<td><div class="prog-cell"><div class="track"><div class="fill" style="width:' + e.completion + '%"></div></div><span>' + pct(e.completion) + '</span></div></td>' +
       '<td>' + statusChip(e) + '</td>' +
+      (anyRemark
+        ? '<td>' + (e.eta ? '<span class="eta-badge">' + esc(e.eta) + '</span>' : '<span style="color:var(--ink-3)">—</span>') + '</td>' +
+          '<td class="remark-cell">' + (e.remarks ? '<div class="rc-txt" title="' + esc(e.remarks) + '">' + esc(e.remarks) + '</div>' : '<span style="color:var(--ink-3)">—</span>') + '</td>'
+        : '') +
     '</tr>';
   }).join('');
   return '<table class="tbl"><thead>' + head + '</thead><tbody>' + body + '</tbody></table>';
@@ -1981,7 +2097,13 @@ function buildKbCard(e, idx, kind){
       }).join('') + '</div>';
   }
 
-  var panelHtml = attrsHtml +
+  /* Follow-up remark strip (from Plastic-Remarks, joined by GST) */
+  var remarkHtml = hasRemark(e) ? '<div class="kb-remark">' +
+      '<div class="kb-remark-h">' + REMARK_ICON + 'Follow-up Remark' + etaPill(e.eta) + '</div>' +
+      (e.remarks ? '<div class="kb-remark-txt">' + esc(e.remarks) + '</div>' : '') +
+    '</div>' : '';
+
+  var panelHtml = attrsHtml + remarkHtml +
     docSec(pendDocs, 'kb-sec-pend', 'Missing',        'pend') +
     docSec(naDocs,   'kb-sec-na',   'Not Applicable', 'na')   +
     docSec(recvDocs, 'kb-sec-recv', 'Received',       'recv');
@@ -2058,6 +2180,9 @@ function openDetail(row){
     ds(e.pending,  'Pending',  e.pending ? 'var(--amber)' : 'var(--ink-3)') +
     ds(e.na,       'N/A',      'var(--ink-3)') +
     ds(e.applicable,'Applicable','var(--ink)');
+
+  /* ── Follow-up remark (from Plastic-Remarks, joined by GST) ── */
+  $('dvRemark').innerHTML = remarkCard(e);
 
   /* ── Meta info — full-width cell grid (label over value) ── */
   $('dvInfo').innerHTML = (ND.metaFields || [])

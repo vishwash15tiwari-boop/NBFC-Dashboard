@@ -46,6 +46,11 @@ var CONFIG = {
   // Optional: entity-type → document applicability matrix tab.
   REQUIREMENT: { name: 'Seller Requirement', index: -1, signature: ['documents', 'proprietor'] },
 
+  // Seller follow-up remarks tab. One row per seller (keyed by Seller_GSTIN)
+  // carrying an ETA (expected date) and a free-text Remarks note. Joined onto
+  // every seller row by GSTIN so remarks surface per seller in the dashboard.
+  REMARKS: { name: 'Plastic-Remarks', index: -1, signature: ['remark', 'gst'] },
+
   APP_TITLE: 'Recykal · NBFC Document Tracker',
   PROP_BACKEND_ID: 'BACKEND_SHEET_ID'
 };
@@ -283,6 +288,63 @@ function matchEntityColumn_(matrix, entityType) {
   return best;
 }
 
+/* ──────────────────── Seller remarks (Plastic-Remarks tab) ─────────────── */
+
+// Normalise a GSTIN for matching: strip whitespace, upper-case.
+function normGst_(s) {
+  return String(s == null ? '' : s).replace(/\s+/g, '').toUpperCase();
+}
+
+/**
+ * Reads the "Plastic-Remarks" tab and returns a map keyed by normalised GSTIN:
+ *   { <normGST>: { remarks: <string>, eta: <string> } }
+ *
+ * The tab is a manually-maintained follow-up tracker — one row per seller
+ * (identified by Seller_GSTIN) carrying an ETA (expected date) and a free-text
+ * Remarks note. Rows without a GSTIN, or with neither a remark nor an ETA, are
+ * skipped. When the same GSTIN appears more than once, the last populated row
+ * wins (latest entry in the sheet). On any error (tab missing / unreadable) an
+ * empty map is returned so the dashboard still loads.
+ */
+function getRemarksMap_(ss) {
+  var map = {};
+  try {
+    var sh = findSheet_(ss, CONFIG.REMARKS);
+    var lastRow = sh.getLastRow(), lastCol = sh.getLastColumn();
+    if (lastRow < 2 || lastCol < 1) return map;
+    var values = sh.getRange(1, 1, lastRow, lastCol).getDisplayValues();
+
+    // Locate the header row (scan the first 3 rows) and the columns we need.
+    var headerRow = -1, gstIdx = -1, etaIdx = -1, remarksIdx = -1;
+    var maxScan = Math.min(3, values.length);
+    for (var r = 0; r < maxScan; r++) {
+      var gi = -1, ei = -1, ri = -1;
+      for (var c = 0; c < values[r].length; c++) {
+        var nk = normKey_(values[r][c]);
+        if (gi === -1 && nk.indexOf('gst')    !== -1) gi = c;
+        if (ei === -1 && nk === 'eta')                ei = c;
+        if (ri === -1 && nk.indexOf('remark') !== -1) ri = c;
+      }
+      if (ri !== -1 && gi !== -1) { headerRow = r; gstIdx = gi; etaIdx = ei; remarksIdx = ri; break; }
+    }
+    if (headerRow === -1) return map;
+
+    for (var d = headerRow + 1; d < values.length; d++) {
+      var gst = normGst_(values[d][gstIdx]);
+      if (!gst) continue;
+      var remark = remarksIdx >= 0 ? String(values[d][remarksIdx] == null ? '' : values[d][remarksIdx]).trim() : '';
+      var eta    = etaIdx    >= 0 ? String(values[d][etaIdx]    == null ? '' : values[d][etaIdx]).trim()    : '';
+      if (!remark && !eta) continue;               // nothing to surface for this seller
+      var prev = map[gst];                         // last populated row wins; keep prior non-empty fields
+      map[gst] = {
+        remarks: remark || (prev ? prev.remarks : ''),
+        eta:     eta    || (prev ? prev.eta     : '')
+      };
+    }
+  } catch (e) { /* tab missing or unreadable — surface no remarks rather than fail */ }
+  return map;
+}
+
 /* ─────────────────────────── Tracker layout ─────────────────────────── */
 
 function readTrackerLayout_(sh, maxCol, docStartCol, docEndCol) {
@@ -352,16 +414,18 @@ function metaFieldType_(header) {
  * Reads one NBFC tracker tab and returns all entity rows with parsed doc statuses.
  * On any error, returns an error object so getInitialData() can still succeed.
  */
-function getNbfcData_(ss, tabCfg, matrix) {
+function getNbfcData_(ss, tabCfg, matrix, remarksMap) {
   try {
     var sh = findSheet_(ss, tabCfg);
     var layout = readTrackerLayout_(sh, tabCfg.maxCol, tabCfg.docStartCol, tabCfg.docEndCol);
+    remarksMap = remarksMap || {};
 
-    var nameHeaderKey = null, entityHeaderKey = null;
+    var nameHeaderKey = null, entityHeaderKey = null, gstHeaderKey = null;
     layout.metaIdx.forEach(function (idx) {
       var h = layout.headers[idx];
       if (!nameHeaderKey && normKey_(h).indexOf('name') !== -1) nameHeaderKey = h;
       if (!entityHeaderKey && metaFieldType_(h) === 'entity') entityHeaderKey = h;
+      if (!gstHeaderKey && metaFieldType_(h) === 'gst') gstHeaderKey = h;
     });
 
     // Build doc list — match each column against the requirement matrix
@@ -455,6 +519,8 @@ function getNbfcData_(ss, tabCfg, matrix) {
         });
 
         var applicable = received + pending;
+        // Join the follow-up remark/ETA for this seller by GSTIN.
+        var rk = gstHeaderKey ? remarksMap[normGst_(meta[gstHeaderKey])] : null;
         entities.push({
           row: i + layout.headerRowNum + 1,
           serial: isNaN(serial) ? '' : serial,
@@ -465,7 +531,9 @@ function getNbfcData_(ss, tabCfg, matrix) {
           pending: pending,
           na: na,
           applicable: applicable,
-          completion: applicable ? Math.round((received / applicable) * 1000) / 10 : 0
+          completion: applicable ? Math.round((received / applicable) * 1000) / 10 : 0,
+          remarks: rk ? rk.remarks : '',
+          eta:     rk ? rk.eta     : ''
         });
       });
     }
@@ -788,9 +856,10 @@ function getInitialData(opts) {
   // ── Slow path — read from sheets, populate cache ─────────────────────────
   var ss = getSpreadsheet_();
   var matrix = readRequirementMatrix_(ss);
+  var remarksMap = getRemarksMap_(ss);   // GSTIN → { remarks, eta } from Plastic-Remarks
 
-  var billmartData    = getNbfcData_(ss, CONFIG.NBFC_TABS[0], matrix);
-  var capitalxbData   = getNbfcData_(ss, CONFIG.NBFC_TABS[1], matrix);
+  var billmartData    = getNbfcData_(ss, CONFIG.NBFC_TABS[0], matrix, remarksMap);
+  var capitalxbData   = getNbfcData_(ss, CONFIG.NBFC_TABS[1], matrix, remarksMap);
   var mbData          = getMbCounts_();
   var strideoneStats  = getStrideOneStats_(ss);
 
