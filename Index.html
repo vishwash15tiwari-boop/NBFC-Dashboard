@@ -253,8 +253,8 @@
   .nbfc-hero{
     display:flex;align-items:center;justify-content:space-between;gap:20px;
     background:linear-gradient(165deg,#232327 0%,#161618 46%,#0A0A0C 100%);
-    border-radius:16px;padding:14px 24px;position:relative;overflow:hidden;
-    box-shadow:0 2px 10px rgba(0,0,0,.18),0 18px 50px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.08);
+    border-radius:16px;padding:13px 24px;position:relative;overflow:hidden;
+    box-shadow:0 2px 10px rgba(0,0,0,.18),0 16px 44px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.08);
     color:#fff;
   }
   .nbfc-hero::before{
@@ -270,11 +270,11 @@
   .nh-info{position:relative;min-width:0}
   .nh-eyebrow{
     display:flex;align-items:center;gap:8px;
-    font-size:11px;font-weight:600;color:rgba(255,255,255,.6);
-    letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px;
+    font-size:11px;font-weight:600;color:rgba(255,255,255,.62);
+    letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;
   }
   .nh-eyebrow i{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none;background:var(--nc-ring);box-shadow:0 0 14px rgba(var(--nc-rgb),.85),0 0 6px rgba(var(--nc-rgb),.6)}
-  .nh-name{font-size:26px;font-weight:700;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+  .nh-name{font-size:25px;font-weight:700;letter-spacing:-.035em;line-height:1;font-variant-numeric:tabular-nums}
   .nh-sub{font-size:12px;color:rgba(255,255,255,.52);margin-top:5px;letter-spacing:-.005em}
 
   /* ── KPI hero cards — clickable ─────────────────────────────────────── */
@@ -283,7 +283,7 @@
   .kpi{
     text-align:left;background:var(--card);border-radius:var(--radius);
     box-shadow:0 0 0 1px var(--line),var(--shadow-sm);
-    padding:12px 14px 12px;display:flex;flex-direction:column;
+    padding:15px 16px 14px;display:flex;flex-direction:column;
     cursor:pointer;position:relative;overflow:hidden;
     flex:1 1 0;min-width:110px;
     transition:transform .22s var(--ease),box-shadow .28s var(--ease);
@@ -303,7 +303,7 @@
   .kpi-eligible:hover,.kpi-qualified:hover,.kpi-creditlimit:hover{box-shadow:0 0 0 .5px rgba(var(--nc-rgb),.22),var(--shadow-md),0 8px 32px rgba(var(--nc-rgb),.14)}
   .kpi-pending:hover{box-shadow:0 0 0 .5px rgba(245,158,11,.22),var(--shadow-md),0 8px 32px rgba(245,158,11,.12)}
   .kpi-completed:hover{box-shadow:0 0 0 .5px rgba(0,166,81,.22),var(--shadow-md),0 8px 32px rgba(0,166,81,.12)}
-  .kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
   .kpi-ico{
     width:34px;height:34px;border-radius:10px;
     display:flex;align-items:center;justify-content:center;flex:none;
@@ -314,9 +314,9 @@
   .kpi-chev{color:var(--ink-3);opacity:.55;transition:transform .2s var(--ease),opacity .2s;flex:none}
   .kpi-chev svg{width:16px;height:16px}
   .kpi:hover .kpi-chev{opacity:1;transform:translateX(3px)}
-  .kpi-num{font-size:28px;font-weight:700;letter-spacing:-.05em;line-height:1;font-variant-numeric:tabular-nums;color:var(--ink)}
-  .kpi-label{font-size:11px;font-weight:700;margin-top:6px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink)}
-  .kpi-sub{font-size:11px;color:var(--ink-3);margin-top:2px;letter-spacing:-.005em;line-height:1.3}
+  .kpi-num{font-size:31px;font-weight:700;letter-spacing:-.05em;line-height:1;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .kpi-label{font-size:11.5px;font-weight:700;margin-top:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+  .kpi-sub{font-size:11.5px;color:var(--ink-3);margin-top:4px;letter-spacing:-.005em;line-height:1.35}
   /* ── KPI tone system — one coherent palette ──────────────────────────
      Count (total/buyers) = authoritative neutral · Financing pipeline
      (eligible/qualified/credit) = brand accent · Status (completed=green,
@@ -378,7 +378,12 @@
   .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:-1px}
 
   /* ── Attention cards ────────────────────────────────────────────────── */
-  .attn{padding:10px 14px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:160px;overflow-y:auto}
+  .attn{
+    padding:10px 14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;
+    max-height:172px;overflow-y:auto;
+    -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 22px),transparent);
+    mask-image:linear-gradient(to bottom,#000 calc(100% - 22px),transparent);
+  }
   .attn-card{
     background:var(--surface);border:none;border-radius:16px;
     padding:14px 16px;cursor:pointer;
@@ -400,7 +405,7 @@
   }
   .attn-info{flex:1;min-width:0}
   .attn-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;letter-spacing:-.015em}
-  .attn-type{font-size:11.5px;color:var(--ink-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.005em}
+  .attn-type{font-size:12px;color:var(--ink-3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.005em}
   .attn-tv-txt{color:var(--nc);font-weight:600}
   .attn-cnt{
     flex:none;font-size:10.5px;font-weight:600;padding:4px 10px;border-radius:980px;
@@ -485,9 +490,9 @@
   .tbl-wrap{overflow-x:auto;border-radius:0 0 var(--radius) var(--radius)}
   table.tbl{width:100%;border-collapse:collapse;min-width:760px}
   .tbl th{
-    text-align:left;font-size:10.5px;font-weight:600;color:var(--ink-3);
-    letter-spacing:.055em;text-transform:uppercase;
-    padding:13px 18px 11px;border-bottom:1px solid var(--line);
+    text-align:left;font-size:11px;font-weight:600;color:var(--ink-3);
+    letter-spacing:.05em;text-transform:uppercase;
+    padding:14px 18px 12px;border-bottom:1px solid var(--line);
     background:var(--card);position:sticky;top:0;z-index:1;
   }
   .tbl td{padding:14px 18px;border-bottom:1px solid var(--line-2);font-size:13.5px;vertical-align:middle}
@@ -495,7 +500,7 @@
   .tbl tbody tr:hover{background:rgba(var(--nc-rgb),.06)}
   .tbl tbody tr:last-child td{border-bottom:none}
   .cell-name{font-weight:600;display:flex;align-items:center;gap:6px;flex-wrap:wrap;letter-spacing:-.015em}
-  .cell-sub{font-size:11.5px;color:var(--ink-3);margin-top:2px;font-weight:400;letter-spacing:-.005em}
+  .cell-sub{font-size:12px;color:var(--ink-3);margin-top:3px;font-weight:400;letter-spacing:-.005em}
   .gst{
     font-family:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace;
     font-size:12px;color:var(--ink-2);letter-spacing:.02em;font-weight:500;
@@ -512,17 +517,17 @@
   .matrix th,.matrix td{border-bottom:1px solid var(--line-2);white-space:nowrap}
   .matrix thead th{
     position:sticky;top:0;z-index:3;background:var(--card);
-    font-size:9.5px;font-weight:600;color:var(--ink-3);
+    font-size:10px;font-weight:600;color:var(--ink-3);
     letter-spacing:.03em;text-transform:uppercase;
-    padding:10px 8px;text-align:center;
-    max-width:96px;white-space:normal;vertical-align:bottom;line-height:1.3;
+    padding:11px 8px;text-align:center;
+    max-width:96px;white-space:normal;vertical-align:bottom;line-height:1.32;
     border-bottom:1px solid var(--line);
   }
   .matrix thead th:first-child{left:0;z-index:4;text-align:left;padding-left:18px;min-width:190px}
   .matrix tbody th{
     position:sticky;left:0;z-index:2;background:var(--card);
-    text-align:left;font-size:12.5px;font-weight:500;
-    padding:10px 18px;max-width:230px;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em;cursor:pointer;
+    text-align:left;font-size:13px;font-weight:500;
+    padding:11px 18px;max-width:230px;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em;cursor:pointer;
   }
   .matrix td{text-align:center;padding:8px}
   .matrix tbody tr:hover th,.matrix tbody tr:hover td{background:rgba(var(--nc-rgb),.06)}
@@ -555,8 +560,8 @@
   .drawer-h h2{font-size:18px;font-weight:700;letter-spacing:-.03em;line-height:1.3}
   .drawer-h .meta-line{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
   .mpill{display:inline-flex;align-items:center;gap:5px;background:var(--fill);border:1px solid var(--line-2);border-radius:7px;padding:3px 9px;line-height:1.3}
-  .mpill .mk{font-size:9.5px;font-weight:700;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
-  .mpill .mv{font-size:12px;font-weight:500;color:var(--ink);white-space:nowrap}
+  .mpill .mk{font-size:10px;font-weight:700;color:var(--ink-3);letter-spacing:.055em;text-transform:uppercase;white-space:nowrap}
+  .mpill .mv{font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap}
   .mpill.gst-pill .mv{font-family:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace;font-size:11px;letter-spacing:.04em}
   .drawer-body{flex:1;overflow-y:auto;padding:20px 24px 28px}
   #kpiDrBody{padding:6px 0 18px}
@@ -644,21 +649,21 @@
   .det-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
   .det-stat{background:var(--card);border-radius:16px;box-shadow:0 0 0 1px var(--line),var(--shadow-sm);padding:17px 14px 14px;text-align:center;transition:box-shadow .25s var(--ease)}
   .det-stat:hover{box-shadow:0 0 0 1px var(--line),var(--shadow-md)}
-  .det-stat .ds-n{font-size:29px;font-weight:700;letter-spacing:-.055em;line-height:1;font-variant-numeric:tabular-nums}
-  .det-stat .ds-l{font-size:9.5px;font-weight:700;color:var(--ink-3);letter-spacing:.07em;text-transform:uppercase;margin-top:7px}
+  .det-stat .ds-n{font-size:30px;font-weight:700;letter-spacing:-.055em;line-height:1;font-variant-numeric:tabular-nums}
+  .det-stat .ds-l{font-size:10px;font-weight:700;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase;margin-top:8px}
   /* full-width stacked detail sections */
   .det-sections{display:flex;flex-direction:column;gap:12px}
   .di-card,.dd-card{background:var(--card);border-radius:18px;box-shadow:0 0 0 1px var(--line),var(--shadow-sm);overflow:hidden}
   .di-card-h{
-    padding:13px 18px;border-bottom:1px solid var(--line-2);
-    font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);
+    padding:14px 18px;border-bottom:1px solid var(--line-2);
+    font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
     display:flex;align-items:center;
   }
   /* seller info — full-width cell grid (label over value), hairline separators via gap */
   .di-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;background:var(--line-2)}
-  .di-cell{background:var(--card);padding:13px 18px 12px;min-width:0}
-  .di-cell .dck{font-size:9.5px;font-weight:700;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase}
-  .di-cell .dcv{font-size:13.5px;color:var(--ink);font-weight:600;margin-top:5px;word-break:break-word;letter-spacing:-.01em;line-height:1.35}
+  .di-cell{background:var(--card);padding:14px 18px 13px;min-width:0}
+  .di-cell .dck{font-size:10px;font-weight:700;color:var(--ink-3);letter-spacing:.055em;text-transform:uppercase}
+  .di-cell .dcv{font-size:13.5px;color:var(--ink);font-weight:600;margin-top:6px;word-break:break-word;letter-spacing:-.01em;line-height:1.35}
   .di-cell .dcv.mono{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;font-weight:500;letter-spacing:.02em}
   .dds{border-bottom:1px solid var(--line-2)}
   .dds:last-child{border-bottom:none}
@@ -2215,8 +2220,9 @@ function openDetail(row){
   $('dvInfo').innerHTML = (ND.metaFields || [])
     .filter(function(f){ return f.key !== nameHeader && e.meta[f.key]; })
     .map(function(f){
+      var val = (f.type === 'turnover') ? formatTurnover(e.meta[f.key]) : e.meta[f.key];
       return '<div class="di-cell"><div class="dck">' + esc(f.key) + '</div>' +
-        '<div class="dcv' + (f.type === 'gst' ? ' mono' : '') + '">' + esc(e.meta[f.key]) + '</div></div>';
+        '<div class="dcv' + (f.type === 'gst' ? ' mono' : '') + '">' + esc(val) + '</div></div>';
     }).join('');
 
   /* ── Documents ── */
