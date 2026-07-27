@@ -1297,7 +1297,13 @@ var nameHeader = null;      // active NBFC's business-name header
 var eligibilityHeader = null;
 var qualifiedHeader = null;
 var creditLimitHeader = null;
+var vintageHeader = null;   // active NBFC's Vintage_with_Recykal header (for eligibility)
 var lastFocusRefresh = 0;
+
+/* Vintage-based eligibility thresholds (years) per financing product.
+   A seller/vendor is eligible only when the Recykal×Vendor vintage ≥ threshold.
+   Products not listed here fall back to the sheet's Eligibility column. */
+var VINTAGE_ELIG_YEARS = { billmart: 1, capitalxb: 0.5 };
 
 /* Per-NBFC accent theming. Keys are backend tab ids (see Code.gs CONFIG.NBFC_TABS). */
 var NBFC_THEME = {
@@ -1389,6 +1395,38 @@ function vintageMonths_(str){
   if (!m) return null;
   var n = parseFloat(m[1]);
   return /year|yr/.test(m[2]) ? n * 12 : n;
+}
+
+/* Parse a Vintage_with_Recykal value into YEARS.
+   Handles bare numbers (the sheet stores years, e.g. "0.5", "1", "5.8") as well
+   as unit-qualified strings ("6 months", "3 yrs"). Blank / "-" / non-numeric → null. */
+function vintageYears_(raw){
+  if (raw == null) return null;
+  var s = String(raw).trim().toLowerCase();
+  if (!s || s === '-') return null;
+  var m = s.match(/(\d+(?:\.\d+)?)\s*(year|yr|y(?:\b|r)|month|mon|mo(?:\b|n))/);
+  if (m){ var n = parseFloat(m[1]); return /year|yr/.test(m[2]) ? n : n / 12; }
+  var num = parseFloat(s.replace(/[^0-9.\-]/g, ''));
+  return isNaN(num) ? null : num;
+}
+
+/* Vintage value for one entity (may live in meta or extraMeta depending on tab). */
+function vintageValueOf(e){
+  if (!vintageHeader) return null;
+  if (e.meta && e.meta[vintageHeader] != null && String(e.meta[vintageHeader]).trim() !== '') return e.meta[vintageHeader];
+  return (e.extraMeta || {})[vintageHeader];
+}
+
+/* Eligibility for the active product.
+   Billmart / Capital XB use a live vintage threshold (≥1yr / ≥6mo); every other
+   product falls back to the sheet's Eligibility column (value === "yes"). */
+function isEligibleEntity(e){
+  var thr = VINTAGE_ELIG_YEARS[activeNbfcId];
+  if (thr != null){
+    var vy = vintageYears_(vintageValueOf(e));
+    return vy != null && vy >= thr;
+  }
+  return !!(eligibilityHeader && String((e.extraMeta || {})[eligibilityHeader] || '').trim().toLowerCase() === 'yes');
 }
 
 function regionHeader(){
@@ -1510,9 +1548,15 @@ function setNd(){
   eligibilityHeader = ND.eligibilityHeader || null;
   qualifiedHeader   = ND.qualifiedHeader   || null;
   creditLimitHeader = ND.creditLimitHeader || null;
+  vintageHeader     = null;
   (ND.metaFields || []).forEach(function(f){
     if (f.type !== 'text' && !fieldByType[f.type]) fieldByType[f.type] = f.key;
     if (!nameHeader && normKey(f.key).indexOf('name') !== -1) nameHeader = f.key;
+    if (!vintageHeader && normKey(f.key).indexOf('vintage') !== -1) vintageHeader = f.key;
+  });
+  // Vintage may sit in the display-only (extraMeta) columns on some tabs.
+  if (!vintageHeader) (ND.extraMetaFields || []).forEach(function(k){
+    if (!vintageHeader && normKey(k).indexOf('vintage') !== -1) vintageHeader = k;
   });
 }
 
@@ -1556,7 +1600,7 @@ function computeStats(entities){
     s.received += e.received; s.pendingDocs += e.pending; s.na += e.na; s.applicable += e.applicable;
     if (e.pending === 0 && e.applicable > 0) s.completed++;
     var em = e.extraMeta || {};
-    if (eligibilityHeader && String(em[eligibilityHeader] || '').trim().toLowerCase() === 'yes') s.eligible++;
+    if (isEligibleEntity(e)) s.eligible++;
     if (qualifiedHeader   && String(em[qualifiedHeader]   || '').trim().toLowerCase() === 'yes') s.qualified++;
     if (creditLimitHeader && String(em[creditLimitHeader] || '').trim()) s.creditLimit++;
   });
@@ -1570,13 +1614,10 @@ function filterByKind(kind){
   var ents = ND.entities || [];
   if (kind === 'phase0')      return ents.slice();
   if (kind === 'pending')     return ents.filter(function(e){
-    var isEligible = eligibilityHeader && String((e.extraMeta||{})[eligibilityHeader]||'').trim().toLowerCase() === 'yes';
-    return isEligible && !(e.pending === 0 && e.applicable > 0);
+    return isEligibleEntity(e) && !(e.pending === 0 && e.applicable > 0);
   });
   if (kind === 'completed')   return ents.filter(function(e){ return e.pending === 0 && e.applicable > 0; });
-  if (kind === 'eligible')    return ents.filter(function(e){
-    return eligibilityHeader && String((e.extraMeta||{})[eligibilityHeader]||'').trim().toLowerCase() === 'yes';
-  });
+  if (kind === 'eligible')    return ents.filter(function(e){ return isEligibleEntity(e); });
   if (kind === 'qualified')   return ents.filter(function(e){
     return qualifiedHeader && String((e.extraMeta||{})[qualifiedHeader]||'').trim().toLowerCase() === 'yes';
   });
@@ -1608,6 +1649,7 @@ function renderHero(){
 
 function renderKpis(){
   var st          = computeStats(ND.entities);
+  var mbC         = (DATA && DATA.mbCounts) ? DATA.mbCounts : { sellers: 0, buyers: 0 };
   var isStrideOne = (ND.id === 'strideone');
 
   var cards;
@@ -1615,9 +1657,9 @@ function renderKpis(){
   var stridePhase0 = (isStrideOne && ND.phase0 != null) ? ND.phase0 : st.phase0;
 
   if (isStrideOne) {
-    // StrideOne: 7 cards — Total Buyers · Phase 0 (P-0) · Eligible · Qualified · Credit Limit · Completed · Pending
+    // StrideOne: 7 cards. Total Buyers = filtered _mb_buyers (Open Marketplace · Completed).
     cards = [
-      { kind:'buyers',      tone:'buyers',      icon:ICON.buyers, num:st.total,       label:'Total Buyers',  sub:'Buyers tracked in StrideOne' },
+      { kind:'buyers',      tone:'buyers',      icon:ICON.buyers, num:mbC.buyers,     label:'Total Buyers',  sub:'Open Marketplace · Completed' },
       { kind:'phase0',      tone:'phase0',      icon:ICON.seed,   num:stridePhase0,   label:'Phase 0',       sub:'P-0 priority buyers' },
       { kind:'eligible',    tone:'eligible',    icon:ICON.shield, num:st.eligible,    label:'First Check',   sub:'Pre-screening passed' },
       { kind:'qualified',   tone:'qualified',   icon:ICON.award,  num:st.qualified,   label:'Logged In',     sub:'Buyers logged in' },
@@ -1626,9 +1668,9 @@ function renderKpis(){
       { kind:'pending',     tone:'pending',     icon:ICON.clock,   num:st.pending,     label:'Pending',       sub:'Documents still awaited' }
     ];
   } else {
-    // Billmart / Capital XB: 6 cards — Phase 0 shown as "Total Sellers", no MB card
+    // Billmart / Capital XB: 6 cards. Total Sellers = filtered _mb_sellers (Open Marketplace · Completed).
     cards = [
-      { kind:'phase0',      tone:'phase0',      icon:ICON.users,  num:st.phase0,      label:'Total Sellers', sub:'All identified sellers' },
+      { kind:'phase0',      tone:'phase0',      icon:ICON.users,  num:mbC.sellers,    label:'Total Sellers', sub:'Open Marketplace · Completed' },
       { kind:'eligible',    tone:'eligible',    icon:ICON.shield, num:st.eligible,    label:'First Check',   sub:'Pre-screening passed' },
       { kind:'qualified',   tone:'qualified',   icon:ICON.award,  num:st.qualified,   label:'Logged In',     sub:'Sellers logged in' },
       { kind:'creditlimit', tone:'creditlimit', icon:ICON.card,   num:st.creditLimit, label:'Credit Limit Assigned',  sub:'Sellers with credit limit assigned' },
@@ -1647,9 +1689,9 @@ function renderKpis(){
   }).join('');
 
   if (isStrideOne) {
-    animCount($('kpi-buyers'), st.total);
+    animCount($('kpi-buyers'), mbC.buyers);
   }
-  animCount($('kpi-phase0'),      stridePhase0);
+  animCount($('kpi-phase0'),      isStrideOne ? stridePhase0 : mbC.sellers);
   animCount($('kpi-eligible'),    st.eligible);
   animCount($('kpi-qualified'),   st.qualified);
   animCount($('kpi-creditlimit'), st.creditLimit);
