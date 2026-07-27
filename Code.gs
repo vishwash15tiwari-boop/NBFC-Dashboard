@@ -603,70 +603,167 @@ var MB_STATUS_FILTER = 'Completed';
  * distinct value in the matched onboarding column — use this to verify filters.
  */
 
-/* ─────────────────── StrideOne buyer stats (Priority column) ──────────── */
+/* ─────────────────── StrideOne buyer tracker (dedicated reader) ────────── */
 
 /**
- * Reads the StrideOne tab and counts rows whose Priority column value
- * starts with "P0" (case-insensitive, hyphens stripped).
- * Covers "P0-Top Buyer", "P0", "P-0", etc.
+ * Reads the StrideOne tab, which tracks BUYERS with a layout unlike the seller
+ * tabs — a "Priority" column (P0 = top buyer) instead of a serial, no "Pending
+ * Document" column, buyer-named identity columns, and its own funnel
+ * (Eligibility / Qualified / Credit Limit) + document set (MOA … Agings).
+ *
+ * Returns the SAME shape as getNbfcData_() so the frontend renders StrideOne
+ * buyers with full detail (overview table, detail view, KPI drawers), plus:
+ *   phase0        — count of P-0 priority buyers
+ *   phase0Buyers  — P-0 buyer objects for the "Phase 0" drawer list
+ *   _isBuyer      — flags the buyer-oriented tab to the frontend
+ * On any error a valid empty object (ok:false) is returned so the dashboard
+ * still loads.
  */
-function getStrideOneStats_(ss) {
+function getStrideOneData_(ss, remarksMap) {
+  remarksMap = remarksMap || {};
+  var tabCfg = CONFIG.NBFC_TABS[2];
   try {
-    var sh = findSheet_(ss, CONFIG.NBFC_TABS[2]);
-    if (!sh || sh.getLastRow() < 2) return { phase0: 0, phase0Buyers: [] };
-    var lastCol = sh.getLastColumn();
+    var sh = findSheet_(ss, tabCfg);
+    var lastRow = sh.getLastRow(), lastColAll = sh.getLastColumn();
+    if (lastRow < 2 || lastColAll < 1) throw new Error('The StrideOne tab is empty.');
+    var lastCol = (tabCfg.maxCol && tabCfg.maxCol < lastColAll) ? tabCfg.maxCol : lastColAll;
+    var range    = sh.getRange(1, 1, lastRow, lastCol);
+    var values   = range.getDisplayValues();
+    var allNotes = range.getNotes();
 
-    // Scan the first 5 rows to find the header row.
-    // The StrideOne sheet has TWO tables: seller rows first, then a buyer table
-    // further down (around row 200+). Scan every row to find the buyer header row
-    // containing the "Priority" column — do not cap at 5.
-    var headers = null, priorityIdx = -1, headerRow = 1;
-    var allRows = sh.getRange(1, 1, sh.getLastRow(), lastCol).getDisplayValues();
-    for (var r = 0; r < allRows.length; r++) {
-      var hdr = allRows[r];
-      for (var c = 0; c < hdr.length; c++) {
-        if (normKey_(hdr[c]) === 'priority') { priorityIdx = c; headerRow = r + 1; headers = hdr; break; }
+    // Find the buyer-table header row (scan the first 5 rows): needs a "Priority"
+    // column and at least one "Buyer" column.
+    var headerRowNum = -1, headers = null;
+    for (var r = 0; r < Math.min(5, values.length); r++) {
+      var keys = values[r].map(function (h) { return normKey_(h); });
+      if (keys.indexOf('priority') !== -1 && keys.some(function (n) { return n.indexOf('buyer') !== -1; })) {
+        headerRowNum = r; headers = values[r].map(function (h) { return String(h).trim(); }); break;
       }
-      if (priorityIdx !== -1) break;
     }
-    if (priorityIdx === -1) return { phase0: 0, phase0Buyers: [] };
+    if (headerRowNum === -1)
+      throw new Error('The "StrideOne" tab has no buyer table (Priority / Buyer columns) in the first 5 rows.');
 
-    // Locate useful columns by header name.
-    var nameIdx = -1, gstIdx = -1, catIdx = -1, stateIdx = -1,
-        contactIdx = -1, regTypeIdx = -1, vintageIdx = -1;
-    for (var i = 0; i < headers.length; i++) {
-      var nk = normKey_(headers[i]);
-      if (nameIdx    === -1 && nk.indexOf('businessname') !== -1) nameIdx    = i;
-      if (gstIdx     === -1 && nk.indexOf('gst')          !== -1) gstIdx     = i;
-      if (catIdx     === -1 && nk.indexOf('category')     !== -1) catIdx     = i;
-      if (stateIdx   === -1 && nk === 'state')                    stateIdx   = i;
-      if (contactIdx === -1 && nk.indexOf('contact')      !== -1) contactIdx = i;
-      if (regTypeIdx === -1 && nk.indexOf('registration') !== -1) regTypeIdx = i;
-      if (vintageIdx === -1 && nk.indexOf('vintage')      !== -1) vintageIdx = i;
+    function findCol(pred) { for (var i = 0; i < headers.length; i++) { if (headers[i] && pred(normKey_(headers[i]))) return i; } return -1; }
+    var priorityIdx = findCol(function (n) { return n === 'priority'; });
+    var nameIdx     = findCol(function (n) { return n.indexOf('businessname') !== -1; });
+    var gstIdx      = findCol(function (n) { return n.indexOf('gst') !== -1; });
+    var entityIdx   = findCol(function (n) { return n.indexOf('registrationtype') !== -1; });
+    var catIdx      = findCol(function (n) { return n.indexOf('category') !== -1; });
+    var stateIdx    = findCol(function (n) { return n === 'state'; });
+    var contactIdx  = findCol(function (n) { return n.indexOf('contact') !== -1; });
+    var vintageIdx  = findCol(function (n) { return n.indexOf('vintage') !== -1; });
+    var eligIdx     = findCol(function (n) { return n.indexOf('eligib') !== -1; });
+    var qualIdx     = findCol(function (n) { return n.indexOf('qualif') !== -1; });
+    var clIdx       = findCol(function (n) { return n.indexOf('creditlimit') !== -1; });
+    var emailStIdx  = findCol(function (n) { return n.indexOf('emailstatus') !== -1; });
+    if (nameIdx === -1) throw new Error('The "StrideOne" tab has no Buyer Business Name column.');
+
+    // Column roles:
+    //   meta      — identity/attribute columns before the funnel block
+    //   extraMeta — the funnel block: Eligibility, Qualified, Credit Limit, Email Status
+    //   docs      — document columns after the funnel block (MOA … Agings)
+    var funnelStart = eligIdx !== -1 ? eligIdx : headers.length;
+    var lastFunnel  = Math.max(clIdx, emailStIdx, qualIdx, eligIdx);
+    var docStart    = lastFunnel !== -1 ? lastFunnel + 1 : funnelStart;
+    var metaIdx = [], extraMetaIdx = [], docIdx = [];
+    for (var c = 0; c < headers.length; c++) {
+      if (!headers[c]) continue;
+      if (c < funnelStart)   metaIdx.push(c);
+      else if (c < docStart) extraMetaIdx.push(c);
+      else                   docIdx.push(c);
     }
 
-    // Buyer data rows follow the header row — reuse allRows already in memory.
-    var data = allRows.slice(headerRow); // headerRow is 1-indexed, so slice(headerRow) skips it
-    if (!data.length) return { phase0: 0, phase0Buyers: [] };
+    var docs = docIdx.map(function (idx) { return { key: headers[idx], requiredBy: {} }; });
 
-    var phase0Buyers = [];
-    data.forEach(function (row) {
-      if (normKey_(String(row[priorityIdx] || '').trim()).indexOf('p0') !== 0) return;
-      phase0Buyers.push({
-        name:     nameIdx    >= 0 ? String(row[nameIdx]    || '').trim() : '',
+    var entities = [], phase0 = 0, phase0Buyers = [], optionValues = {}, entityOptions = {};
+    for (var d = headerRowNum + 1; d < values.length; d++) {
+      var row = values[d];
+      var name = String(row[nameIdx] == null ? '' : row[nameIdx]).trim();
+      if (!name || /^\d+(\.\d+)?$/.test(name)) continue;   // skip blank / numeric-artifact rows
+
+      var meta = {};
+      metaIdx.forEach(function (idx) { meta[headers[idx]] = String(row[idx] == null ? '' : row[idx]).trim(); });
+      var extraMeta = {};
+      extraMetaIdx.forEach(function (idx) { extraMeta[headers[idx]] = String(row[idx] == null ? '' : row[idx]).trim(); });
+      metaIdx.forEach(function (idx) { var h = headers[idx], v = meta[h]; if (v) (optionValues[h] = optionValues[h] || {})[v] = true; });
+
+      var rowNotes = allNotes[d] || [];
+      var docStates = {}, received = 0, pending = 0, na = 0;
+      docIdx.forEach(function (idx) {
+        var h = headers[idx];
+        var cellNote = String(rowNotes[idx] || '').trim();
+        var driveUrl = /^https?:\/\/\S+$/.test(cellNote) ? cellNote : '';
+        var parsed = parseStatus_(row[idx]);
+        docStates[h] = { raw: String(row[idx] == null ? '' : row[idx]).trim(), status: parsed.status, note: parsed.note, driveUrl: driveUrl };
+        if (parsed.status === 'received') received++;
+        else if (parsed.status === 'na') na++;
+        else pending++;
+      });
+      var applicable = received + pending;
+
+      var priority = priorityIdx !== -1 ? String(row[priorityIdx] || '').trim() : '';
+      var isP0 = normKey_(priority).indexOf('p0') === 0;
+      if (isP0) phase0++;
+      if (entityIdx !== -1 && meta[headers[entityIdx]]) entityOptions[meta[headers[entityIdx]]] = true;
+
+      var rk = gstIdx !== -1 ? remarksMap[normGst_(row[gstIdx])] : null;
+      entities.push({
+        row: d + 1,
+        serial: entities.length + 1,
+        priority: priority,
+        meta: meta,
+        extraMeta: extraMeta,
+        docs: docStates,
+        received: received, pending: pending, na: na, applicable: applicable,
+        completion: applicable ? Math.round((received / applicable) * 1000) / 10 : 0,
+        remarks: rk ? rk.remarks : '',
+        eta:     rk ? rk.eta     : ''
+      });
+
+      if (isP0) phase0Buyers.push({
+        name:     name,
         gst:      gstIdx     >= 0 ? String(row[gstIdx]     || '').trim() : '',
         category: catIdx     >= 0 ? String(row[catIdx]     || '').trim() : '',
         state:    stateIdx   >= 0 ? String(row[stateIdx]   || '').trim() : '',
         contact:  contactIdx >= 0 ? String(row[contactIdx] || '').trim() : '',
-        type:     regTypeIdx >= 0 ? String(row[regTypeIdx] || '').trim() : '',
+        type:     entityIdx  >= 0 ? String(row[entityIdx]  || '').trim() : '',
         vintage:  vintageIdx >= 0 ? String(row[vintageIdx] || '').trim() : '',
-        priority: String(row[priorityIdx] || '').trim()
+        priority: priority
       });
-    });
+    }
 
-    return { phase0: phase0Buyers.length, phase0Buyers: phase0Buyers };
+    return {
+      ok: true, id: 'strideone', name: 'StrideOne',
+      entities: entities, docs: docs,
+      entityColumns: [],
+      entityTypeOptions: Object.keys(entityOptions).sort(),
+      nameHeader: headers[nameIdx],
+      entityHeader: entityIdx !== -1 ? headers[entityIdx] : null,
+      metaFields: metaIdx.map(function (idx) {
+        var h = headers[idx];
+        // Force the Registration_Type column to the 'entity' role so the frontend
+        // shows it as Entity Type (metaFieldType_ would classify it as plain text).
+        var type = idx === entityIdx ? 'entity' : metaFieldType_(h);
+        return { key: h, type: type, options: Object.keys(optionValues[h] || {}).sort() };
+      }),
+      extraMetaFields: extraMetaIdx.map(function (idx) { return headers[idx]; }),
+      pendingHeader: null,
+      eligibilityHeader: eligIdx !== -1 ? headers[eligIdx] : null,
+      qualifiedHeader:   qualIdx !== -1 ? headers[qualIdx] : null,
+      creditLimitHeader: clIdx   !== -1 ? headers[clIdx]   : null,
+      phase0: phase0,
+      phase0Buyers: phase0Buyers,
+      _isBuyer: true
+    };
   } catch (e) {
-    return { phase0: 0, phase0Buyers: [] };
+    return {
+      ok: false, error: String(e.message),
+      id: 'strideone', name: 'StrideOne',
+      entities: [], docs: [], entityColumns: [], entityTypeOptions: [],
+      nameHeader: null, entityHeader: null, metaFields: [], extraMetaFields: [],
+      pendingHeader: null, eligibilityHeader: null, qualifiedHeader: null, creditLimitHeader: null,
+      phase0: 0, phase0Buyers: [], _isBuyer: true
+    };
   }
 }
 
@@ -835,13 +932,14 @@ function getInitialData(opts) {
 
   // ── Fast path — all data served from cache (no Sheets API calls) ────────
   if (metaC && billmartC && capitalxbC && mbC) {
-    // Use cached StrideOne data if available; otherwise build placeholder with phase0:0.
+    // Serve cached StrideOne buyer data if present; otherwise a valid empty
+    // buyer object so the tab renders until the slow path repopulates it.
     var strideonefast = strideoneC || {
       ok: true, id: 'strideone', name: 'StrideOne', entities: [], docs: [],
       entityColumns: [], entityTypeOptions: [], nameHeader: null,
       entityHeader: null, metaFields: [], extraMetaFields: [],
       pendingHeader: null, eligibilityHeader: null, qualifiedHeader: null,
-      creditLimitHeader: null, _buyerPlaceholder: true, phase0: 0
+      creditLimitHeader: null, phase0: 0, phase0Buyers: [], _isBuyer: true
     };
     return {
       ok: true,
@@ -860,18 +958,8 @@ function getInitialData(opts) {
 
   var billmartData    = getNbfcData_(ss, CONFIG.NBFC_TABS[0], matrix, remarksMap);
   var capitalxbData   = getNbfcData_(ss, CONFIG.NBFC_TABS[1], matrix, remarksMap);
+  var strideoneData   = getStrideOneData_(ss, remarksMap);
   var mbData          = getMbCounts_();
-  var strideoneStats  = getStrideOneStats_(ss);
-
-  var strideoneData = {
-    ok: true, id: 'strideone', name: 'StrideOne', entities: [], docs: [],
-    entityColumns: [], entityTypeOptions: [], nameHeader: null,
-    entityHeader: null, metaFields: [], extraMetaFields: [],
-    pendingHeader: null, eligibilityHeader: null, qualifiedHeader: null,
-    creditLimitHeader: null, _buyerPlaceholder: true,
-    phase0: strideoneStats.phase0,
-    phase0Buyers: strideoneStats.phase0Buyers
-  };
 
   cacheSet_(cache, 'tab_billmart',   billmartData);
   cacheSet_(cache, 'tab_capitalxb',  capitalxbData);

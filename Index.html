@@ -1182,7 +1182,7 @@
       <!-- All sellers detailed table -->
       <div class="card" id="ovSellersCard">
         <div class="card-h">
-          <h3>All sellers.<span class="sub">The complete document register.</span></h3>
+          <h3><span id="ovSellersTitle">All sellers.</span><span class="sub">The complete document register.</span></h3>
         </div>
         <div class="toolbar">
           <div class="search">
@@ -1270,7 +1270,7 @@
       <div id="dvRemark"></div>
       <div class="det-sections">
         <div class="di-card">
-          <div class="di-card-h">Seller Information</div>
+          <div class="di-card-h" id="dvInfoHead">Seller Information</div>
           <div class="di-grid" id="dvInfo"></div>
         </div>
         <div class="dd-card" id="dvDocs"></div>
@@ -1319,6 +1319,8 @@ function initials(name){
 }
 function pct(n){ return (Math.round(n*10)/10) + '%'; }
 function normKey(s){ return String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]+/g,''); }
+/* Entity noun for the active tab — StrideOne tracks buyers, the others sellers. */
+function entNoun(cap){ var n = (ND && ND.id === 'strideone') ? 'buyer' : 'seller'; return cap ? n.charAt(0).toUpperCase()+n.slice(1) : n; }
 
 /* ── Follow-up remark helpers (data from the Plastic-Remarks tab) ─────── */
 var REMARK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
@@ -1590,8 +1592,9 @@ function renderHero(){
   var st = computeStats(ND.entities);
   var th = themeFor(activeNbfcId);
   var isBuyer = (ND.id === 'strideone');
+  var p0 = (ND.phase0 != null) ? ND.phase0 : 0;
   var subLine = isBuyer
-    ? 'Buyer tracking · real-time integration pending'
+    ? st.total + ' buyer' + (st.total===1?'':'s') + ' tracked in ' + esc(ND.name) + (p0 ? ' · ' + p0 + ' P-0 priority' : '')
     : st.total + ' seller' + (st.total===1?'':'s') + ' submitting documents to ' + esc(ND.name);
   $('nbfcHero').innerHTML =
     '<div class="nh-info">' +
@@ -1605,7 +1608,6 @@ function renderHero(){
 
 function renderKpis(){
   var st          = computeStats(ND.entities);
-  var mbC         = (DATA && DATA.mbCounts) ? DATA.mbCounts : { sellers: 0, buyers: 0 };
   var isStrideOne = (ND.id === 'strideone');
 
   var cards;
@@ -1615,7 +1617,7 @@ function renderKpis(){
   if (isStrideOne) {
     // StrideOne: 7 cards — Total Buyers · Phase 0 (P-0) · Eligible · Qualified · Credit Limit · Completed · Pending
     cards = [
-      { kind:'buyers',      tone:'buyers',      icon:ICON.buyers, num:mbC.buyers,     label:'Total Buyers',  sub:'Open Marketplace · Completed' },
+      { kind:'buyers',      tone:'buyers',      icon:ICON.buyers, num:st.total,       label:'Total Buyers',  sub:'Buyers tracked in StrideOne' },
       { kind:'phase0',      tone:'phase0',      icon:ICON.seed,   num:stridePhase0,   label:'Phase 0',       sub:'P-0 priority buyers' },
       { kind:'eligible',    tone:'eligible',    icon:ICON.shield, num:st.eligible,    label:'First Check',   sub:'Pre-screening passed' },
       { kind:'qualified',   tone:'qualified',   icon:ICON.award,  num:st.qualified,   label:'Logged In',     sub:'Buyers logged in' },
@@ -1645,7 +1647,7 @@ function renderKpis(){
   }).join('');
 
   if (isStrideOne) {
-    animCount($('kpi-buyers'), mbC.buyers);
+    animCount($('kpi-buyers'), st.total);
   }
   animCount($('kpi-phase0'),      stridePhase0);
   animCount($('kpi-eligible'),    st.eligible);
@@ -1664,8 +1666,12 @@ function renderOverview(){
   $('attnList').innerHTML = buildAttnCards(entities, docs);
   var withPending = entities.filter(function(e){ return e.pending > 0; }).length;
   $('attnHint').textContent = withPending
-    ? (withPending + (withPending === 1 ? ' seller needs' : ' sellers need') + ' follow-up.')
+    ? (withPending + ' ' + entNoun() + (withPending === 1 ? ' needs' : 's need') + ' follow-up.')
     : 'Every document is in.';
+
+  /* Section heading noun (All sellers / All buyers) */
+  var ovTitle = $('ovSellersTitle');
+  if (ovTitle) ovTitle.textContent = 'All ' + entNoun() + 's.';
 
   renderOvTable();
 }
@@ -1766,7 +1772,7 @@ function renderOvTable(){
   var anyRemark = entities.some(hasRemark);   // only add ETA/Remarks cols when present
 
   /* Header row */
-  $('ovSellersHead').innerHTML = '<tr><th>#</th><th>Seller</th>' +
+  $('ovSellersHead').innerHTML = '<tr><th>#</th><th>' + entNoun(true) + '</th>' +
     (hasGst ? '<th>GST</th>' : '') +
     (rh ? '<th>Region</th>' : '') +
     '<th>Entity Type</th>' +
@@ -1830,11 +1836,11 @@ function renderOvTable(){
           '<td class="remark-cell">' + (e.remarks ? '<div class="rc-txt" title="' + esc(e.remarks) + '">' + esc(e.remarks) + '</div>' : '<span style="color:var(--ink-3)">—</span>') + '</td>'
         : '') +
     '</tr>';
-  }).join('') : '<tr><td colspan="' + colCount + '" class="empty-cell">No sellers match.</td></tr>';
+  }).join('') : '<tr><td colspan="' + colCount + '" class="empty-cell">No ' + entNoun() + 's match.</td></tr>';
 
   var sc = $('ovSellersCount');
   if (sc) sc.textContent = rows.length === entities.length
-    ? rows.length + ' seller' + (rows.length === 1 ? '' : 's')
+    ? rows.length + ' ' + entNoun() + (rows.length === 1 ? '' : 's')
     : rows.length + ' of ' + entities.length;
 }
 
@@ -1849,7 +1855,7 @@ function statusChip(e){
 
 function renderMatrix(){
   var rows = ND.entities || [], docsArr = ND.docs || [];
-  var head = '<thead><tr><th>Seller</th>' + docsArr.map(function(d){
+  var head = '<thead><tr><th>' + entNoun(true) + '</th>' + docsArr.map(function(d){
     return '<th title="' + esc(d.key) + '">' + esc(docShort(d.key)) + '</th>';
   }).join('') + '</tr></thead>';
 
@@ -1867,7 +1873,7 @@ function renderMatrix(){
   }).join('') + '</tbody>';
 
   $('matrixTable').innerHTML = rows.length ? head + body
-    : head + '<tbody><tr><td colspan="' + (docsArr.length+1) + '" class="empty-cell">No sellers in this tab yet.</td></tr></tbody>';
+    : head + '<tbody><tr><td colspan="' + (docsArr.length+1) + '" class="empty-cell">No ' + entNoun() + 's in this tab yet.</td></tr></tbody>';
 }
 
 /* ═══════════════════════════ KPI drill-down ════════════════════════════ */
@@ -1889,47 +1895,29 @@ function openKpi(kind){
     return;
   }
 
-  // Total Buyers comes from the marketplace sheet — individual records not yet loaded here.
-  if (kind === 'buyers'){
-    var mbC = (DATA && DATA.mbCounts) ? DATA.mbCounts : { buyers: 0 };
-    $('kpiDrTitle').textContent = 'Total Buyers';
-    $('kpiDrSub').textContent   = mbC.buyers + ' buyer' + (mbC.buyers===1?'':'s') + ' · Open Marketplace';
-    _kscOpen = null;
-    $('kpiDrBody').innerHTML =
-      '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 24px;text-align:center;min-height:260px">' +
-        '<div style="width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;background:var(--fill);color:var(--ink-2)">' +
-          ICON.buyers +
-        '</div>' +
-        '<div style="font-size:15px;font-weight:700;color:var(--ink);letter-spacing:-.02em;margin-bottom:8px">' + mbC.buyers + ' buyers tracked</div>' +
-        '<div style="font-size:13px;color:var(--ink-3);max-width:360px;line-height:1.6">Buyer detail cards will be available once the StrideOne integration with the buyer tracking sheet is active.</div>' +
-      '</div>';
-    $('kpiDrBody').scrollTop = 0;
-    $('scrim').classList.add('on');
-    $('kpiDrawer').classList.add('on');
-    $('kpiDrawer').setAttribute('aria-hidden','false');
-    document.body.style.overflow = 'hidden';
-    return;
-  }
-
   var list = filterByKind(kind);
   var n = list.length, s = n === 1 ? '' : 's';
+  var noun  = (ND.id === 'strideone') ? 'buyer' : 'seller';
+  var nounC = noun.charAt(0).toUpperCase() + noun.slice(1);
   var titles = {
-    total:       'All Sellers',
-    phase0:      'Total Sellers',
+    buyers:      'All ' + nounC + 's',
+    total:       'All ' + nounC + 's',
+    phase0:      'Total ' + nounC + 's',
     pending:     'Pending Documents',
     completed:   'Completed',
     eligible:    'First Check / Pre-Screening',
-    qualified:   'Logged In Sellers',
+    qualified:   'Logged In ' + nounC + 's',
     creditlimit: 'Credit Limit Assigned'
   };
   var subs = {
-    total:       n + ' seller' + s + ' in ' + ND.name,
-    phase0:      n + ' seller' + s + ' tracked in ' + ND.name,
-    pending:     n + ' seller' + s + ' with one or more documents outstanding',
-    completed:   n + ' seller' + s + ' with every required document received',
-    eligible:    n + ' seller' + s + ' passed first check / pre-screening in ' + ND.name,
-    qualified:   n + ' seller' + s + ' logged in to ' + ND.name,
-    creditlimit: n + ' seller' + s + ' with a credit limit assigned in ' + ND.name
+    buyers:      n + ' ' + noun + s + ' tracked in ' + ND.name,
+    total:       n + ' ' + noun + s + ' in ' + ND.name,
+    phase0:      n + ' ' + noun + s + ' tracked in ' + ND.name,
+    pending:     n + ' ' + noun + s + ' with one or more documents outstanding',
+    completed:   n + ' ' + noun + s + ' with every required document received',
+    eligible:    n + ' ' + noun + s + ' passed first check / pre-screening in ' + ND.name,
+    qualified:   n + ' ' + noun + s + ' logged in to ' + ND.name,
+    creditlimit: n + ' ' + noun + s + ' with a credit limit assigned in ' + ND.name
   };
   openKpiDrawer(titles[kind] || kind, subs[kind] || '', list, kind);
 }
@@ -2006,13 +1994,13 @@ function buildP0BuyerList(buyers){
 
 function buildKpiTable(list, kind){
   if (!list || !list.length){
-    return '<div class="kpi-empty"><h4>No sellers in this group</h4>' +
-      '<p>No sellers currently match this criteria.</p></div>';
+    return '<div class="kpi-empty"><h4>No ' + entNoun() + 's in this group</h4>' +
+      '<p>No ' + entNoun() + 's currently match this criteria.</p></div>';
   }
   var hasGst = !!fieldByType.gst;
   var rh = regionHeader();
   var anyRemark = list.some(hasRemark);   // add ETA/Remarks cols only when present
-  var head = '<tr><th>#</th><th>Seller</th>' +
+  var head = '<tr><th>#</th><th>' + entNoun(true) + '</th>' +
     (hasGst ? '<th>GST</th>' : '') +
     (rh ? '<th>Region</th>' : '') +
     '<th>Entity Type</th><th>Received</th><th>Pending</th><th>Completion</th><th>Status</th>' +
@@ -2163,7 +2151,8 @@ function openDetail(row){
 
   /* ── Header ── */
   $('dvName').textContent = nm;
-  $('dvNbfc').innerHTML = '<i></i>Seller Profile · ' + esc(ND.name);
+  $('dvNbfc').innerHTML = '<i></i>' + entNoun(true) + ' Profile · ' + esc(ND.name);
+  if ($('dvInfoHead')) $('dvInfoHead').textContent = entNoun(true) + ' Information';
   $('dvChips').innerHTML =
     (entVal ? '<span class="mpill"><span class="mk">Entity</span><span class="mv">' + esc(entVal) + '</span></span>' : '') +
     ' ' + statusChip(e);
