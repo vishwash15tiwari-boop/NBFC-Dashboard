@@ -1953,9 +1953,9 @@ function openKpi(kind){
     creditlimit: 'Credit Limit Assigned'
   };
   var subs = {
-    buyers:      n + ' ' + noun + s + ' tracked in ' + ND.name,
+    buyers:      '',
     total:       n + ' ' + noun + s + ' in ' + ND.name,
-    phase0:      n + ' ' + noun + s + ' tracked in ' + ND.name,
+    phase0:      '',
     pending:     n + ' ' + noun + s + ' with one or more documents outstanding',
     completed:   n + ' ' + noun + s + ' with every required document received',
     eligible:    n + ' ' + noun + s + ' passed first check / pre-screening in ' + ND.name,
@@ -1970,6 +1970,7 @@ var _kpiList = [], _kpiKind = '';
 function openKpiDrawer(title, sub, list, kind){
   $('kpiDrTitle').textContent = title;
   $('kpiDrSub').textContent = sub;
+  $('kpiDrSub').style.display = sub ? '' : 'none';
 
   _kscOpen = null;
   _kpiList = list || [];
