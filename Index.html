@@ -59,20 +59,24 @@
     /* Typography — Poppins is the brand face; geometric, wide, tall x-height */
     --font:'Poppins','Helvetica Neue',Arial,sans-serif;
     --font-mono:ui-monospace,'SF Mono',Menlo,'Roboto Mono',monospace;
-    /* Surfaces — cool neutrals carrying a slight blue bias */
-    --surface:#F3F6FB;
+    /* Surfaces — warm paper. Structure comes from hairlines, not elevation,
+       so the page reads quiet and print-like rather than layered in glass. */
+    --surface:#FAFAF7;
     --card:#FFFFFF;
-    --ink:#0B1220;
-    --ink-2:#4C586B;
-    --ink-3:#68748A;
-    --line:rgba(11,18,32,.09);
-    --line-2:rgba(11,18,32,.05);
-    --fill:rgba(11,18,32,.055);
-    --fill-2:rgba(11,18,32,.105);
-    /* Elevation — tight, cool-cast, never muddy */
-    --shadow-sm:0 1px 2px rgba(11,18,32,.05),0 2px 6px rgba(11,18,32,.05);
-    --shadow-md:0 4px 10px rgba(11,18,32,.06),0 12px 28px rgba(11,18,32,.09);
-    --shadow-lg:0 14px 32px rgba(11,18,32,.13),0 36px 74px rgba(11,18,32,.17);
+    --ink:#14150F;
+    --ink-2:#55574B;
+    --ink-3:#6F7165;
+    --line:rgba(20,21,15,.14);
+    --line-2:rgba(20,21,15,.07);
+    --fill:rgba(20,21,15,.045);
+    --fill-2:rgba(20,21,15,.09);
+    --track:#EEEDE4;              /* bar tracks — warm beige */
+    --bar:#141510;                /* bar fill — near-black, monochrome by default */
+    /* Elevation — reserved for overlays. Flat values stay list-safe (never
+       `none`, which would invalidate any `0 0 0 1px …, var(--shadow-sm)`). */
+    --shadow-sm:0 0 0 0 rgba(0,0,0,0);
+    --shadow-md:0 1px 2px rgba(20,21,15,.05);
+    --shadow-lg:0 16px 40px rgba(20,21,15,.16),0 40px 80px rgba(20,21,15,.12);
     /* Geometry — one radius scale, used everywhere */
     --r-xs:8px; --r-sm:10px; --r-md:14px; --r-lg:18px; --r-xl:24px;
     --radius:var(--r-md);
@@ -86,16 +90,18 @@
   /* ── Dark mode tokens ───────────────────────────────────────────────── */
   @media (prefers-color-scheme:dark){
     :root{
-      --surface:#070A12;
-      --card:#121826;
-      --ink:#EDF1F8;
-      --ink-2:#9EAABC;
-      --ink-3:#7D8AA0;
-      --line:rgba(255,255,255,.11);
-      --line-2:rgba(255,255,255,.055);
-      --fill:rgba(255,255,255,.07);
-      --fill-2:rgba(255,255,255,.13);
-      --gray-dot:#3C475A;
+      --surface:#0F0F0D;
+      --card:#1A1A16;
+      --ink:#F2F1EA;
+      --ink-2:#A9AA9C;
+      --ink-3:#8B8C7F;
+      --line:rgba(255,255,255,.14);
+      --line-2:rgba(255,255,255,.07);
+      --fill:rgba(255,255,255,.06);
+      --fill-2:rgba(255,255,255,.12);
+      --track:#2B2B25;
+      --bar:#EDECE3;
+      --gray-dot:#4A4B42;
       --rk-green:#1DC797;
       --rk-green-ink:#2BE0AB;
       --rk-green-tint:rgba(29,199,151,.16);
@@ -111,16 +117,18 @@
     }
   }
   :root[data-theme="dark"]{
-    --surface:#070A12;
-    --card:#121826;
-    --ink:#EDF1F8;
-    --ink-2:#9EAABC;
-    --ink-3:#7D8AA0;
-    --line:rgba(255,255,255,.11);
-    --line-2:rgba(255,255,255,.055);
-    --fill:rgba(255,255,255,.07);
-    --fill-2:rgba(255,255,255,.13);
-    --gray-dot:#3C475A;
+    --surface:#0F0F0D;
+    --card:#1A1A16;
+    --ink:#F2F1EA;
+    --ink-2:#A9AA9C;
+    --ink-3:#8B8C7F;
+    --line:rgba(255,255,255,.14);
+    --line-2:rgba(255,255,255,.07);
+    --fill:rgba(255,255,255,.06);
+    --fill-2:rgba(255,255,255,.12);
+    --track:#2B2B25;
+    --bar:#EDECE3;
+    --gray-dot:#4A4B42;
     --rk-green:#1DC797;
     --rk-green-ink:#2BE0AB;
     --rk-green-tint:rgba(29,199,151,.16);
@@ -135,16 +143,18 @@
     --shadow-lg:0 18px 44px rgba(0,0,0,.62),0 44px 92px rgba(0,0,0,.72);
   }
   :root[data-theme="light"]{
-    --surface:#F3F6FB;
+    --surface:#FAFAF7;
     --card:#FFFFFF;
-    --ink:#0B1220;
-    --ink-2:#4C586B;
-    --ink-3:#68748A;
-    --line:rgba(11,18,32,.09);
-    --line-2:rgba(11,18,32,.05);
-    --fill:rgba(11,18,32,.055);
-    --fill-2:rgba(11,18,32,.105);
-    --gray-dot:#B6BFCD;
+    --ink:#14150F;
+    --ink-2:#55574B;
+    --ink-3:#6F7165;
+    --line:rgba(20,21,15,.14);
+    --line-2:rgba(20,21,15,.07);
+    --fill:rgba(20,21,15,.045);
+    --fill-2:rgba(20,21,15,.09);
+    --track:#EEEDE4;
+    --bar:#141510;
+    --gray-dot:#C2C1B6;
     --rk-green:#1DC797;
     --rk-green-ink:#037552;
     --rk-green-tint:rgba(29,199,151,.14);
@@ -154,9 +164,9 @@
     --remark-ink:#3355B8;
     --remark-tint:rgba(86,125,232,.09);
     --remark-bd:rgba(86,125,232,.26);
-    --shadow-sm:0 1px 2px rgba(11,18,32,.05),0 2px 6px rgba(11,18,32,.05);
-    --shadow-md:0 4px 10px rgba(11,18,32,.06),0 12px 28px rgba(11,18,32,.09);
-    --shadow-lg:0 14px 32px rgba(11,18,32,.13),0 36px 74px rgba(11,18,32,.17);
+    --shadow-sm:0 0 0 0 rgba(0,0,0,0);
+    --shadow-md:0 1px 2px rgba(20,21,15,.05);
+    --shadow-lg:0 16px 40px rgba(20,21,15,.16),0 40px 80px rgba(20,21,15,.12);
   }
 
   /* ── Reset ─────────────────────────────────────────────────────────── */
@@ -165,11 +175,7 @@
   body{
     font-family:var(--font);color:var(--ink);
     height:100dvh;display:flex;flex-direction:column;overflow:hidden;
-    background:
-      radial-gradient(1200px 540px at 50% -12%,#FFFFFF,rgba(255,255,255,0) 72%),
-      linear-gradient(180deg,#F8FAFE 0%,var(--surface) 380px),
-      var(--surface);
-    background-attachment:fixed;background-repeat:no-repeat;
+    background:var(--surface);
     /* Poppins sets optically larger and wider than Inter — 14px body with
        neutral tracking keeps the geometric forms open and legible. */
     font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;
@@ -192,17 +198,14 @@
   /* ── Topbar — frosted glass toolbar ─────────────────────────────────── */
   .topbar{
     position:sticky;top:0;z-index:40;display:flex;align-items:center;
-    height:58px;padding:0 22px;gap:0;
-    background:rgba(252,252,254,.88);
-    backdrop-filter:blur(40px) saturate(240%);
-    -webkit-backdrop-filter:blur(40px) saturate(240%);
-    border-bottom:1px solid rgba(0,0,0,.055);
-    box-shadow:0 1px 0 rgba(255,255,255,.6),0 1px 8px rgba(0,0,0,.04);
+    height:56px;padding:0 22px;gap:0;
+    background:var(--card);
+    border-bottom:1px solid var(--line);
   }
   .topbar-brand{display:flex;align-items:center;gap:10px;padding-right:16px;flex:none}
-  .brand-logo{height:30px;width:auto;display:block;flex:none;background:#fff;border-radius:8px;padding:5px 10px;box-sizing:content-box;box-shadow:0 1px 2px rgba(0,0,0,.08)}
-  .brand-rule{width:1px;height:22px;background:var(--line);flex:none;margin:0 2px}
-  .brand-sub{font-size:13px;color:#111;font-weight:800;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+  .brand-logo{height:28px;width:auto;display:block;flex:none;background:#fff;border-radius:6px;padding:4px 8px;box-sizing:content-box}
+  .brand-rule{width:1px;height:20px;background:var(--line);flex:none;margin:0 2px}
+  .brand-sub{font-size:12px;color:var(--ink);font-weight:600;letter-spacing:.13em;text-transform:uppercase;white-space:nowrap}
   .topbar-spacer{flex:1;min-width:8px}
   .topbar-div{width:1px;height:16px;background:var(--line);flex:none;margin:0 10px}
   /* sync label yields space before anything else so the toolbar never overflows */
@@ -278,13 +281,18 @@
   .view.on{display:block;animation:fadeUp .4s var(--ease-out) both}
 
   /* ── Cards — borderless, floating ───────────────────────────────────── */
+  /* Flat, outlined, anchored by a 2px accent edge along the top. Cards do not
+     lift on hover — nothing here is draggable, so the affordance would lie. */
   .card{
-    background:var(--card);border:none;
-    border-radius:var(--radius);
-    box-shadow:0 0 0 1px var(--line),var(--shadow-sm);
-    transition:box-shadow .25s var(--ease),transform .25s var(--ease);
+    position:relative;background:var(--card);
+    border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:none;overflow:hidden;
   }
-  .card:hover{box-shadow:0 0 0 1px var(--line),var(--shadow-md)}
+  .card::before{
+    content:'';position:absolute;left:-1px;right:-1px;top:-1px;height:2px;
+    background:var(--nc);
+  }
+  .card.card-plain::before{display:none}
   .card-h{
     display:flex;align-items:baseline;justify-content:space-between;gap:6px 14px;
     padding:14px 18px 0;flex-wrap:wrap;
@@ -298,58 +306,39 @@
   /* ── NBFC hero band — identity strip ────────────────────────────────── */
   .nbfc-hero{
     display:flex;align-items:center;justify-content:space-between;gap:20px;
-    background:linear-gradient(160deg,#141E33 0%,#0A1120 48%,#04070F 100%);
-    border-radius:var(--r-lg);padding:15px 26px;position:relative;overflow:hidden;
-    box-shadow:0 2px 10px rgba(4,7,15,.20),0 16px 44px rgba(4,7,15,.26),inset 0 1px 0 rgba(255,255,255,.08);
-    color:#fff;
-  }
-  .nbfc-hero::before{
-    content:'';position:absolute;inset:0;pointer-events:none;
-    background:
-      radial-gradient(820px 420px at 2% -26%,rgba(var(--nc-rgb),.26),transparent 60%),
-      radial-gradient(620px 340px at 100% 128%,rgba(var(--nc-rgb),.15),transparent 58%);
-  }
-  .nbfc-hero::after{
-    content:'';position:absolute;inset:0;pointer-events:none;
-    background:radial-gradient(130% 150% at 100% 0%,rgba(255,255,255,.06),transparent 46%);
+    background:transparent;border-bottom:1px solid var(--line);
+    border-radius:0;padding:2px 2px 14px;position:relative;
+    box-shadow:none;color:var(--ink);
   }
   .nh-info{position:relative;min-width:0}
   .nh-eyebrow{
     display:flex;align-items:center;gap:8px;
-    font-size:11px;font-weight:600;color:rgba(255,255,255,.62);
-    letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;
+    font-size:10.5px;font-weight:600;color:var(--ink-3);
+    letter-spacing:.13em;text-transform:uppercase;margin-bottom:7px;
   }
-  .nh-eyebrow i{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none;background:var(--nc-ring);box-shadow:0 0 14px rgba(var(--nc-rgb),.85),0 0 6px rgba(var(--nc-rgb),.6)}
-  .nh-name{font-size:25px;font-weight:700;letter-spacing:-.018em;line-height:1;font-variant-numeric:tabular-nums}
-  .nh-sub{font-size:12px;color:rgba(255,255,255,.52);margin-top:5px;letter-spacing:0}
+  .nh-eyebrow i{width:7px;height:7px;border-radius:50%;display:inline-block;flex:none;background:var(--nc)}
+  .nh-name{font-size:24px;font-weight:600;letter-spacing:-.015em;line-height:1.1;color:var(--ink)}
+  .nh-sub{font-size:12px;color:var(--ink-3);margin-top:5px;letter-spacing:0}
 
   /* ── KPI hero cards — clickable ─────────────────────────────────────── */
   .kpis{display:flex;flex-wrap:nowrap;gap:10px;margin-top:10px;overflow-x:auto}
   .kpis.kpis-6{flex-wrap:nowrap}
+  /* Label first, then the figure, then a quiet explanatory line — the reading
+     order a scanner actually wants. Outlined and flat; no icon, no lift. */
   .kpi{
     text-align:left;background:var(--card);border-radius:var(--radius);
-    box-shadow:0 0 0 1px var(--line),var(--shadow-sm);
-    padding:15px 16px 14px;display:flex;flex-direction:column;
+    border:1px solid var(--line);box-shadow:none;
+    padding:17px 18px 15px;display:flex;flex-direction:column;
     cursor:pointer;position:relative;overflow:hidden;
-    flex:1 1 0;min-width:110px;
-    transition:transform .22s var(--ease),box-shadow .28s var(--ease);
+    flex:1 1 0;min-width:150px;
+    transition:border-color .18s var(--ease),background .18s var(--ease);
     animation:fadeUp .5s var(--ease-out) both;
   }
-  /* Horizontal top accent bar — always subtly visible, full on hover */
-  .kpi::before{
-    content:'';position:absolute;left:0;right:0;top:0;height:2.5px;
-    background:var(--kpi-accent,var(--fill-2));
-    opacity:.32;transition:opacity .28s var(--ease);
-  }
-  .kpi:hover{transform:translateY(-3px)}
-  .kpi:hover::before{opacity:1}
-  .kpi:active{transform:translateY(-1px)}
-  /* Tone-specific glow on hover — count(neutral) · pipeline(brand) · status */
-  .kpi-total:hover,.kpi-buyers:hover,.kpi-phase0:hover{box-shadow:0 0 0 .5px var(--line),var(--shadow-md)}
-  .kpi-eligible:hover,.kpi-qualified:hover,.kpi-creditlimit:hover{box-shadow:0 0 0 .5px rgba(var(--nc-rgb),.22),var(--shadow-md),0 8px 32px rgba(var(--nc-rgb),.14)}
-  .kpi-pending:hover{box-shadow:0 0 0 .5px rgba(var(--warn-rgb),.22),var(--shadow-md),0 8px 32px rgba(var(--warn-rgb),.12)}
-  .kpi-completed:hover{box-shadow:0 0 0 .5px rgba(var(--ok-rgb),.22),var(--shadow-md),0 8px 32px rgba(var(--ok-rgb),.12)}
-  .kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+  .kpi:hover{border-color:rgba(var(--nc-rgb),.55);background:var(--card)}
+  .kpi:active{background:var(--fill)}
+  /* the icon/chevron row is decoration this layout doesn't need */
+  .kpi-top{display:none}
+  .kpi-toprow{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
   .kpi-ico{
     width:34px;height:34px;border-radius:10px;
     display:flex;align-items:center;justify-content:center;flex:none;
@@ -360,27 +349,29 @@
   .kpi-chev{color:var(--ink-3);opacity:.55;transition:transform .2s var(--ease),opacity .2s;flex:none}
   .kpi-chev svg{width:16px;height:16px}
   .kpi:hover .kpi-chev{opacity:1;transform:translateX(3px)}
-  .kpi-num{font-size:31px;font-weight:700;letter-spacing:-.025em;line-height:1;font-variant-numeric:tabular-nums;color:var(--ink)}
-  .kpi-label{font-size:11.5px;font-weight:700;margin-top:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
-  .kpi-sub{font-size:11.5px;color:var(--ink-3);margin-top:4px;letter-spacing:0;line-height:1.35}
+  .kpi-label{
+    order:1;font-size:10.5px;font-weight:600;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--ink-3);line-height:1.3;
+  }
+  .kpi-num{
+    order:2;font-size:34px;font-weight:600;letter-spacing:-.02em;line-height:1.05;
+    margin-top:10px;font-variant-numeric:tabular-nums;color:var(--ink);
+  }
+  .kpi-sub{
+    order:3;font-size:11.5px;color:var(--ink-3);margin-top:9px;
+    letter-spacing:0;line-height:1.35;
+  }
+  /* non-breaking space keeps the arrow glued to the last word so it can never
+     wrap onto a line of its own */
+  .kpi-sub::after{content:'\00a0\2192';opacity:.7}
   /* ── KPI tone system — one coherent palette ──────────────────────────
      Count (total/buyers) = authoritative neutral · Financing pipeline
      (eligible/qualified/credit) = brand accent · Status (completed=green,
      pending=amber). Numbers stay ink except where colour carries meaning. */
-  /* count tier — neutral, brand-tinted accent bar */
-  .kpi-total,.kpi-buyers,.kpi-phase0{--kpi-accent:var(--nc)}
-  .kpi-total .kpi-ico,.kpi-buyers .kpi-ico,.kpi-phase0 .kpi-ico{background:var(--fill);color:var(--ink-2)}
-  /* pipeline tier — brand accent */
-  .kpi-eligible,.kpi-qualified,.kpi-creditlimit{--kpi-accent:var(--nc)}
-  .kpi-eligible .kpi-ico,.kpi-qualified .kpi-ico,.kpi-creditlimit .kpi-ico{background:rgba(var(--nc-rgb),.11);color:var(--nc)}
-  /* status tier — pending (amber) */
-  .kpi-pending{--kpi-accent:var(--amber)}
-  .kpi-pending .kpi-ico{background:var(--amber-tint);color:var(--amber-ink)}
-  .kpi-pending .kpi-num{color:var(--amber-ink)}
-  /* status tier — completed (green) */
-  .kpi-completed{--kpi-accent:var(--rk-green)}
-  .kpi-completed .kpi-ico{background:var(--rk-green-tint);color:var(--rk-green-ink)}
+  /* Counts and pipeline figures stay ink — they are quantities, not verdicts.
+     Only the two figures that describe a STATE carry colour. */
   .kpi-completed .kpi-num{color:var(--rk-green-ink)}
+  .kpi-pending   .kpi-num{color:var(--amber-ink)}
 
   /* ── Secondary view switcher ────────────────────────────────────────── */
   .subnav{display:inline-flex;background:var(--fill);border-radius:11px;padding:3px;gap:2px;margin:10px 0 2px}
@@ -393,7 +384,7 @@
   .subnav button:hover{color:var(--ink)}
   .subnav button.on{
     color:var(--ink);font-weight:600;background:var(--card);
-    box-shadow:0 0 0 .5px rgba(0,0,0,.04),0 1px 1px rgba(0,0,0,.06),0 2px 6px rgba(0,0,0,.08);
+    box-shadow:0 0 0 1px var(--line);
   }
   .subnav button.on svg{opacity:1;color:var(--nc)}
 
@@ -413,9 +404,11 @@
   .docbar:hover{background:var(--fill)}
   .docbar .name{font-size:12px;font-weight:500;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
   .docbar.has-pen .name{color:var(--ink);font-weight:600}
-  .strack{height:6px;border-radius:3px;overflow:hidden;display:flex;background:var(--fill)}
-  .strack .s-rec{background:var(--rk-green);height:100%;border-radius:3px 0 0 3px;min-width:0;transition:flex .6s var(--ease-out)}
-  .strack .s-pen{background:var(--amber);opacity:.9;height:100%;min-width:0;transition:flex .6s var(--ease-out) .05s}
+  /* Bars are monochrome — quantity is the message, and the numeric label plus
+     the coloured status text beside it already carry the state. */
+  .strack{height:9px;border-radius:2px;overflow:hidden;display:flex;background:var(--track)}
+  .strack .s-rec{background:var(--bar);height:100%;min-width:0;transition:flex .6s var(--ease-out)}
+  .strack .s-pen{background:var(--gray-dot);height:100%;min-width:0;transition:flex .6s var(--ease-out) .05s}
   .dstat{font-size:11px;font-weight:600;text-align:right;white-space:nowrap;line-height:1.3;font-variant-numeric:tabular-nums}
   .dstat.pen{color:var(--amber-ink)}
   .dstat.ok{color:var(--rk-green-ink)}
@@ -426,9 +419,10 @@
   /* ── Attention cards ────────────────────────────────────────────────── */
   .attn{
     padding:10px 14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;
-    max-height:172px;overflow-y:auto;
-    -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 22px),transparent);
-    mask-image:linear-gradient(to bottom,#000 calc(100% - 22px),transparent);
+    /* sized to whole rows — a window that cuts a card in half reads as broken */
+    max-height:340px;overflow-y:auto;overscroll-behavior:contain;
+    -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 26px),transparent);
+    mask-image:linear-gradient(to bottom,#000 calc(100% - 26px),transparent);
   }
   .attn-card{
     background:var(--surface);border:none;border-radius:16px;
@@ -438,10 +432,10 @@
     box-shadow:0 0 0 1px var(--line-2);
   }
   .attn-card:hover{
-    background:rgba(var(--nc-rgb),.06);
-    transform:translateY(-2px);box-shadow:var(--shadow-md),0 0 0 .5px rgba(var(--nc-rgb),.16);
+    background:var(--card);
+    box-shadow:0 0 0 1px rgba(var(--nc-rgb),.45);
   }
-  .attn-card:active{transform:translateY(0)}
+  .attn-card:active{background:var(--fill)}
   .attn-head{display:flex;align-items:center;gap:10px}
   .avatar{
     width:34px;height:34px;border-radius:50%;
@@ -458,8 +452,8 @@
     background:var(--amber-tint);color:var(--amber-ink);
     animation:pendPulse 2.6s ease-in-out infinite;
   }
-  .attn-prog{height:3px;background:var(--fill);border-radius:2px;overflow:hidden;margin-top:12px}
-  .attn-prog-fill{height:100%;background:var(--rk-green);border-radius:2px;transition:width .5s var(--ease-out)}
+  .attn-prog{height:4px;background:var(--track);border-radius:2px;overflow:hidden;margin-top:12px}
+  .attn-prog-fill{height:100%;background:var(--bar);border-radius:2px;transition:width .5s var(--ease-out)}
   .attn-checklist{margin-top:10px;display:flex;flex-direction:column;gap:4px}
   .attn-check-item{
     display:flex;align-items:flex-start;gap:6px;
@@ -496,13 +490,13 @@
   button.facet-chip:hover{background:var(--fill)}
   .facet-chip .fc-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .facet-chip::after{
-    content:'';position:absolute;left:2px;right:2px;bottom:9px;height:4px;
-    border-radius:2px;background:var(--fill);
+    content:'';position:absolute;left:2px;right:2px;bottom:9px;height:5px;
+    border-radius:2px;background:var(--track);
   }
   .facet-chip b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
   .facet-bar{
-    position:absolute;left:2px;bottom:9px;z-index:1;height:4px;
-    border-radius:2px;background:var(--nc);transition:width .5s var(--ease-out);
+    position:absolute;left:2px;bottom:9px;z-index:1;height:5px;
+    border-radius:2px;background:var(--bar);transition:width .5s var(--ease-out);
   }
 
   /* ── Toolbar / filters (inside the table card) ──────────────────────── */
@@ -553,8 +547,8 @@
   }
   .tv-tag{font-size:10.5px;font-weight:600;padding:2.5px 9px;border-radius:980px;white-space:nowrap;font-variant-numeric:tabular-nums;flex-shrink:0;background:rgba(var(--nc-rgb),.12);color:var(--nc)}
   .prog-cell{display:flex;align-items:center;gap:10px;min-width:150px}
-  .prog-cell .track{flex:1;height:5px;background:var(--fill);border-radius:3px;overflow:hidden;position:relative}
-  .prog-cell .track .fill{height:100%;background:var(--rk-green);border-radius:3px;transition:width .5s var(--ease-out)}
+  .prog-cell .track{flex:1;height:7px;background:var(--track);border-radius:2px;overflow:hidden;position:relative}
+  .prog-cell .track .fill{height:100%;background:var(--bar);border-radius:2px;transition:width .5s var(--ease-out)}
   .prog-cell span{font-size:12px;font-weight:600;min-width:40px;text-align:right;color:var(--ink-2);font-variant-numeric:tabular-nums}
 
   /* ── Matrix ─────────────────────────────────────────────────────────── */
@@ -904,16 +898,11 @@
   @media (prefers-color-scheme:dark){
     ::selection{background:rgba(var(--nc-rgb),.4)}
     .brand-sub{color:#EDF1F8}
-    .topbar{background:rgba(8,8,10,.86);backdrop-filter:blur(40px) saturate(220%);-webkit-backdrop-filter:blur(40px) saturate(220%);border-bottom-color:rgba(255,255,255,.08);box-shadow:none}
+    .topbar{background:var(--card);border-bottom-color:var(--line);box-shadow:none}
     .drawer-f{background:rgba(28,28,30,.85)}
-    .subnav button.on{background:#636366;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.32)}
+    .subnav button.on{background:var(--card);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
     .subnav button.on svg{color:var(--nc-ring)}
-    .nbfc-hero{
-      background:linear-gradient(165deg,#2E2E32 0%,#18181B 48%,#050506 100%);
-      box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),inset 0 1px 0 rgba(255,255,255,.13),0 4px 20px rgba(0,0,0,.5),0 28px 70px rgba(0,0,0,.38);
-    }
-    .kpi-total .kpi-ico,.kpi-buyers .kpi-ico,.kpi-phase0 .kpi-ico{color:var(--ink)}
-    .attn-card{background:rgba(255,255,255,.05)}
+    .attn-card{background:rgba(255,255,255,.04)}
     .attn-card:hover{background:rgba(var(--nc-rgb),.16)}
     .tbl tbody tr:hover{background:rgba(var(--nc-rgb),.14)}
     .matrix tbody tr:hover th,.matrix tbody tr:hover td{background:rgba(var(--nc-rgb),.14)}
@@ -928,12 +917,7 @@
     .kpi-sumbar{background:rgba(255,255,255,.05)}
     .drive-link{background:rgba(var(--ok-rgb),.15);color:var(--rk-green-ink)}
     .drive-link:hover{background:rgba(var(--ok-rgb),.24)}
-    body{
-      background:
-        radial-gradient(1200px 580px at 50% -12%,rgba(72,74,92,.30),rgba(0,0,0,0) 72%),
-        #000;
-      background-attachment:fixed;background-repeat:no-repeat;
-    }
+    body{background:var(--surface)}
     ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border:1.5px solid transparent;background-clip:content-box}
     ::-webkit-scrollbar-thumb:hover{background-color:rgba(255,255,255,.32)}
     .search input:focus,select.flt:focus{background:#2C2C2E;box-shadow:0 0 0 3.5px rgba(var(--nc-rgb),.4)}
@@ -941,18 +925,11 @@
   :root[data-theme="dark"] ::selection{background:rgba(var(--nc-rgb),.4)}
   :root[data-theme="dark"] .brand-sub{color:#EDF1F8}
   :root[data-theme="light"] .brand-sub{color:#111}
-  :root[data-theme="dark"] .topbar{background:rgba(8,8,10,.86);backdrop-filter:blur(40px) saturate(220%);-webkit-backdrop-filter:blur(40px) saturate(220%);border-bottom-color:rgba(255,255,255,.08);box-shadow:none}
+  :root[data-theme="dark"] .topbar{background:var(--card);border-bottom-color:var(--line);box-shadow:none}
   :root[data-theme="dark"] .drawer-f{background:rgba(28,28,30,.85)}
-  :root[data-theme="dark"] .subnav button.on{background:#636366;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.32)}
+  :root[data-theme="dark"] .subnav button.on{background:var(--card);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
   :root[data-theme="dark"] .subnav button.on svg{color:var(--nc-ring)}
-  :root[data-theme="dark"] .nbfc-hero{
-    background:linear-gradient(160deg,#1B2740 0%,#111A2C 48%,#05080F 100%);
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),inset 0 1px 0 rgba(255,255,255,.13),0 4px 20px rgba(0,0,0,.5),0 28px 70px rgba(0,0,0,.38);
-  }
-  :root[data-theme="dark"] .kpi-total .kpi-ico,
-  :root[data-theme="dark"] .kpi-buyers .kpi-ico,
-  :root[data-theme="dark"] .kpi-phase0 .kpi-ico{color:var(--ink)}
-  :root[data-theme="dark"] .attn-card{background:rgba(255,255,255,.05)}
+  :root[data-theme="dark"] .attn-card{background:rgba(255,255,255,.04)}
   :root[data-theme="dark"] .attn-card:hover{background:rgba(var(--nc-rgb),.16)}
   :root[data-theme="dark"] .tbl tbody tr:hover{background:rgba(var(--nc-rgb),.14)}
   :root[data-theme="dark"] .matrix tbody tr:hover th,
@@ -967,25 +944,16 @@
   :root[data-theme="dark"] .detail-hero{background:rgba(255,255,255,.05)}
   :root[data-theme="dark"] .kpi-sumbar{background:rgba(255,255,255,.05)}
   :root[data-theme="dark"] .drive-link{background:rgba(var(--ok-rgb),.15);color:var(--rk-green-ink)}
-  :root[data-theme="dark"] body{
-    background:
-      radial-gradient(1200px 580px at 50% -12%,rgba(72,74,92,.30),rgba(0,0,0,0) 72%),
-      #000;
-    background-attachment:fixed;background-repeat:no-repeat;
-  }
+  :root[data-theme="dark"] body{background:var(--surface)}
   :root[data-theme="dark"] ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border:1.5px solid transparent;background-clip:content-box}
   :root[data-theme="dark"] .search input:focus,
   :root[data-theme="dark"] select.flt:focus{background:#2C2C2E;box-shadow:0 0 0 3.5px rgba(var(--nc-rgb),.4)}
   /* light-theme hard overrides (win over dark media query when toggled) */
   :root[data-theme="light"] ::selection{background:rgba(var(--nc-rgb),.22)}
-  :root[data-theme="light"] .topbar{background:rgba(252,252,254,.88);border-bottom-color:rgba(0,0,0,.055);box-shadow:0 1px 0 rgba(255,255,255,.6),0 1px 8px rgba(0,0,0,.04)}
-  :root[data-theme="light"] .drawer-f{background:rgba(245,245,247,.85)}
-  :root[data-theme="light"] .subnav button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 1px rgba(0,0,0,.06),0 2px 6px rgba(0,0,0,.08)}
+  :root[data-theme="light"] .topbar{background:var(--card);border-bottom-color:var(--line);box-shadow:none}
+  :root[data-theme="light"] .drawer-f{background:var(--surface)}
+  :root[data-theme="light"] .subnav button.on{background:var(--card);color:var(--ink);box-shadow:none}
   :root[data-theme="light"] .subnav button.on svg{color:var(--nc)}
-  :root[data-theme="light"] .nbfc-hero{
-    background:linear-gradient(160deg,#141E33 0%,#0A1120 48%,#04070F 100%);
-    box-shadow:0 2px 10px rgba(4,7,15,.18),0 20px 52px rgba(4,7,15,.24),inset 0 1px 0 rgba(255,255,255,.07);
-  }
   :root[data-theme="light"] .attn-card{background:var(--surface)}
   :root[data-theme="light"] .tbl tbody tr:hover{background:rgba(var(--nc-rgb),.06)}
   :root[data-theme="light"] .chip.ok{background:var(--rk-green-tint);color:var(--rk-green-ink)}
@@ -994,13 +962,7 @@
   :root[data-theme="light"] .attn-cnt{background:var(--amber-tint);color:var(--amber-ink)}
   :root[data-theme="light"] .detail-hero{background:var(--surface)}
   :root[data-theme="light"] .kpi-sumbar{background:var(--surface)}
-  :root[data-theme="light"] body{
-    background:
-      radial-gradient(1200px 540px at 50% -12%,#FFFFFF,rgba(255,255,255,0) 72%),
-      linear-gradient(180deg,#FAFBFD 0%,var(--surface) 380px),
-      var(--surface);
-    background-attachment:fixed;background-repeat:no-repeat;
-  }
+  :root[data-theme="light"] body{background:var(--surface)}
   :root[data-theme="light"] .search input:focus,
   :root[data-theme="light"] select.flt:focus{background:var(--card);box-shadow:0 0 0 3.5px rgba(var(--nc-rgb),.22)}
 
@@ -1061,8 +1023,8 @@
   .ksc-doc.recv .ksc-doc-tag{background:rgba(var(--ok-rgb),.14);color:var(--rk-green-ink)}
   .ksc-doc.na .ksc-doc-tag{background:var(--fill);color:var(--ink-3)}
   .ksc-foot{display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid var(--line-2);gap:10px}
-  .ksc-prog{height:4px;background:var(--fill);border-radius:2px;overflow:hidden;flex:1;max-width:120px}
-  .ksc-prog-fill{height:100%;background:var(--rk-green);border-radius:2px;transition:width .5s var(--ease-out)}
+  .ksc-prog{height:4px;background:var(--track);border-radius:2px;overflow:hidden;flex:1;max-width:120px}
+  .ksc-prog-fill{height:100%;background:var(--bar);border-radius:2px;transition:width .5s var(--ease-out)}
   @media(prefers-color-scheme:dark){
     .ksc-doc.na{background:rgba(255,255,255,.04)}
     .ksc-doc.recv{background:rgba(var(--ok-rgb),.10);border-color:rgba(var(--ok-rgb),.22)}
