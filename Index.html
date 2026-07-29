@@ -969,6 +969,28 @@ var fieldByType = {};       // gst / date / entity / turnover → header (active
 var nameHeader = null;      // active NBFC's business-name header
 var lastFocusRefresh = 0;
 
+/* Document columns hidden from the matrix table and detail modal (all NBFC tabs).
+   Matched case-insensitively as substrings of the column key from Google Sheets. */
+var HIDDEN_DOCS = [
+  'electricity bill',
+  'rental agreement',
+  'credit approved',
+  'aadhar (owner',
+  'aadhaar (owner',
+  'billmart qualified',
+  'owner / director / partner pan',
+  'owner / director /partner pan',
+  'owner/director/partner pan',
+  'shareholding details',
+  'shareholding detail',
+  'moa, aoa',
+  'moa,aoa'
+];
+function isHiddenDoc(key){
+  var k = (key || '').toLowerCase();
+  return HIDDEN_DOCS.some(function(h){ return k.indexOf(h) !== -1; });
+}
+
 /* Per-NBFC accent theming. Keys are backend tab ids (see Code.gs CONFIG.NBFC_TABS). */
 var NBFC_THEME = {
   billmart:  { nc:'#E85D04', rgb:'232,93,4',   ring:'#FF8C4A' },
@@ -1437,7 +1459,7 @@ function statusChip(e){
 /* ═══════════════════════════ Document matrix ═══════════════════════════ */
 
 function renderMatrix(){
-  var rows = ND.entities || [], docsArr = ND.docs || [];
+  var rows = ND.entities || [], docsArr = (ND.docs || []).filter(function(d){ return !isHiddenDoc(d.key); });
   var head = '<thead><tr><th>Seller</th>' + docsArr.map(function(d){
     return '<th title="' + esc(d.key) + '">' + esc(docShort(d.key)) + '</th>';
   }).join('') + '</tr></thead>';
@@ -1679,7 +1701,7 @@ function openDetail(row){
       .join('<span style="color:var(--line)">·</span>');
 
   var groups = {pending: [], received: [], na: []};
-  (ND.docs || []).forEach(function(d){
+  (ND.docs || []).filter(function(d){ return !isHiddenDoc(d.key); }).forEach(function(d){
     var cell = e.docs[d.key] || {status:'pending', note:''};
     groups[cell.status === 'received' ? 'received' : cell.status === 'na' ? 'na' : 'pending']
       .push({key: d.key, note: cell.note, driveUrl: cell.driveUrl || ''});
