@@ -55,6 +55,26 @@ var CONFIG = {
   PROP_BACKEND_ID: 'BACKEND_SHEET_ID'
 };
 
+/* ── Columns to hide from the document matrix and detail modal (all tabs) ──
+   Matched case-insensitively as substrings of the Google Sheet column header.
+   Each keyword is unique to the non-standard columns and absent from all
+   standard docs (GST Certificate, PAN Card, Aadhaar Card, etc.). */
+var HIDDEN_DOC_KEYS_ = [
+  'electricity',       // Electricity Bill / Rental Agreement
+  'rental agreement',  // Electricity Bill / Rental Agreement (alt)
+  'credit approv',     // Credit Approved / Credit Approval
+  'director',          // Aadhar (Owner/Director/Partner) + Owner/Director/Partner PAN
+  'billmart qualif',   // Billmart Qualified
+  'shareholding',      // Shareholding Details
+  ', coi',             // MOA, AOA , COI  (comma distinguishes it from MOA & AOA)
+  'moa, aoa',          // MOA, AOA variant
+  'moa,aoa'            // MOA,AOA no-space variant
+];
+function isHiddenDoc_(key) {
+  var k = String(key || '').toLowerCase().trim();
+  return HIDDEN_DOC_KEYS_.some(function (h) { return k.indexOf(h) !== -1; });
+}
+
 /* ─────────────────────────── Web-app entry ─────────────────────────── */
 
 function doGet() {
@@ -429,7 +449,9 @@ function getNbfcData_(ss, tabCfg, matrix, remarksMap) {
     });
 
     // Build doc list — match each column against the requirement matrix
-    var docs = layout.docIdx.map(function (idx) {
+    var docs = layout.docIdx.filter(function (idx) {
+      return !isHiddenDoc_(layout.headers[idx]);
+    }).map(function (idx) {
       var header = layout.headers[idx];
       var req = matchRequirementRow_(matrix, header);
       var requiredBy = {};
@@ -673,7 +695,9 @@ function getStrideOneData_(ss, remarksMap) {
       else                   docIdx.push(c);
     }
 
-    var docs = docIdx.map(function (idx) { return { key: headers[idx], requiredBy: {} }; });
+    var docs = docIdx.filter(function (idx) {
+      return !isHiddenDoc_(headers[idx]);
+    }).map(function (idx) { return { key: headers[idx], requiredBy: {} }; });
 
     var entities = [], phase0 = 0, phase0Buyers = [], optionValues = {}, entityOptions = {};
     for (var d = headerRowNum + 1; d < values.length; d++) {
