@@ -2368,7 +2368,16 @@ function openDetail(row){
   var m = $('detailModal');
   m.classList.add('on');
   m.setAttribute('aria-hidden', 'false');
-  m.querySelector('.modal-body').scrollTop = 0;
+  /* Force scroll region at runtime — inline styles win regardless of deployed CSS version */
+  (function(){
+    var body = m.querySelector('.modal-body');
+    var maxH = Math.max(320, window.innerHeight - 118); /* 56 scrim gap + ~62 dd-head */
+    body.style.maxHeight  = maxH + 'px';
+    body.style.overflowY  = 'auto';
+    body.style.minHeight  = '0';
+    body.style.flex       = '1 1 0';
+    body.scrollTop        = 0;
+  })();
   document.body.style.overflow = 'hidden';
 }
 
