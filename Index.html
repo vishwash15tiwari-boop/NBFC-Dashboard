@@ -1432,22 +1432,22 @@ var lastFocusRefresh = 0;
 
 /* Document columns hidden from the matrix and detail modal.
    Matched case-insensitively as substrings of the column key. */
+/* Each entry is a unique keyword/phrase that only appears in non-standard columns.
+   Standard docs (GST, PAN Card, Aadhaar Card, Cancelled Cheque, etc.) contain
+   none of these words, so the filter is safe to broaden. */
 var HIDDEN_DOCS = [
-  'electricity bill',
-  'rental agreement',
-  'credit approved',
-  'aadhar (owner',
-  'aadhaar (owner',
-  'billmart qualified',
-  'owner / director / partner pan',
-  'owner/director/partner pan',
-  'shareholding details',
-  'shareholding detail',
-  'moa, aoa',
-  'moa,aoa'
+  'electricity',          // Electricity Bill / Rental Agreement
+  'rental agreement',     // Electricity Bill / Rental Agreement (alternate)
+  'credit approv',        // Credit Approved / Credit Approval
+  'director',             // Aadhar (Owner / Director / Partner) and Owner / Director / Partner PAN
+  'billmart qualif',      // Billmart Qualified
+  'shareholding',         // Shareholding Details
+  ', coi',               // MOA, AOA , COI (comma before COI distinguishes it from MOA & AOA)
+  'moa, aoa',            // MOA, AOA — comma variant (not the standard MOA & AOA)
+  'moa,aoa'              // MOA,AOA — no-space comma variant
 ];
 function isHiddenDoc(key){
-  var k = (key || '').toLowerCase();
+  var k = (key || '').toLowerCase().trim();
   return HIDDEN_DOCS.some(function(h){ return k.indexOf(h) !== -1; });
 }
 
