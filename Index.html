@@ -1430,6 +1430,27 @@ var creditLimitHeader = null;
 var vintageHeader = null;   // active NBFC's Vintage_with_Recykal header (for eligibility)
 var lastFocusRefresh = 0;
 
+/* Document columns hidden from the matrix and detail modal.
+   Matched case-insensitively as substrings of the column key. */
+var HIDDEN_DOCS = [
+  'electricity bill',
+  'rental agreement',
+  'credit approved',
+  'aadhar (owner',
+  'aadhaar (owner',
+  'billmart qualified',
+  'owner / director / partner pan',
+  'owner/director/partner pan',
+  'shareholding details',
+  'shareholding detail',
+  'moa, aoa',
+  'moa,aoa'
+];
+function isHiddenDoc(key){
+  var k = (key || '').toLowerCase();
+  return HIDDEN_DOCS.some(function(h){ return k.indexOf(h) !== -1; });
+}
+
 /* Vintage-based eligibility thresholds (years) per financing product.
    A seller/vendor is eligible only when the Recykal×Vendor vintage ≥ threshold.
    Products not listed here fall back to the sheet's Eligibility column. */
@@ -2023,7 +2044,7 @@ function statusChip(e){
 /* ═══════════════════════════ Document matrix ═══════════════════════════ */
 
 function renderMatrix(){
-  var rows = ND.entities || [], docsArr = ND.docs || [];
+  var rows = ND.entities || [], docsArr = (ND.docs || []).filter(function(d){ return !isHiddenDoc(d.key); });
   var head = '<thead><tr><th>' + entNoun(true) + '</th>' + docsArr.map(function(d){
     return '<th title="' + esc(d.key) + '">' + esc(docShort(d.key)) + '</th>';
   }).join('') + '</tr></thead>';
@@ -2370,7 +2391,7 @@ function openDetail(row){
   $('dvInfo').innerHTML = metaCells.join('');
 
   /* ── Document status + links (flat, scannable list) ── */
-  $('dvDocs').innerHTML = (ND.docs || []).map(function(d){
+  $('dvDocs').innerHTML = (ND.docs || []).filter(function(d){ return !isHiddenDoc(d.key); }).map(function(d){
     var cell = e.docs[d.key] || {status:'pending'};
     var st = cell.status;
     var t = st === 'received' ? 'Received' : st === 'pending' ? 'Pending' : 'N/A';
