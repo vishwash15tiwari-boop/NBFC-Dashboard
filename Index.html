@@ -1697,6 +1697,8 @@ function switchNbfc(id){
 
 function setNd(){
   ND = NBFCS[activeNbfcId];
+  /* DEBUG — logs exact doc key names from the sheet so filter patterns can be verified */
+  if (ND && ND.docs) console.log('[DOC KEYS] ' + ND.id + ':', ND.docs.map(function(d){ return JSON.stringify(d.key); }).join(', '));
   fieldByType = {}; nameHeader = ND.nameHeader || null;
   eligibilityHeader = ND.eligibilityHeader || null;
   qualifiedHeader   = ND.qualifiedHeader   || null;
