@@ -745,6 +745,7 @@ function getStrideOneData_(ss, remarksMap) {
       });
 
       if (isP0) phase0Buyers.push({
+        row:      d + 1,
         name:     name,
         gst:      gstIdx     >= 0 ? String(row[gstIdx]     || '').trim() : '',
         category: catIdx     >= 0 ? String(row[catIdx]     || '').trim() : '',
