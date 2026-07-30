@@ -19,6 +19,11 @@
 // Structure: DRIVE_ROOT / <NBFC name> / <Entity name> / <file>
 var DRIVE_ROOT_ID = '1i5melXCocWrV9rR-3gM75wwSwWy7Dqit';
 
+// Marketplace sheet — source of truth for total active sellers & buyers.
+// Only rows where the Vertical column = MB_VERTICAL_FILTER are counted.
+var MB_SHEET_ID        = '10RJ1D1GXh-f_7a5M3YMAEt8jDQ7X6jQm2-krTNOBts8';
+var MB_VERTICAL_FILTER = 'Open Marketplace';
+
 var CONFIG = {
   // Native Google Sheet ID (already confirmed native; no xlsx conversion needed).
   SOURCE_FILE_ID: '1RoHWbZyHhNKlweWXD4AMSZfB5ONdktPcVayOkpPgjpo',
@@ -26,18 +31,49 @@ var CONFIG = {
   // One entry per NBFC tracker tab.
   // maxCol caps how far right the tab is read so scratch columns to the right
   // never pollute KPIs, cards, the matrix, or form saves.
+  // docStartCol / docEndCol (1-indexed) restrict which columns are treated as
+  // document-status columns — L=12 through AA=27.
   NBFC_TABS: [
-    { id: 'billmart',  name: 'Billmart',   maxCol: 40, entityLabel: 'Seller' },
-    { id: 'capitalxb', name: 'Capital XB', maxCol: 40, entityLabel: 'Seller' },
-    { id: 'strideone', name: 'StrideOne',  maxCol: 40, entityLabel: 'Buyer'  },
+    { id: 'billmart',  name: 'Billmart',   maxCol: 40, docStartCol: 12, docEndCol: 27 },
+    { id: 'capitalxb', name: 'Capital XB', maxCol: 40, docStartCol: 12, docEndCol: 27 },
+    { id: 'strideone', name: 'StrideOne',  maxCol: 40, docStartCol: 12, docEndCol: 27 },
   ],
+
+  // Funnel-stage columns (1-indexed): AG=33, AH=34, AI=35.
+  // These are fixed positions in all three NBFC tabs.
+  FUNNEL_COLS: { eligibility: 33, qualified: 34, creditLimit: 35 },
 
   // Optional: entity-type → document applicability matrix tab.
   REQUIREMENT: { name: 'Seller Requirement', index: -1, signature: ['documents', 'proprietor'] },
 
+  // Seller follow-up remarks tab. One row per seller (keyed by Seller_GSTIN)
+  // carrying an ETA (expected date) and a free-text Remarks note. Joined onto
+  // every seller row by GSTIN so remarks surface per seller in the dashboard.
+  REMARKS: { name: 'Plastic-Remarks', index: -1, signature: ['remark', 'gst'] },
+
   APP_TITLE: 'Recykal · NBFC Document Tracker',
   PROP_BACKEND_ID: 'BACKEND_SHEET_ID'
 };
+
+/* ── Columns to hide from the document matrix and detail modal (all tabs) ──
+   Matched case-insensitively as substrings of the Google Sheet column header.
+   Each keyword is unique to the non-standard columns and absent from all
+   standard docs (GST Certificate, PAN Card, Aadhaar Card, etc.). */
+var HIDDEN_DOC_KEYS_ = [
+  'electricity',       // Electricity Bill / Rental Agreement
+  'rental agreement',  // Electricity Bill / Rental Agreement (alt)
+  'credit approv',     // Credit Approved / Credit Approval
+  'director',          // Aadhar (Owner/Director/Partner) + Owner/Director/Partner PAN
+  'billmart qualif',   // Billmart Qualified
+  'shareholding',      // Shareholding Details
+  ', coi',             // MOA, AOA , COI  (comma distinguishes it from MOA & AOA)
+  'moa, aoa',          // MOA, AOA variant
+  'moa,aoa'            // MOA,AOA no-space variant
+];
+function isHiddenDoc_(key) {
+  var k = String(key || '').toLowerCase().trim();
+  return HIDDEN_DOC_KEYS_.some(function (h) { return k.indexOf(h) !== -1; });
+}
 
 /* ─────────────────────────── Web-app entry ─────────────────────────── */
 
@@ -148,6 +184,67 @@ function parseStatus_(raw) {
   return { status: 'pending', note: s };
 }
 
+/* ──────────────────── Hardcoded entity-type doc applicability ──────────── */
+//
+// Each entry: [ normalisedDocFragment, [entityClasses where doc is N/A] ]
+//
+// Applicability by category (confirmed requirements):
+//   Proprietorship  — N/A: Partnership Deed, MOA/AOA/COI, Shareholding Details
+//   Partnership     — N/A: MOA/AOA/COI
+//   Private Limited — N/A: Partnership Deed
+//
+var ENTITY_DOC_RULES = [
+  ['partnershipdeed',         ['proprietorship', 'privatelimited']],
+  ['moaaoacoi',               ['proprietorship', 'partnership']],
+  ['memorandumofassociation', ['proprietorship', 'partnership']],
+  ['articleofassociation',    ['proprietorship', 'partnership']],
+  ['certificateofincorporat', ['proprietorship', 'partnership']],
+  ['shareholdingdetail',      ['proprietorship']],
+  ['shareholdingpattern',     ['proprietorship']],
+];
+
+// Documents that are ALWAYS required for every entity type — never marked N/A and
+// never overridden by the optional "Seller Requirement" matrix tab.
+var ALWAYS_REQUIRED_DOC_FRAGMENTS = ['debtprofile'];
+
+/**
+ * Maps a raw entity-type string to one of three canonical classes:
+ *   'proprietorship' | 'partnership' | 'privatelimited'
+ * Returns null when the type is blank or unrecognised.
+ * Private Limited is tested first because its normalised form contains
+ * "limited" which would also partially match LLP / "limitedliabilitypartnership".
+ */
+function classifyEntityType_(entityType) {
+  var n = normKey_(entityType);
+  if (!n) return null;
+  if (n.indexOf('privat') !== -1 || (n.indexOf('pvt') !== -1 && (n.indexOf('ltd') !== -1 || n.indexOf('lim') !== -1))) return 'privatelimited';
+  if (n.indexOf('partner') !== -1 || n.indexOf('llp') !== -1) return 'partnership';
+  if (n.indexOf('proprietor') !== -1 || n.indexOf('propri') !== -1) return 'proprietorship';
+  return null;
+}
+
+/**
+ * Returns false when ENTITY_DOC_RULES says this document is not applicable for
+ * the given entity class.  Returns true (applicable) when the entity class is
+ * unknown or no rule matches the document header.
+ */
+function isDocApplicableByRules_(docHeader, entityClass) {
+  var docNorm = normKey_(docHeader);
+  // Always-required docs bypass all entity-type exclusion rules.
+  for (var j = 0; j < ALWAYS_REQUIRED_DOC_FRAGMENTS.length; j++) {
+    if (docNorm.indexOf(ALWAYS_REQUIRED_DOC_FRAGMENTS[j]) !== -1) return true;
+  }
+  if (!entityClass) return true;
+  for (var i = 0; i < ENTITY_DOC_RULES.length; i++) {
+    var fragment  = ENTITY_DOC_RULES[i][0];
+    var naClasses = ENTITY_DOC_RULES[i][1];
+    if (docNorm.indexOf(fragment) !== -1) {
+      if (naClasses.indexOf(entityClass) !== -1) return false;
+    }
+  }
+  return true;
+}
+
 /* ──────────────────────── Requirement matrix (optional tab) ───────────── */
 
 function readRequirementMatrix_(ss) {
@@ -211,32 +308,110 @@ function matchEntityColumn_(matrix, entityType) {
   return best;
 }
 
+/* ──────────────────── Seller remarks (Plastic-Remarks tab) ─────────────── */
+
+// Normalise a GSTIN for matching: strip whitespace, upper-case.
+function normGst_(s) {
+  return String(s == null ? '' : s).replace(/\s+/g, '').toUpperCase();
+}
+
+/**
+ * Reads the "Plastic-Remarks" tab and returns a map keyed by normalised GSTIN:
+ *   { <normGST>: { remarks: <string>, eta: <string> } }
+ *
+ * The tab is a manually-maintained follow-up tracker — one row per seller
+ * (identified by Seller_GSTIN) carrying an ETA (expected date) and a free-text
+ * Remarks note. Rows without a GSTIN, or with neither a remark nor an ETA, are
+ * skipped. When the same GSTIN appears more than once, the last populated row
+ * wins (latest entry in the sheet). On any error (tab missing / unreadable) an
+ * empty map is returned so the dashboard still loads.
+ */
+function getRemarksMap_(ss) {
+  var map = {};
+  try {
+    var sh = findSheet_(ss, CONFIG.REMARKS);
+    var lastRow = sh.getLastRow(), lastCol = sh.getLastColumn();
+    if (lastRow < 2 || lastCol < 1) return map;
+    var values = sh.getRange(1, 1, lastRow, lastCol).getDisplayValues();
+
+    // Locate the header row (scan the first 3 rows) and the columns we need.
+    var headerRow = -1, gstIdx = -1, etaIdx = -1, remarksIdx = -1;
+    var maxScan = Math.min(3, values.length);
+    for (var r = 0; r < maxScan; r++) {
+      var gi = -1, ei = -1, ri = -1;
+      for (var c = 0; c < values[r].length; c++) {
+        var nk = normKey_(values[r][c]);
+        if (gi === -1 && nk.indexOf('gst')    !== -1) gi = c;
+        if (ei === -1 && nk === 'eta')                ei = c;
+        if (ri === -1 && nk.indexOf('remark') !== -1) ri = c;
+      }
+      if (ri !== -1 && gi !== -1) { headerRow = r; gstIdx = gi; etaIdx = ei; remarksIdx = ri; break; }
+    }
+    if (headerRow === -1) return map;
+
+    for (var d = headerRow + 1; d < values.length; d++) {
+      var gst = normGst_(values[d][gstIdx]);
+      if (!gst) continue;
+      var remark = remarksIdx >= 0 ? String(values[d][remarksIdx] == null ? '' : values[d][remarksIdx]).trim() : '';
+      var eta    = etaIdx    >= 0 ? String(values[d][etaIdx]    == null ? '' : values[d][etaIdx]).trim()    : '';
+      if (!remark && !eta) continue;               // nothing to surface for this seller
+      var prev = map[gst];                         // last populated row wins; keep prior non-empty fields
+      map[gst] = {
+        remarks: remark || (prev ? prev.remarks : ''),
+        eta:     eta    || (prev ? prev.eta     : '')
+      };
+    }
+  } catch (e) { /* tab missing or unreadable — surface no remarks rather than fail */ }
+  return map;
+}
+
 /* ─────────────────────────── Tracker layout ─────────────────────────── */
 
-function readTrackerLayout_(sh, maxCol) {
+function readTrackerLayout_(sh, maxCol, docStartCol, docEndCol) {
   var lastCol = sh.getLastColumn();
   if (maxCol && maxCol > 0 && maxCol < lastCol) lastCol = maxCol;
-  var headers = sh.getRange(1, 1, 1, lastCol).getDisplayValues()[0]
-    .map(function (h) { return String(h).trim(); });
-  var pendingIdx = -1, i;
-  for (i = 0; i < headers.length; i++) {
-    if (normKey_(headers[i]) === 'pendingdocument' || normKey_(headers[i]) === 'pendingdocuments') {
-      pendingIdx = i; break;
+  // Scan up to 3 rows to find the actual header row (handles sheets where row 1
+  // is a title or blank and column headers start at row 2 or 3).
+  var headerRowNum = 0, headers = [], pendingIdx = -1, i;
+  var maxSearch = Math.min(3, sh.getLastRow()), r, nk;
+  for (r = 1; r <= maxSearch && !headerRowNum; r++) {
+    var candidate = sh.getRange(r, 1, 1, lastCol).getDisplayValues()[0]
+      .map(function (h) { return String(h).trim(); });
+    for (i = 0; i < candidate.length; i++) {
+      nk = normKey_(candidate[i]);
+      if (nk === 'pendingdocument' || nk === 'pendingdocuments') {
+        headerRowNum = r; headers = candidate; pendingIdx = i; break;
+      }
     }
   }
-  if (pendingIdx === -1)
-    throw new Error('The "' + sh.getName() + '" tab has no "Pending Document" column within the first ' + lastCol + ' columns.');
+  if (!headerRowNum)
+    throw new Error('The "' + sh.getName() + '" tab has no "Pending Document" column in the first 3 rows.');
   var serialIdx = 0;
   var metaIdx = [];
   for (i = 0; i < pendingIdx; i++) {
     if (i === serialIdx) continue;
     if (headers[i]) metaIdx.push(i);
   }
+  // Only include doc columns within the L:AA window (1-indexed docStartCol to docEndCol).
+  // When no window is configured, all non-empty columns after pendingIdx qualify.
   var docIdx = [];
   for (i = pendingIdx + 1; i < headers.length; i++) {
-    if (headers[i]) docIdx.push(i);
+    if (!headers[i]) continue;
+    var col1 = i + 1; // 1-indexed column number
+    if (docStartCol && docEndCol) {
+      if (col1 >= docStartCol && col1 <= docEndCol) docIdx.push(i);
+    } else {
+      docIdx.push(i);
+    }
   }
-  return { headers: headers, colCount: lastCol, serialIdx: serialIdx, metaIdx: metaIdx, pendingIdx: pendingIdx, docIdx: docIdx };
+  // Columns after docEndCol are display-only seller attributes (e.g. Vintage, Eligibility).
+  var extraMetaIdx = [];
+  if (docEndCol) {
+    for (i = 0; i < headers.length; i++) {
+      if (headers[i] && (i + 1) > docEndCol) extraMetaIdx.push(i);
+    }
+  }
+  return { headers: headers, colCount: lastCol, headerRowNum: headerRowNum, serialIdx: serialIdx, metaIdx: metaIdx, pendingIdx: pendingIdx, docIdx: docIdx, extraMetaIdx: extraMetaIdx };
 }
 
 function metaFieldType_(header) {
@@ -259,25 +434,24 @@ function metaFieldType_(header) {
  * Reads one NBFC tracker tab and returns all entity rows with parsed doc statuses.
  * On any error, returns an error object so getInitialData() can still succeed.
  */
-function getNbfcData_(ss, tabCfg, matrix) {
+function getNbfcData_(ss, tabCfg, matrix, remarksMap) {
   try {
     var sh = findSheet_(ss, tabCfg);
-    var layout = readTrackerLayout_(sh, tabCfg.maxCol);
+    var layout = readTrackerLayout_(sh, tabCfg.maxCol, tabCfg.docStartCol, tabCfg.docEndCol);
+    remarksMap = remarksMap || {};
 
-    var nameHeaderKey = null, entityHeaderKey = null;
-    var verticalIdx = -1, onboardingIdx = -1;
-    layout.headers.forEach(function (h, idx) {
-      var n = normKey_(h);
-      if (!nameHeaderKey && layout.metaIdx.indexOf(idx) !== -1 && n.indexOf('name') !== -1) nameHeaderKey = h;
-      if (!entityHeaderKey && layout.metaIdx.indexOf(idx) !== -1 && metaFieldType_(h) === 'entity') entityHeaderKey = h;
-      if (n === 'vertical' || n === 'verticals') verticalIdx = idx;
-      if (n === 'onboarding') onboardingIdx = idx;
+    var nameHeaderKey = null, entityHeaderKey = null, gstHeaderKey = null;
+    layout.metaIdx.forEach(function (idx) {
+      var h = layout.headers[idx];
+      if (!nameHeaderKey && normKey_(h).indexOf('name') !== -1) nameHeaderKey = h;
+      if (!entityHeaderKey && metaFieldType_(h) === 'entity') entityHeaderKey = h;
+      if (!gstHeaderKey && metaFieldType_(h) === 'gst') gstHeaderKey = h;
     });
-    // Fallback: column F (0-based index 5) for Onboarding if not found by name
-    if (onboardingIdx === -1 && layout.headers.length > 5) onboardingIdx = 5;
 
     // Build doc list — match each column against the requirement matrix
-    var docs = layout.docIdx.map(function (idx) {
+    var docs = layout.docIdx.filter(function (idx) {
+      return !isHiddenDoc_(layout.headers[idx]);
+    }).map(function (idx) {
       var header = layout.headers[idx];
       var req = matchRequirementRow_(matrix, header);
       var requiredBy = {};
@@ -291,26 +465,31 @@ function getNbfcData_(ss, tabCfg, matrix) {
     var entities = [];
     var optionValues = {};
 
-    if (lastRow > 1) {
-      var dataRange = sh.getRange(2, 1, lastRow - 1, layout.colCount);
+    if (lastRow > layout.headerRowNum) {
+      var dataRange = sh.getRange(layout.headerRowNum + 1, 1, lastRow - layout.headerRowNum, layout.colCount);
       var values = dataRange.getDisplayValues();
       var allNotes = dataRange.getNotes();
 
       values.forEach(function (row, i) {
+        // Validate the serial (No.) column.  Only count rows that have a
+        // positive integer serial — blank rows, header echo-rows ("No:", "S.No"),
+        // and rows with serial ≤ 0 (data errors / sentinel values) are all skipped.
+        var serialRaw = String(row[layout.serialIdx] == null ? '' : row[layout.serialIdx]).trim();
+        if (!serialRaw) return;                                                    // blank serial → skip
+        var serialParsed = parseInt(serialRaw, 10);
+        if (isNaN(serialParsed) && /[a-zA-Z]/.test(serialRaw)) return;            // "No:", "S.No" → skip
+        if (!isNaN(serialParsed) && serialParsed < 1) return;                     // 0 or negative → skip
+
         var meta = {};
         layout.metaIdx.forEach(function (idx) { meta[layout.headers[idx]] = String(row[idx]).trim(); });
         var hasIdentity = layout.metaIdx.some(function (idx) { return String(row[idx]).trim() !== ''; });
         if (!hasIdentity) return;
-
-        // Filter: only "Open Marketplace" vertical + "Completed" onboarding
-        if (verticalIdx !== -1) {
-          var vert = String(row[verticalIdx] || '').trim().toLowerCase();
-          if (vert && vert !== 'open marketplace') return;
-        }
-        if (onboardingIdx !== -1) {
-          var onb = String(row[onboardingIdx] || '').trim().toLowerCase();
-          if (onb && onb !== 'completed') return;
-        }
+        // Validate the seller/buyer name column:
+        //   • must be present and non-empty
+        //   • must not be purely numeric (e.g. "1") — those are data artifacts, not real entity names
+        var sellerName = nameHeaderKey ? String(meta[nameHeaderKey] || '').trim() : '';
+        if (nameHeaderKey && !sellerName) return;
+        if (nameHeaderKey && /^\d+(\.\d+)?$/.test(sellerName)) return;
 
         layout.metaIdx.forEach(function (idx) {
           var h = layout.headers[idx], v = String(row[idx]).trim();
@@ -318,17 +497,35 @@ function getNbfcData_(ss, tabCfg, matrix) {
           (optionValues[h] = optionValues[h] || {})[v] = true;
         });
 
-        var serial = parseInt(row[layout.serialIdx], 10);
+        var serial = isNaN(serialParsed) ? '' : serialParsed;
         var entityType = entityHeaderKey ? (meta[entityHeaderKey] || '') : '';
-        var entityCol = matchEntityColumn_(matrix, entityType);
+        var entityCol   = matchEntityColumn_(matrix, entityType);
+        var entityClass = classifyEntityType_(entityType);
         var rowNotes = allNotes[i] || [];
         var docStates = {};
         var received = 0, pending = 0, na = 0;
+        var extraMeta = {};
+        layout.extraMetaIdx.forEach(function (idx) {
+          extraMeta[layout.headers[idx]] = String(row[idx] == null ? '' : row[idx]).trim();
+        });
 
         layout.docIdx.forEach(function (idx) {
           var h = layout.headers[idx];
           var req = matchRequirementRow_(matrix, h);
-          var applicable = (!req || !entityCol) ? true : !!req.requiredBy[entityCol];
+          // Hardcoded entity-type rules take first priority.
+          // Always-required docs (e.g. Debt Profile) are never overridden by the matrix.
+          // The optional sheet matrix can further refine when both entity class
+          // and a matching requirement row are present.
+          var docNormH = normKey_(h);
+          var alwaysRequired = ALWAYS_REQUIRED_DOC_FRAGMENTS.some(function(f){ return docNormH.indexOf(f) !== -1; });
+          var applicable;
+          if (!isDocApplicableByRules_(h, entityClass)) {
+            applicable = false;
+          } else if (!alwaysRequired && req && entityCol) {
+            applicable = !!req.requiredBy[entityCol];
+          } else {
+            applicable = true;
+          }
           var cellNote = String(rowNotes[idx] || '').trim();
           var driveUrl = /^https?:\/\/\S+$/.test(cellNote) ? cellNote : '';
           var parsed = parseStatus_(row[idx]);
@@ -344,16 +541,21 @@ function getNbfcData_(ss, tabCfg, matrix) {
         });
 
         var applicable = received + pending;
+        // Join the follow-up remark/ETA for this seller by GSTIN.
+        var rk = gstHeaderKey ? remarksMap[normGst_(meta[gstHeaderKey])] : null;
         entities.push({
-          row: i + 2,
+          row: i + layout.headerRowNum + 1,
           serial: isNaN(serial) ? '' : serial,
           meta: meta,
+          extraMeta: extraMeta,
           docs: docStates,
           received: received,
           pending: pending,
           na: na,
           applicable: applicable,
-          completion: applicable ? Math.round((received / applicable) * 1000) / 10 : 0
+          completion: applicable ? Math.round((received / applicable) * 1000) / 10 : 0,
+          remarks: rk ? rk.remarks : '',
+          eta:     rk ? rk.eta     : ''
         });
       });
     }
@@ -372,11 +574,16 @@ function getNbfcData_(ss, tabCfg, matrix) {
       if (!covered) entityOptions[label] = true;
     });
 
+    // Read the three funnel-stage column headers by their fixed 1-indexed positions.
+    var fc = CONFIG.FUNNEL_COLS;
+    var eligibilityHeader = fc.eligibility  ? (layout.headers[fc.eligibility  - 1] || null) : null;
+    var qualifiedHeader   = fc.qualified    ? (layout.headers[fc.qualified    - 1] || null) : null;
+    var creditLimitHeader = fc.creditLimit  ? (layout.headers[fc.creditLimit  - 1] || null) : null;
+
     return {
       ok: true,
       id: tabCfg.id,
       name: tabCfg.name,
-      entityLabel: tabCfg.entityLabel || 'Seller',
       entities: entities,
       docs: docs,
       entityColumns: matrix.entityColumns,
@@ -387,36 +594,413 @@ function getNbfcData_(ss, tabCfg, matrix) {
         var h = layout.headers[idx];
         return { key: h, type: metaFieldType_(h), options: Object.keys(optionValues[h] || {}).sort() };
       }),
-      pendingHeader: layout.headers[layout.pendingIdx]
+      extraMetaFields: layout.extraMetaIdx.map(function (idx) { return layout.headers[idx]; }),
+      pendingHeader: layout.headers[layout.pendingIdx],
+      eligibilityHeader: eligibilityHeader,
+      qualifiedHeader:   qualifiedHeader,
+      creditLimitHeader: creditLimitHeader
     };
   } catch (e) {
     return {
       ok: false, error: String(e.message),
       id: tabCfg.id, name: tabCfg.name,
       entities: [], docs: [], entityColumns: [], entityTypeOptions: [],
-      nameHeader: null, entityHeader: null, metaFields: []
+      nameHeader: null, entityHeader: null, metaFields: [],
+      extraMetaFields: [], pendingHeader: null,
+      eligibilityHeader: null, qualifiedHeader: null, creditLimitHeader: null
     };
   }
+}
+
+/* ──────────── Marketplace counts (Open Marketplace · Completed) ─── */
+
+var MB_STATUS_FILTER = 'Completed';
+
+/**
+ * Counts rows in a marketplace tab where:
+ *   Vertical column = MB_VERTICAL_FILTER ("Open Marketplace")
+ *   AND Onboarding column (header "Onboarding", fallback col F) = MB_STATUS_FILTER ("Completed")
+ *
+ * Returns _debug so the browser console shows all column headers + every
+ * distinct value in the matched onboarding column — use this to verify filters.
+ */
+
+/* ─────────────────── StrideOne buyer tracker (dedicated reader) ────────── */
+
+/**
+ * Reads the StrideOne tab, which tracks BUYERS with a layout unlike the seller
+ * tabs — a "Priority" column (P0 = top buyer) instead of a serial, no "Pending
+ * Document" column, buyer-named identity columns, and its own funnel
+ * (Eligibility / Qualified / Credit Limit) + document set (MOA … Agings).
+ *
+ * Returns the SAME shape as getNbfcData_() so the frontend renders StrideOne
+ * buyers with full detail (overview table, detail view, KPI drawers), plus:
+ *   phase0        — count of P-0 priority buyers
+ *   phase0Buyers  — P-0 buyer objects for the "Phase 0" drawer list
+ *   _isBuyer      — flags the buyer-oriented tab to the frontend
+ * On any error a valid empty object (ok:false) is returned so the dashboard
+ * still loads.
+ */
+function getStrideOneData_(ss, remarksMap) {
+  remarksMap = remarksMap || {};
+  var tabCfg = CONFIG.NBFC_TABS[2];
+  try {
+    var sh = findSheet_(ss, tabCfg);
+    var lastRow = sh.getLastRow(), lastColAll = sh.getLastColumn();
+    if (lastRow < 2 || lastColAll < 1) throw new Error('The StrideOne tab is empty.');
+    var lastCol = (tabCfg.maxCol && tabCfg.maxCol < lastColAll) ? tabCfg.maxCol : lastColAll;
+    var range    = sh.getRange(1, 1, lastRow, lastCol);
+    var values   = range.getDisplayValues();
+    var allNotes = range.getNotes();
+
+    // Find the buyer-table header row (scan the first 5 rows): needs a "Priority"
+    // column and at least one "Buyer" column.
+    var headerRowNum = -1, headers = null;
+    for (var r = 0; r < Math.min(5, values.length); r++) {
+      var keys = values[r].map(function (h) { return normKey_(h); });
+      if (keys.indexOf('priority') !== -1 && keys.some(function (n) { return n.indexOf('buyer') !== -1; })) {
+        headerRowNum = r; headers = values[r].map(function (h) { return String(h).trim(); }); break;
+      }
+    }
+    if (headerRowNum === -1)
+      throw new Error('The "StrideOne" tab has no buyer table (Priority / Buyer columns) in the first 5 rows.');
+
+    function findCol(pred) { for (var i = 0; i < headers.length; i++) { if (headers[i] && pred(normKey_(headers[i]))) return i; } return -1; }
+    var priorityIdx = findCol(function (n) { return n === 'priority'; });
+    var nameIdx     = findCol(function (n) { return n.indexOf('businessname') !== -1; });
+    var gstIdx      = findCol(function (n) { return n.indexOf('gst') !== -1; });
+    var entityIdx   = findCol(function (n) { return n.indexOf('registrationtype') !== -1; });
+    var catIdx      = findCol(function (n) { return n.indexOf('category') !== -1; });
+    var stateIdx    = findCol(function (n) { return n === 'state'; });
+    var contactIdx  = findCol(function (n) { return n.indexOf('contact') !== -1; });
+    var vintageIdx  = findCol(function (n) { return n.indexOf('vintage') !== -1; });
+    var eligIdx     = findCol(function (n) { return n.indexOf('eligib') !== -1; });
+    var qualIdx     = findCol(function (n) { return n.indexOf('qualif') !== -1; });
+    var clIdx       = findCol(function (n) { return n.indexOf('creditlimit') !== -1; });
+    var emailStIdx  = findCol(function (n) { return n.indexOf('emailstatus') !== -1; });
+    if (nameIdx === -1) throw new Error('The "StrideOne" tab has no Buyer Business Name column.');
+
+    // Column roles:
+    //   meta      — identity/attribute columns before the funnel block
+    //   extraMeta — the funnel block: Eligibility, Qualified, Credit Limit, Email Status
+    //   docs      — document columns after the funnel block (MOA … Agings)
+    var funnelStart = eligIdx !== -1 ? eligIdx : headers.length;
+    var lastFunnel  = Math.max(clIdx, emailStIdx, qualIdx, eligIdx);
+    var docStart    = lastFunnel !== -1 ? lastFunnel + 1 : funnelStart;
+    var metaIdx = [], extraMetaIdx = [], docIdx = [];
+    for (var c = 0; c < headers.length; c++) {
+      if (!headers[c]) continue;
+      if (c < funnelStart)   metaIdx.push(c);
+      else if (c < docStart) extraMetaIdx.push(c);
+      else                   docIdx.push(c);
+    }
+
+    var docs = docIdx.filter(function (idx) {
+      return !isHiddenDoc_(headers[idx]);
+    }).map(function (idx) { return { key: headers[idx], requiredBy: {} }; });
+
+    var entities = [], phase0 = 0, phase0Buyers = [], optionValues = {}, entityOptions = {};
+    for (var d = headerRowNum + 1; d < values.length; d++) {
+      var row = values[d];
+      var name = String(row[nameIdx] == null ? '' : row[nameIdx]).trim();
+      if (!name || /^\d+(\.\d+)?$/.test(name)) continue;   // skip blank / numeric-artifact rows
+
+      var meta = {};
+      metaIdx.forEach(function (idx) { meta[headers[idx]] = String(row[idx] == null ? '' : row[idx]).trim(); });
+      var extraMeta = {};
+      extraMetaIdx.forEach(function (idx) { extraMeta[headers[idx]] = String(row[idx] == null ? '' : row[idx]).trim(); });
+      metaIdx.forEach(function (idx) { var h = headers[idx], v = meta[h]; if (v) (optionValues[h] = optionValues[h] || {})[v] = true; });
+
+      var rowNotes = allNotes[d] || [];
+      var docStates = {}, received = 0, pending = 0, na = 0;
+      docIdx.forEach(function (idx) {
+        var h = headers[idx];
+        var cellNote = String(rowNotes[idx] || '').trim();
+        var driveUrl = /^https?:\/\/\S+$/.test(cellNote) ? cellNote : '';
+        var parsed = parseStatus_(row[idx]);
+        docStates[h] = { raw: String(row[idx] == null ? '' : row[idx]).trim(), status: parsed.status, note: parsed.note, driveUrl: driveUrl };
+        if (parsed.status === 'received') received++;
+        else if (parsed.status === 'na') na++;
+        else pending++;
+      });
+      var applicable = received + pending;
+
+      var priority = priorityIdx !== -1 ? String(row[priorityIdx] || '').trim() : '';
+      var isP0 = normKey_(priority).indexOf('p0') === 0;
+      if (isP0) phase0++;
+      if (entityIdx !== -1 && meta[headers[entityIdx]]) entityOptions[meta[headers[entityIdx]]] = true;
+
+      var rk = gstIdx !== -1 ? remarksMap[normGst_(row[gstIdx])] : null;
+      entities.push({
+        row: d + 1,
+        serial: entities.length + 1,
+        priority: priority,
+        meta: meta,
+        extraMeta: extraMeta,
+        docs: docStates,
+        received: received, pending: pending, na: na, applicable: applicable,
+        completion: applicable ? Math.round((received / applicable) * 1000) / 10 : 0,
+        remarks: rk ? rk.remarks : '',
+        eta:     rk ? rk.eta     : ''
+      });
+
+      if (isP0) phase0Buyers.push({
+        name:     name,
+        gst:      gstIdx     >= 0 ? String(row[gstIdx]     || '').trim() : '',
+        category: catIdx     >= 0 ? String(row[catIdx]     || '').trim() : '',
+        state:    stateIdx   >= 0 ? String(row[stateIdx]   || '').trim() : '',
+        contact:  contactIdx >= 0 ? String(row[contactIdx] || '').trim() : '',
+        type:     entityIdx  >= 0 ? String(row[entityIdx]  || '').trim() : '',
+        vintage:  vintageIdx >= 0 ? String(row[vintageIdx] || '').trim() : '',
+        priority: priority
+      });
+    }
+
+    return {
+      ok: true, id: 'strideone', name: 'StrideOne',
+      entities: entities, docs: docs,
+      entityColumns: [],
+      entityTypeOptions: Object.keys(entityOptions).sort(),
+      nameHeader: headers[nameIdx],
+      entityHeader: entityIdx !== -1 ? headers[entityIdx] : null,
+      metaFields: metaIdx.map(function (idx) {
+        var h = headers[idx];
+        // Force the Registration_Type column to the 'entity' role so the frontend
+        // shows it as Entity Type (metaFieldType_ would classify it as plain text).
+        var type = idx === entityIdx ? 'entity' : metaFieldType_(h);
+        return { key: h, type: type, options: Object.keys(optionValues[h] || {}).sort() };
+      }),
+      extraMetaFields: extraMetaIdx.map(function (idx) { return headers[idx]; }),
+      pendingHeader: null,
+      eligibilityHeader: eligIdx !== -1 ? headers[eligIdx] : null,
+      qualifiedHeader:   qualIdx !== -1 ? headers[qualIdx] : null,
+      creditLimitHeader: clIdx   !== -1 ? headers[clIdx]   : null,
+      phase0: phase0,
+      phase0Buyers: phase0Buyers,
+      _isBuyer: true
+    };
+  } catch (e) {
+    return {
+      ok: false, error: String(e.message),
+      id: 'strideone', name: 'StrideOne',
+      entities: [], docs: [], entityColumns: [], entityTypeOptions: [],
+      nameHeader: null, entityHeader: null, metaFields: [], extraMetaFields: [],
+      pendingHeader: null, eligibilityHeader: null, qualifiedHeader: null, creditLimitHeader: null,
+      phase0: 0, phase0Buyers: [], _isBuyer: true
+    };
+  }
+}
+
+function getMbCounts_() {
+  try {
+    var ss = SpreadsheetApp.openById(MB_SHEET_ID);
+
+    function analyseTab(tabName) {
+      try {
+        var sh = ss.getSheetByName(tabName);
+        if (!sh || sh.getLastRow() < 2) return { count: 0, headers: [], vCol: null, sCol: null, sampleVals: [] };
+        var lastCol = sh.getLastColumn();
+        var headers = sh.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+        var vIdx = -1, sIdx = -1;
+        for (var c = 0; c < headers.length; c++) {
+          var nk = normKey_(headers[c]);
+          if (vIdx === -1 && nk.indexOf('vertical') !== -1) vIdx = c;
+          if (sIdx === -1 && nk.indexOf('onboarding') !== -1) sIdx = c;
+        }
+        // Fallback to column F (0-based index 5) if no "Onboarding" header found
+        if (sIdx === -1 && headers.length > 5) sIdx = 5;
+        var mbStatusLower    = MB_STATUS_FILTER.toLowerCase();
+        var mbVerticalLower  = MB_VERTICAL_FILTER.toLowerCase();
+        var data = sh.getRange(2, 1, sh.getLastRow() - 1, lastCol).getDisplayValues();
+        var uniqueStatus = {};
+        data.forEach(function (r) { if (sIdx !== -1) uniqueStatus[String(r[sIdx]).trim()] = true; });
+        var count = data.filter(function (r) {
+          var verticalOk = vIdx === -1 || String(r[vIdx]).trim().toLowerCase() === mbVerticalLower;
+          var statusOk   = sIdx === -1 || String(r[sIdx]).trim().toLowerCase() === mbStatusLower;
+          return verticalOk && statusOk;
+        }).length;
+        return {
+          count: count,
+          headers: headers,
+          vCol: vIdx === -1 ? null : headers[vIdx],
+          sCol: sIdx === -1 ? '(not found — status filter skipped)' : headers[sIdx],
+          sampleVals: Object.keys(uniqueStatus).slice(0, 20)
+        };
+      } catch (e) { return { count: 0, headers: [], vCol: null, sCol: null, sampleVals: [], error: String(e.message) }; }
+    }
+
+    var sellerInfo = analyseTab('_mb_sellers');
+    var buyerInfo  = analyseTab('_mb_buyers');
+    return {
+      ok:      true,
+      sellers: sellerInfo.count,
+      buyers:  buyerInfo.count,
+      _debug: {
+        sellers: { allHeaders: sellerInfo.headers, verticalCol: sellerInfo.vCol, statusCol: sellerInfo.sCol, uniqueStatusVals: sellerInfo.sampleVals },
+        buyers:  { allHeaders: buyerInfo.headers,  verticalCol: buyerInfo.vCol,  statusCol: buyerInfo.sCol,  uniqueStatusVals: buyerInfo.sampleVals  }
+      }
+    };
+  } catch (e) {
+    return { ok: false, sellers: 0, buyers: 0, error: String(e.message) };
+  }
+}
+
+/**
+ * Debug helper — run this directly in the Apps Script editor (not deployed).
+ * Logs the actual column headers and unique values for status/vertical/onboarding
+ * columns so you can verify MB_VERTICAL_FILTER and MB_STATUS_FILTER are correct.
+ */
+function debugMbSheet() {
+  var ss = SpreadsheetApp.openById(MB_SHEET_ID);
+  ['_mb_sellers', '_mb_buyers'].forEach(function (tabName) {
+    var sh = ss.getSheetByName(tabName);
+    if (!sh) { Logger.log(tabName + ': TAB NOT FOUND'); return; }
+    var lastCol = sh.getLastColumn();
+    var lastRow = sh.getLastRow();
+    var headers = sh.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+    Logger.log('\n=== ' + tabName + ' === (' + (lastRow - 1) + ' data rows)');
+    Logger.log('All headers: ' + JSON.stringify(headers));
+
+    if (lastRow < 2) return;
+    var sampleRows = Math.min(lastRow - 1, 200);
+    var data = sh.getRange(2, 1, sampleRows, lastCol).getDisplayValues();
+    headers.forEach(function (h, i) {
+      var nk = normKey_(h);
+      if (nk.indexOf('status') !== -1 || nk.indexOf('vertical') !== -1 || nk.indexOf('onboard') !== -1) {
+        var uniq = {};
+        data.forEach(function (r) { uniq[String(r[i]).trim()] = true; });
+        Logger.log('  Col "' + h + '" [' + i + '] unique values: ' + JSON.stringify(Object.keys(uniq)));
+      }
+    });
+  });
+}
+
+/* ─────────────────────────── CacheService helpers ─────────────────────── */
+// Apps Script CacheService limits each value to 100 KB.
+// Larger payloads (e.g. full tab data) are split across numbered chunk keys.
+
+var CACHE_TTL = 300;    // 5 minutes in seconds
+var CACHE_VER = 'nbfcv1';
+
+function cacheKey_(name){ return 'nbfc_' + name + '_' + CACHE_VER; }
+
+function cacheSet_(cache, name, obj){
+  try {
+    var str = JSON.stringify(obj);
+    var n = 0, entries = {}, i = 0;
+    while (i < str.length){
+      entries[cacheKey_(name) + '_' + n++] = str.substring(i, i + 90000);
+      i += 90000;
+    }
+    entries[cacheKey_(name) + '_n'] = String(n);
+    cache.putAll(entries, CACHE_TTL);
+  } catch(e){ /* ignore write failures */ }
+}
+
+function cacheGet_(cache, name){
+  try {
+    var nStr = cache.get(cacheKey_(name) + '_n');
+    if (!nStr) return null;
+    var count = parseInt(nStr, 10);
+    if (isNaN(count) || count < 1) return null;
+    var keys = [];
+    for (var n = 0; n < count; n++) keys.push(cacheKey_(name) + '_' + n);
+    var map = cache.getAll(keys);
+    var result = '';
+    for (var j = 0; j < count; j++){
+      var chunk = map[cacheKey_(name) + '_' + j];
+      if (chunk == null) return null; // partial expiry — treat as full miss
+      result += chunk;
+    }
+    return JSON.parse(result);
+  } catch(e){ return null; }
+}
+
+function cacheDel_(cache, name){
+  try {
+    var nStr = cache.get(cacheKey_(name) + '_n');
+    var del = [cacheKey_(name) + '_n'];
+    if (nStr){
+      var c = parseInt(nStr, 10);
+      for (var n = 0; n < c; n++) del.push(cacheKey_(name) + '_' + n);
+    }
+    cache.removeAll(del);
+  } catch(e){ /* ignore */ }
+}
+
+function clearAllCache_(){
+  var cache = CacheService.getScriptCache();
+  ['meta', 'tab_billmart', 'tab_capitalxb', 'tab_strideone', 'mb'].forEach(function(k){ cacheDel_(cache, k); });
 }
 
 /* ───────────────────────────────── Read API ───────────────────────────────── */
 
 /**
  * Returns all NBFC tab data in one round trip.
+ *
+ * opts.forceRefresh — when true (sent by the manual Refresh button) bypasses
+ * the cache so users always see the latest sheet data.
+ *
+ * Fast path (all keys in cache): no Sheets API calls → returns in < 200 ms.
+ * Slow path (cache miss): reads sheets and repopulates the cache.
  */
-function getInitialData() {
-  var ss = getSpreadsheet_();
-  var matrix = readRequirementMatrix_(ss); // gracefully returns empty if tab absent
+function getInitialData(opts) {
+  if (opts && opts.forceRefresh) clearAllCache_();
 
-  var nbfcs = CONFIG.NBFC_TABS.map(function (tab) {
-    return getNbfcData_(ss, tab, matrix);
+  var cache       = CacheService.getScriptCache();
+  var metaC       = cacheGet_(cache, 'meta');
+  var billmartC   = cacheGet_(cache, 'tab_billmart');
+  var capitalxbC  = cacheGet_(cache, 'tab_capitalxb');
+  var strideoneC  = cacheGet_(cache, 'tab_strideone');
+  var mbC         = cacheGet_(cache, 'mb');
+
+  // ── Fast path — all data served from cache (no Sheets API calls) ────────
+  if (metaC && billmartC && capitalxbC && mbC) {
+    // Serve cached StrideOne buyer data if present; otherwise a valid empty
+    // buyer object so the tab renders until the slow path repopulates it.
+    var strideonefast = strideoneC || {
+      ok: true, id: 'strideone', name: 'StrideOne', entities: [], docs: [],
+      entityColumns: [], entityTypeOptions: [], nameHeader: null,
+      entityHeader: null, metaFields: [], extraMetaFields: [],
+      pendingHeader: null, eligibilityHeader: null, qualifiedHeader: null,
+      creditLimitHeader: null, phase0: 0, phase0Buyers: [], _isBuyer: true
+    };
+    return {
+      ok: true,
+      sheetUrl: metaC.sheetUrl,
+      sheetName: metaC.sheetName,
+      nbfcs: [billmartC, capitalxbC, strideonefast],
+      mbCounts: mbC,
+      generatedAt: new Date().toISOString()
+    };
+  }
+
+  // ── Slow path — read from sheets, populate cache ─────────────────────────
+  var ss = getSpreadsheet_();
+  var matrix = readRequirementMatrix_(ss);
+  var remarksMap = getRemarksMap_(ss);   // GSTIN → { remarks, eta } from Plastic-Remarks
+
+  var billmartData    = getNbfcData_(ss, CONFIG.NBFC_TABS[0], matrix, remarksMap);
+  var capitalxbData   = getNbfcData_(ss, CONFIG.NBFC_TABS[1], matrix, remarksMap);
+  var strideoneData   = getStrideOneData_(ss, remarksMap);
+  var mbData          = getMbCounts_();
+
+  cacheSet_(cache, 'tab_billmart',   billmartData);
+  cacheSet_(cache, 'tab_capitalxb',  capitalxbData);
+  cacheSet_(cache, 'tab_strideone',  strideoneData);
+  cacheSet_(cache, 'mb',             mbData);
+  cacheSet_(cache, 'meta', {
+    sheetUrl:    ss.getUrl(),
+    sheetName:   ss.getName(),
+    generatedAt: new Date().toISOString()
   });
 
   return {
     ok: true,
     sheetUrl: ss.getUrl(),
     sheetName: ss.getName(),
-    nbfcs: nbfcs,
+    nbfcs: [billmartData, capitalxbData, strideoneData],
+    mbCounts: mbData,
     generatedAt: new Date().toISOString()
   };
 }
@@ -456,7 +1040,7 @@ function saveEntry(nbfcId, payload) {
   try {
     var ss = getSpreadsheet_();
     var sh = findSheet_(ss, tabCfg);
-    var layout = readTrackerLayout_(sh, tabCfg.maxCol);
+    var layout = readTrackerLayout_(sh, tabCfg.maxCol, tabCfg.docStartCol, tabCfg.docEndCol);
     var matrix = readRequirementMatrix_(ss);
 
     var meta = payload.meta || {};
@@ -479,13 +1063,13 @@ function saveEntry(nbfcId, payload) {
 
     var lastRow = sh.getLastRow();
     var lastCol = layout.colCount;
-    var existing = lastRow > 1
-      ? sh.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues()
+    var existing = lastRow > layout.headerRowNum
+      ? sh.getRange(layout.headerRowNum + 1, 1, lastRow - layout.headerRowNum, lastCol).getDisplayValues()
       : [];
 
     var targetRow = null;
     if (payload.row) {
-      var idx0 = Number(payload.row) - 2;
+      var idx0 = Number(payload.row) - (layout.headerRowNum + 1);
       var expected = String(payload.originalGst || '').trim().toUpperCase();
       var gstColIdx = gstHeader ? layout.headers.indexOf(gstHeader) : -1;
       if (idx0 >= 0 && idx0 < existing.length && gstColIdx !== -1 &&
@@ -493,7 +1077,7 @@ function saveEntry(nbfcId, payload) {
         targetRow = Number(payload.row);
       } else if (gstColIdx !== -1 && expected) {
         for (var r = 0; r < existing.length; r++) {
-          if (String(existing[r][gstColIdx]).trim().toUpperCase() === expected) { targetRow = r + 2; break; }
+          if (String(existing[r][gstColIdx]).trim().toUpperCase() === expected) { targetRow = r + layout.headerRowNum + 1; break; }
         }
       }
       if (!targetRow) {
@@ -513,15 +1097,16 @@ function saveEntry(nbfcId, payload) {
     var tvSubmitted = String(meta['Turnover'] || '').trim();
     if (tvSubmitted && !layout.metaIdx.some(function (i) { return metaFieldType_(layout.headers[i]) === 'turnover'; })) {
       sh.insertColumnBefore(layout.pendingIdx + 1);
-      sh.getRange(1, layout.pendingIdx + 1).setValue('Annual Turnover');
+      sh.getRange(layout.headerRowNum, layout.pendingIdx + 1).setValue('Annual Turnover');
       meta['Annual Turnover'] = tvSubmitted;
-      layout = readTrackerLayout_(sh, tabCfg.maxCol);
+      layout = readTrackerLayout_(sh, tabCfg.maxCol, tabCfg.docStartCol, tabCfg.docEndCol);
       lastCol = layout.colCount;
-      existing = lastRow > 1 ? sh.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues() : [];
+      existing = lastRow > layout.headerRowNum ? sh.getRange(layout.headerRowNum + 1, 1, lastRow - layout.headerRowNum, lastCol).getDisplayValues() : [];
     }
 
-    var entityType = entityHeader ? String(meta[entityHeader] || '').trim() : '';
-    var entityCol = matchEntityColumn_(matrix, entityType);
+    var entityType  = entityHeader ? String(meta[entityHeader] || '').trim() : '';
+    var entityCol   = matchEntityColumn_(matrix, entityType);
+    var entityClass = classifyEntityType_(entityType);
 
     var out = new Array(layout.headers.length);
     for (var c = 0; c < out.length; c++) out[c] = '';
@@ -550,7 +1135,16 @@ function saveEntry(nbfcId, payload) {
     layout.docIdx.forEach(function (idx) {
       var h = layout.headers[idx];
       var req = matchRequirementRow_(matrix, h);
-      var applicable = (!req || !entityCol) ? true : !!req.requiredBy[entityCol];
+      var docNormSE = normKey_(h);
+      var alwaysReqSE = ALWAYS_REQUIRED_DOC_FRAGMENTS.some(function(f){ return docNormSE.indexOf(f) !== -1; });
+      var applicable;
+      if (!isDocApplicableByRules_(h, entityClass)) {
+        applicable = false;
+      } else if (!alwaysReqSE && req && entityCol) {
+        applicable = !!req.requiredBy[entityCol];
+      } else {
+        applicable = true;
+      }
       var status = String(statuses[h] || '').toLowerCase();
       var note = String(notes[h] == null ? '' : notes[h]).trim().replace(/\s+/g, ' ').slice(0, 300);
       var cell;
@@ -589,6 +1183,7 @@ function saveEntry(nbfcId, payload) {
     }
 
     SpreadsheetApp.flush();
+    clearAllCache_();          // ensure the response reflects the just-written data
     var fresh = getInitialData();
     fresh.savedRow = writeRow;
     fresh.savedAction = targetRow ? 'updated' : 'created';
@@ -643,7 +1238,7 @@ function uploadDocument(payload) {
     if (payload.row) {
       var ss = getSpreadsheet_();
       sh = findSheet_(ss, tabCfg);
-      layout = readTrackerLayout_(sh, tabCfg.maxCol);
+      layout = readTrackerLayout_(sh, tabCfg.maxCol, tabCfg.docStartCol, tabCfg.docEndCol);
       targetRow = Number(payload.row);
       if (targetRow < 2) throw new Error('Invalid row number.');
       var rowData = sh.getRange(targetRow, 1, 1, layout.colCount).getDisplayValues()[0];
@@ -674,6 +1269,7 @@ function uploadDocument(payload) {
     if (sh && targetRow && docColIdx >= 0) {
       sh.getRange(targetRow, docColIdx + 1).setNote(fileUrl);
       SpreadsheetApp.flush();
+      clearAllCache_();
       var fresh = getInitialData();
       fresh.savedRow = targetRow;
       fresh.uploadedDoc = payload.docKey;
