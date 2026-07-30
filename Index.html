@@ -2189,7 +2189,10 @@ function buildP0BuyerList(buyers){
       var initials = (b.name || '?').trim().split(/\s+/).slice(0,2).map(function(w){ return w[0]; }).join('').toUpperCase();
       var meta = [b.type, b.category, b.state].filter(Boolean).join(' · ');
       var vintage = b.vintage && b.vintage !== '-' ? b.vintage + ' yrs with Recykal' : '';
-      return '<div onclick="openDetail(' + b.row + ')" style="cursor:pointer;background:var(--card);border-radius:var(--radius);box-shadow:0 0 0 .5px var(--line),var(--shadow-sm);padding:14px 16px;display:flex;gap:14px;align-items:flex-start;animation:fadeUp .4s var(--ease-out) both;animation-delay:' + (i*40) + 'ms">' +
+      var safeGst  = (b.gst  || '').replace(/'/g, '');
+      var safeName = (b.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      var clickFn  = b.row ? 'openDetail(' + b.row + ')' : "openP0Detail('" + safeGst + "','" + safeName + "')";
+      return '<div onclick="' + clickFn + '" style="cursor:pointer;background:var(--card);border-radius:var(--radius);box-shadow:0 0 0 .5px var(--line),var(--shadow-sm);padding:14px 16px;display:flex;gap:14px;align-items:flex-start;animation:fadeUp .4s var(--ease-out) both;animation-delay:' + (i*40) + 'ms">' +
         '<div style="flex-shrink:0;width:40px;height:40px;border-radius:10px;background:rgba(var(--nc-rgb),.12);color:var(--nc);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;letter-spacing:.02em">' + esc(initials) + '</div>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-size:14px;font-weight:700;color:var(--ink);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(b.name || '—') + '</div>' +
@@ -2374,6 +2377,22 @@ function followupCard(e){
   return '<div class="dd-follow">' +
     '<div class="dd-follow-h"><span class="dd-follow-title">Follow-up Remark</span></div>' +
     body + '</div>';
+}
+
+function openP0Detail(gst, name) {
+  var gstKey = fieldByType.gst || '';
+  var nmKey  = ND.nameHeader   || '';
+  var ents   = ND.entities     || [];
+  var e = null;
+  if (gst && gstKey) {
+    var gstL = gst.trim().toLowerCase();
+    e = ents.filter(function(x){ return (x.meta[gstKey] || '').trim().toLowerCase() === gstL; })[0] || null;
+  }
+  if (!e && name && nmKey) {
+    var nameL = name.trim().toLowerCase();
+    e = ents.filter(function(x){ return (x.meta[nmKey] || '').trim().toLowerCase() === nameL; })[0] || null;
+  }
+  if (e) openDetail(e.row);
 }
 
 function openDetail(row){
