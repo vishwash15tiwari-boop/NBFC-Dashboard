@@ -123,6 +123,7 @@ function syncMetabaseToSheet() {
     }
 
     writeToSheet_(ss, q.tab, filtered);
+    formatSheet_(ss, q.tab, filtered.rows.length);
     Logger.log('✓ "' + q.tab + '" done');
   });
 
@@ -439,6 +440,78 @@ function writeToSheet_(ss, tabName, result) {
   Logger.log('  ✓ Cols matched   : ' + matched + ' / ' + headers.length);
   Logger.log('  ✓ Cols unmatched : ' + unmatched + ' (doc cols → NA, others → blank)');
   Logger.log('  ✓ Sheet total    : ' + (outRows.length + 1) + ' rows (incl. header)');
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHEET FORMATTER
+// Applies after every write: styled header row, auto-sized columns, borders.
+// Only touches formatting — never overwrites values.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function formatSheet_(ss, tabName, dataRowCount) {
+  var sh = ss.getSheetByName(tabName);
+  if (!sh) return;
+
+  var lastCol = sh.getLastColumn();
+  if (lastCol < 1) return;
+
+  // ── Header row (row 1) ────────────────────────────────────────────────────
+  var headerRange = sh.getRange(1, 1, 1, lastCol);
+  headerRange
+    .setBackground('#1a3c5e')          // dark navy — matches screenshot
+    .setFontColor('#ffffff')
+    .setFontWeight('bold')
+    .setFontSize(10)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle')
+    .setWrap(true);
+
+  sh.setRowHeight(1, 40);             // taller header row
+
+  // ── Freeze header so it stays visible while scrolling ────────────────────
+  sh.setFrozenRows(1);
+
+  // ── Data rows ─────────────────────────────────────────────────────────────
+  if (dataRowCount > 0) {
+    var dataRange = sh.getRange(2, 1, dataRowCount, lastCol);
+    dataRange
+      .setFontColor('#000000')
+      .setFontSize(10)
+      .setHorizontalAlignment('left')
+      .setVerticalAlignment('middle')
+      .setBackground('#ffffff');
+
+    // Alternating row shading
+    for (var r = 0; r < dataRowCount; r++) {
+      var bg = (r % 2 === 0) ? '#ffffff' : '#f5f8fc';
+      sh.getRange(r + 2, 1, 1, lastCol).setBackground(bg);
+    }
+
+    sh.setRowHeightsForced(2, dataRowCount, 22);
+  }
+
+  // ── Borders on full data range (header + data) ────────────────────────────
+  var totalRows = 1 + dataRowCount;
+  if (totalRows > 1) {
+    sh.getRange(1, 1, totalRows, lastCol)
+      .setBorder(
+        true, true, true, true, true, true,
+        '#c0cfe0',
+        SpreadsheetApp.BorderStyle.SOLID
+      );
+  }
+
+  // ── Auto-resize all columns to fit content ────────────────────────────────
+  for (var c = 1; c <= lastCol; c++) {
+    sh.autoResizeColumn(c);
+    // Cap column width so no column becomes excessively wide
+    var w = sh.getColumnWidth(c);
+    if (w > 220) sh.setColumnWidth(c, 220);
+    if (w < 60)  sh.setColumnWidth(c, 60);
+  }
+
+  Logger.log('  Formatting applied to "' + tabName + '"');
 }
 
 
