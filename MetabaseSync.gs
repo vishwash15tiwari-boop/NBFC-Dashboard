@@ -1,42 +1,42 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    Metabase → Google Sheets Sync  (Near Real-Time)
-   meta.recykal.com  ·  Queries 5712 (Seller) & 5711 (Buyer)
+   meta.recykal.com  ·  Query 5712 → Seller tab  |  Query 5711 → Buyer tab
    ─────────────────────────────────────────────────────────────────────────
-   ONE-TIME SETUP:
-     1. Find the line:  METABASE_PASS : 'YOUR_PASSWORD_HERE',
-        Replace  YOUR_PASSWORD_HERE  with your actual Metabase password.
-     2. Save (Ctrl+S).
-     3. Select  createAutoSync  from the function dropdown → click ▶ Run.
-        This registers a trigger that refreshes the sheet every minute.
-     4. Done — the sheet now auto-updates without any further action.
+   SETUP (do once):
+     1. Find METABASE_PASS below → replace YOUR_PASSWORD_HERE with your password
+     2. Save (Ctrl + S)
+     3. Run createAutoSync() once → sheet auto-refreshes every minute
 
-   TO STOP auto-sync:  run  deleteAutoSync()  the same way.
-   TO SYNC MANUALLY:   run  syncMetabaseToSheet()  at any time.
+   TO STOP:   run deleteAutoSync()
+   MANUAL RUN: run syncMetabaseToSheet()
+   DEBUG:      run debugColumns() to see exact column names Metabase returns
    ═══════════════════════════════════════════════════════════════════════════ */
 
-// ── Configuration ────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIGURATION
+// ─────────────────────────────────────────────────────────────────────────────
 
 var CFG = {
-  METABASE_URL  : 'https://meta.recykal.com',
-  METABASE_USER : 'vishwash.tiwari@recykal.com',
-  METABASE_PASS : 'YOUR_PASSWORD_HERE',          // ← replace with your Metabase password
-  SHEET_ID      : '1UMtuarqR9wFI74VM4JWC3GXSF9C9YpkkySeFJgq8rQc',
+  METABASE_URL    : 'https://meta.recykal.com',
+  METABASE_USER   : 'vishwash.tiwari@recykal.com',
+  METABASE_PASS   : 'YOUR_PASSWORD_HERE',   // ← replace with your password
+  SHEET_ID        : '1UMtuarqR9wFI74VM4JWC3GXSF9C9YpkkySeFJgq8rQc',
+  SYNC_EVERY_MINS : 1,
   QUERIES: [
     { id: 5712, tab: 'Seller' },
     { id: 5711, tab: 'Buyer'  },
   ],
-  MAX_ROWS        : 100000,   // safety cap — raise if you ever exceed this
-  SYNC_EVERY_MINS : 1,        // trigger interval; 1 = every minute (minimum)
-
-  // Row-level filter applied after fetching — both conditions must match.
-  // Column names are matched case-insensitively and fuzzy (spaces/underscores ignored).
   FILTER: {
-    VERTICAL         : 'Open Marketplace',   // must equal Business Vertical / Vertical
-    ONBOARDING_STATUS: 'Completed',          // must equal Onboarding Status
+    VERTICAL         : 'Open Marketplace',
+    ONBOARDING_STATUS: 'Completed',
   },
 };
 
-// Required column order (must match header row in the sheet)
+// ─────────────────────────────────────────────────────────────────────────────
+// SCHEMA
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Exact column order that must appear in the sheet (header row 1)
 var COLUMN_ORDER = [
   'No.',
   'Seller Business Name',
@@ -72,293 +72,406 @@ var COLUMN_ORDER = [
   'Shareholding Details',
 ];
 
+// Document columns — values are mapped: 1/2/3 → "Received", 0 → "Not Received",
+// column absent from query output → "NA"
+var DOC_COLUMNS = [
+  '2 yr Audited Financial, Current Provisional',
+  'Bank Statement',
+  'GSTR 3B - 12 Month',
+  'ITR (Last 2 years)',
+  'CIBIL Consent',
+  'Sanction Letter of all loans',
+  'Partnership Deed',
+  'Entity PAN',
+  'MSME',
+  'GST Certificate',
+  'Owner / Director / Partner PAN',
+  'Aadhar (Owner / Director / Partner)',
+  'Electricity Bill / Rental Agreement',
+  'MOA, AOA, COI',
+  'Shareholding Details',
+];
+// Normalised set for O(1) lookup
+var DOC_COL_NORMS = {};
+DOC_COLUMNS.forEach(function (c) { DOC_COL_NORMS[norm_(c)] = true; });
 
-// ── Main entry point ─────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN ENTRY POINT
+// ─────────────────────────────────────────────────────────────────────────────
 
 function syncMetabaseToSheet() {
-  var password = CFG.METABASE_PASS;
-  if (!password || password === 'YOUR_PASSWORD_HERE') {
-    throw new Error('Please replace YOUR_PASSWORD_HERE in CFG.METABASE_PASS with your actual Metabase password.');
+  if (!CFG.METABASE_PASS || CFG.METABASE_PASS === 'YOUR_PASSWORD_HERE') {
+    throw new Error('Set CFG.METABASE_PASS to your Metabase password and save the script.');
   }
 
-  Logger.log('Logging in to ' + CFG.METABASE_URL + ' as ' + CFG.METABASE_USER + ' …');
-  var token = metabaseLogin_(CFG.METABASE_USER, password);
-  Logger.log('Login OK. Session: ' + token.substring(0, 8) + '…');
-
-  var ss = SpreadsheetApp.openById(CFG.SHEET_ID);
+  var token = getSessionToken_();
+  var ss    = SpreadsheetApp.openById(CFG.SHEET_ID);
 
   CFG.QUERIES.forEach(function (q) {
-    Logger.log('━━ Query ' + q.id + ' → "' + q.tab + '" tab ━━');
-    var result = metabaseQueryFull_(token, q.id);
-    Logger.log('   Received ' + result.rows.length + ' rows, ' + result.cols.length + ' columns');
-    result = applyFilter_(result);
-    Logger.log('   After filter (Vertical="' + CFG.FILTER.VERTICAL + '" + Onboarding Status="' + CFG.FILTER.ONBOARDING_STATUS + '"): ' + result.rows.length + ' rows');
-    writeToSheet_(ss, q.tab, result);
-    Logger.log('   ✓ "' + q.tab + '" updated');
+    Logger.log('━━━ Query ' + q.id + ' → "' + q.tab + '" ━━━');
+
+    var raw = fetchCardData_(token, q.id);
+    Logger.log('Fetched: ' + raw.rows.length + ' rows, ' + raw.cols.length + ' cols');
+    Logger.log('Metabase columns: ' + raw.cols.join(' | '));
+
+    var filtered = applyFilter_(raw);
+    Logger.log('After filter: ' + filtered.rows.length + ' rows');
+
+    if (filtered.rows.length === 0) {
+      Logger.log('⚠ Zero rows after filter — check CFG.FILTER values match column names above');
+    }
+
+    writeToSheet_(ss, q.tab, filtered);
+    Logger.log('✓ "' + q.tab + '" done');
   });
 
-  Logger.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  Logger.log('Sync complete.');
+  Logger.log('══ Sync complete ══');
 }
 
 
-// ── Auto-sync trigger management ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// DEBUG HELPER — run this to see what columns Metabase actually returns
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Run this ONCE to start automatic syncing every CFG.SYNC_EVERY_MINS minutes.
- * After running, the sheet refreshes automatically — you never need to run
- * syncMetabaseToSheet() manually again.
- */
-function createAutoSync() {
-  // Remove any existing trigger for this function to avoid duplicates
-  deleteAutoSync();
-
-  ScriptApp.newTrigger('syncMetabaseToSheet')
-    .timeBased()
-    .everyMinutes(CFG.SYNC_EVERY_MINS)
-    .create();
-
-  Logger.log('Auto-sync created: syncMetabaseToSheet() will run every ' +
-             CFG.SYNC_EVERY_MINS + ' minute(s). Run deleteAutoSync() to stop.');
-}
-
-/**
- * Run this to stop automatic syncing.
- */
-function deleteAutoSync() {
-  var triggers = ScriptApp.getProjectTriggers();
-  var removed = 0;
-  triggers.forEach(function (t) {
-    if (t.getHandlerFunction() === 'syncMetabaseToSheet') {
-      ScriptApp.deleteTrigger(t);
-      removed++;
+function debugColumns() {
+  var token = getSessionToken_();
+  CFG.QUERIES.forEach(function (q) {
+    Logger.log('══ Card ' + q.id + ' (' + q.tab + ') ══');
+    var raw = fetchCardData_(token, q.id);
+    Logger.log('Total rows (unfiltered): ' + raw.rows.length);
+    Logger.log('Columns (' + raw.cols.length + '):');
+    raw.cols.forEach(function (c, i) { Logger.log('  [' + (i + 1) + '] ' + c); });
+    // Sample first row
+    if (raw.rows.length > 0) {
+      Logger.log('First row sample:');
+      raw.cols.forEach(function (c, i) { Logger.log('  ' + c + ' = ' + raw.rows[0][i]); });
     }
   });
-  Logger.log(removed > 0
-    ? 'Auto-sync stopped (' + removed + ' trigger(s) removed).'
-    : 'No auto-sync trigger was active.');
 }
 
 
-// ── Metabase API helpers ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// SESSION MANAGEMENT  (cached in Script Properties — avoids login every minute)
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Authenticate and return a session token.
- */
-function metabaseLogin_(email, password) {
+function getSessionToken_() {
+  var props  = PropertiesService.getScriptProperties();
+  var token  = props.getProperty('MB_TOKEN');
+  var expStr = props.getProperty('MB_TOKEN_EXP');
+  var exp    = expStr ? parseInt(expStr, 10) : 0;
+
+  // Reuse cached token if it hasn't expired (we refresh every 6 h, sessions last 14 d)
+  if (token && Date.now() < exp) {
+    Logger.log('Using cached session (expires in ' +
+      Math.round((exp - Date.now()) / 60000) + ' min)');
+    return token;
+  }
+
+  Logger.log('Authenticating with ' + CFG.METABASE_URL + ' …');
   var resp = UrlFetchApp.fetch(CFG.METABASE_URL + '/api/session', {
     method            : 'post',
     contentType       : 'application/json',
-    payload           : JSON.stringify({ username: email, password: password }),
+    payload           : JSON.stringify({ username: CFG.METABASE_USER, password: CFG.METABASE_PASS }),
     muteHttpExceptions: true,
   });
-  if (resp.getResponseCode() !== 200) {
+
+  var code = resp.getResponseCode();
+  if (code !== 200) {
     throw new Error(
-      'Metabase login failed (HTTP ' + resp.getResponseCode() + ').\n' +
-      'Check your email/password in Script properties.\n' +
-      'Response: ' + resp.getContentText().substring(0, 400)
+      'Metabase login failed (HTTP ' + code + '). ' +
+      'Check CFG.METABASE_USER / CFG.METABASE_PASS.\n' +
+      resp.getContentText().substring(0, 300)
     );
   }
-  return JSON.parse(resp.getContentText()).id;
+
+  token = JSON.parse(resp.getContentText()).id;
+  props.setProperty('MB_TOKEN',     token);
+  props.setProperty('MB_TOKEN_EXP', String(Date.now() + 6 * 3600 * 1000));
+  Logger.log('Login OK — token cached for 6 h');
+  return token;
 }
 
-/**
- * Fetch all rows for a saved question (card).
- * Strategy:
- *   1. GET /api/card/{id}          — retrieve the card's dataset_query
- *   2. POST /api/dataset            — run with a high max-results constraint
- * This bypasses the 2 000-row display cap that the UI applies.
- */
-function metabaseQueryFull_(token, cardId) {
-  // ── Step 1: get the card definition ───────────────────────────────────────
-  var cardResp = UrlFetchApp.fetch(CFG.METABASE_URL + '/api/card/' + cardId, {
-    method            : 'get',
-    headers           : { 'X-Metabase-Session': token },
-    muteHttpExceptions: true,
-  });
-  if (cardResp.getResponseCode() !== 200) {
-    throw new Error(
-      'Could not fetch card ' + cardId + ' (HTTP ' + cardResp.getResponseCode() + ').\n' +
-      cardResp.getContentText().substring(0, 400)
-    );
+// Force a fresh login on the next run (call this if you get 401 errors)
+function clearSession() {
+  var props = PropertiesService.getScriptProperties();
+  props.deleteProperty('MB_TOKEN');
+  props.deleteProperty('MB_TOKEN_EXP');
+  Logger.log('Session cleared — next run will re-authenticate.');
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// METABASE DATA FETCH
+// Strategy: try the JSON export endpoint first (no row cap), fall back to the
+// standard card query endpoint (2 000-row default cap).
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fetchCardData_(token, cardId) {
+  var headers = { 'X-Metabase-Session': token };
+
+  // ── Strategy 1: JSON export — bypasses the 2 000-row display cap ──────────
+  var exportResp = UrlFetchApp.fetch(
+    CFG.METABASE_URL + '/api/card/' + cardId + '/query/json',
+    {
+      method            : 'post',
+      contentType       : 'application/json',
+      headers           : headers,
+      payload           : JSON.stringify({ parameters: [] }),
+      muteHttpExceptions: true,
+    }
+  );
+
+  var code = exportResp.getResponseCode();
+  Logger.log('  /query/json → HTTP ' + code);
+
+  if (code === 200) {
+    var body = exportResp.getContentText();
+    // Export returns a JSON array of objects: [{"Col": val, ...}, ...]
+    try {
+      var arr = JSON.parse(body);
+      if (Array.isArray(arr) && arr.length > 0) {
+        var cols = Object.keys(arr[0]);
+        var rows = arr.map(function (obj) { return cols.map(function (k) { return obj[k]; }); });
+        Logger.log('  Export parsed: ' + rows.length + ' rows via /query/json');
+        return { cols: cols, rows: rows };
+      }
+      if (Array.isArray(arr) && arr.length === 0) {
+        Logger.log('  Export returned 0 rows — query may genuinely be empty');
+        return { cols: [], rows: [] };
+      }
+    } catch (e) {
+      Logger.log('  /query/json parse error: ' + e.message + ' — falling back');
+    }
   }
-  var card         = JSON.parse(cardResp.getContentText());
-  var datasetQuery = card.dataset_query;
-  if (!datasetQuery) throw new Error('Card ' + cardId + ' has no dataset_query — is it a saved question?');
 
-  // ── Step 2: run the dataset query with an uncapped row limit ──────────────
-  var queryPayload = JSON.stringify({
-    database    : datasetQuery.database,
-    type        : datasetQuery.type,
-    query       : datasetQuery.query,
-    native      : datasetQuery.native,
-    parameters  : [],
-    constraints : { 'max-results': CFG.MAX_ROWS },
-  });
+  if (code === 401) {
+    // Clear stale session so next run re-authenticates
+    clearSession();
+    throw new Error('Session expired (401). Cleared — will re-authenticate on next run.');
+  }
 
-  var dataResp = UrlFetchApp.fetch(CFG.METABASE_URL + '/api/dataset', {
-    method            : 'post',
-    contentType       : 'application/json',
-    headers           : { 'X-Metabase-Session': token },
-    payload           : queryPayload,
-    muteHttpExceptions: true,
-  });
-  var code = dataResp.getResponseCode();
+  // ── Strategy 2: Standard card query endpoint ───────────────────────────────
+  Logger.log('  Falling back to /query …');
+  var queryResp = UrlFetchApp.fetch(
+    CFG.METABASE_URL + '/api/card/' + cardId + '/query',
+    {
+      method            : 'post',
+      contentType       : 'application/json',
+      headers           : headers,
+      payload           : JSON.stringify({ parameters: [], ignore_cache: false }),
+      muteHttpExceptions: true,
+    }
+  );
+
+  code = queryResp.getResponseCode();
+  Logger.log('  /query → HTTP ' + code);
+
+  if (code === 401) { clearSession(); throw new Error('Session expired (401). Will re-auth on next run.'); }
   if (code !== 200 && code !== 202) {
     throw new Error(
-      'Dataset query for card ' + cardId + ' failed (HTTP ' + code + ').\n' +
-      dataResp.getContentText().substring(0, 400)
+      'Card ' + cardId + ' query failed (HTTP ' + code + '):\n' +
+      queryResp.getContentText().substring(0, 400)
     );
   }
 
-  var body = JSON.parse(dataResp.getContentText());
-  var data = body.data || body;
-  var cols = (data.cols || []).map(function (c) {
-    return String(c.display_name || c.name || '').trim();
-  });
-  var rows = data.rows || [];
+  var qBody = JSON.parse(queryResp.getContentText());
+  var data  = qBody.data || qBody;
 
-  if (data.rows_truncated != null && data.rows_truncated < rows.length) {
-    Logger.log('   ⚠ rows_truncated=' + data.rows_truncated + ' — result may be incomplete. Raise CFG.MAX_ROWS.');
+  if (!data.cols || !data.rows) {
+    Logger.log('  Unexpected response shape: ' + JSON.stringify(qBody).substring(0, 400));
+    throw new Error('Unexpected response format from card ' + cardId + ' /query endpoint.');
   }
 
-  return { cols: cols, rows: rows };
+  var qCols = data.cols.map(function (c) { return String(c.display_name || c.name || '').trim(); });
+  var qRows = data.rows;
+
+  if (data.rows_truncated != null) {
+    Logger.log('  ⚠ rows_truncated present — result may be capped at 2 000 rows');
+  }
+
+  Logger.log('  /query parsed: ' + qRows.length + ' rows');
+  return { cols: qCols, rows: qRows };
 }
 
 
-// ── Row filter ────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// ROW FILTER
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Keep only rows where:
- *   Business Vertical / Vertical  =  CFG.FILTER.VERTICAL          ("Open Marketplace")
- *   Onboarding Status             =  CFG.FILTER.ONBOARDING_STATUS ("Completed")
- *
- * Column matching is case-insensitive and ignores spaces / underscores.
- * If either filter column is absent from the query output a warning is logged
- * and that condition is skipped (so you still get data rather than nothing).
- */
 function applyFilter_(result) {
   var cols = result.cols;
 
-  // Find column indices by normalised name
-  function findCol(candidates) {
+  function findIdx(candidates) {
     for (var i = 0; i < cols.length; i++) {
       var n = norm_(cols[i]);
-      for (var c = 0; c < candidates.length; c++) {
-        if (n === norm_(candidates[c])) return i;
+      for (var j = 0; j < candidates.length; j++) {
+        if (n === norm_(candidates[j])) return i;
       }
     }
     return -1;
   }
 
-  var verticalIdx  = findCol(['Vertical', 'Business Vertical', 'BusinessVertical']);
-  var onboardingIdx = findCol(['Onboarding Status', 'OnboardingStatus', 'Onboarding_Status']);
+  var vIdx = findIdx(['Vertical', 'Business Vertical', 'BusinessVertical',
+                      'business_vertical', 'Biz Vertical']);
+  var oIdx = findIdx(['Onboarding Status', 'OnboardingStatus', 'Onboarding_Status',
+                      'onboarding_status', 'Status', 'Seller Status']);
 
-  if (verticalIdx < 0) {
-    Logger.log('   ⚠ "Vertical / Business Vertical" column not found in query output — vertical filter skipped.');
-  }
-  if (onboardingIdx < 0) {
-    Logger.log('   ⚠ "Onboarding Status" column not found in query output — onboarding filter skipped.');
-  }
+  Logger.log('  Filter — Vertical col idx: ' + vIdx + ', Onboarding col idx: ' + oIdx);
+  if (vIdx < 0)  Logger.log('  ⚠ Vertical column not found — run debugColumns() to see exact names');
+  if (oIdx < 0)  Logger.log('  ⚠ Onboarding Status column not found — run debugColumns() to see exact names');
 
-  var wantVertical   = CFG.FILTER.VERTICAL.toLowerCase().trim();
-  var wantOnboarding = CFG.FILTER.ONBOARDING_STATUS.toLowerCase().trim();
+  var wV = CFG.FILTER.VERTICAL.toLowerCase().trim();
+  var wO = CFG.FILTER.ONBOARDING_STATUS.toLowerCase().trim();
 
   var filtered = result.rows.filter(function (row) {
-    var verticalOk   = verticalIdx  < 0 || String(row[verticalIdx]  || '').toLowerCase().trim() === wantVertical;
-    var onboardingOk = onboardingIdx < 0 || String(row[onboardingIdx] || '').toLowerCase().trim() === wantOnboarding;
-    return verticalOk && onboardingOk;
+    var vOk = (vIdx < 0) || String(row[vIdx] == null ? '' : row[vIdx]).toLowerCase().trim() === wV;
+    var oOk = (oIdx < 0) || String(row[oIdx] == null ? '' : row[oIdx]).toLowerCase().trim() === wO;
+    return vOk && oOk;
   });
 
   return { cols: cols, rows: filtered };
 }
 
 
-// ── Sheet writer ──────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// DOCUMENT FIELD TRANSFORM
+// 1 / 2 / 3  →  "Received"
+// 0           →  "Not Received"
+// null / ''   →  "NA"   (column present but blank)
+// col absent  →  "NA"   (handled in writeToSheet_)
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Map result columns → sheet columns and write rows starting at row 2.
- * Row 1 (headers) is never modified.
- * Columns in the sheet that have no matching Metabase column are left blank.
- */
+function transformDocValue_(v) {
+  if (v === null || v === undefined || String(v).trim() === '') return 'NA';
+  var s = String(v).trim().toLowerCase();
+  // Already transformed
+  if (s === 'received')     return 'Received';
+  if (s === 'not received') return 'Not Received';
+  if (s === 'na' || s === 'n/a' || s === '-') return 'NA';
+  // Numeric
+  var n = parseFloat(s);
+  if (!isNaN(n)) {
+    if (n >= 1) return 'Received';
+    if (n === 0) return 'Not Received';
+  }
+  // Non-empty non-numeric text — treat as Received
+  return 'Received';
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHEET WRITER
+// ─────────────────────────────────────────────────────────────────────────────
+
 function writeToSheet_(ss, tabName, result) {
   var sh = ss.getSheetByName(tabName);
-  if (!sh) throw new Error('Tab "' + tabName + '" not found in the spreadsheet.');
+  if (!sh) throw new Error('Tab "' + tabName + '" not found in spreadsheet ' + CFG.SHEET_ID);
 
-  // ── Read existing headers ─────────────────────────────────────────────────
+  // ── Read existing headers from row 1 (never overwrite them) ───────────────
   var lastCol = sh.getLastColumn();
   var headers;
   if (lastCol > 0) {
-    headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) {
-      return String(h).trim();
-    });
-    // Drop trailing empty headers
+    headers = sh.getRange(1, 1, 1, lastCol).getValues()[0]
+      .map(function (h) { return String(h).trim(); });
     while (headers.length > 0 && headers[headers.length - 1] === '') headers.pop();
   }
-  // Fall back to COLUMN_ORDER if row 1 is completely empty
   if (!headers || headers.length === 0) {
-    Logger.log('   Row 1 of "' + tabName + '" is empty — writing COLUMN_ORDER as headers.');
+    Logger.log('  Row 1 empty — writing default COLUMN_ORDER as headers');
     headers = COLUMN_ORDER.slice();
     sh.getRange(1, 1, 1, headers.length).setValues([headers]);
   }
 
-  // ── Build a normalised lookup: query column name → column index in result ─
+  Logger.log('  Sheet headers (' + headers.length + '): ' + headers.join(' | '));
+
+  // ── Build lookup: normalised Metabase col name → index in result.cols ─────
   var colLookup = {};
   result.cols.forEach(function (name, i) { colLookup[norm_(name)] = i; });
 
-  // ── Map each sheet header to a result column (or -1 if unmatched) ─────────
+  // ── Map each sheet header to a result column index (-1 = not found) ───────
   var mapping = headers.map(function (h) {
     var key = norm_(h);
     if (key in colLookup) return colLookup[key];
-    // Try fuzzy: strip "seller" prefix (Buyer tab reuses same column order)
-    var stripped = key.replace(/^seller/, '');
+    // Fuzzy: try stripping "seller" / "buyer" prefix
+    var stripped = key.replace(/^(seller|buyer)/, '');
     for (var k in colLookup) {
-      if (k === stripped || k.replace(/^seller/, '') === stripped) return colLookup[k];
+      var ks = k.replace(/^(seller|buyer)/, '');
+      if (k === stripped || ks === key || ks === stripped) return colLookup[k];
     }
     return -1;
   });
 
-  // ── Audit log ─────────────────────────────────────────────────────────────
-  var unmatched = [];
+  // ── Audit: log what matched and what didn't ────────────────────────────────
+  Logger.log('  Column mapping:');
   headers.forEach(function (h, c) {
-    if (mapping[c] < 0) unmatched.push(h);
+    var isDoc = norm_(h) in DOC_COL_NORMS;
+    var status = mapping[c] >= 0
+      ? '→ [' + mapping[c] + '] ' + result.cols[mapping[c]]
+      : (isDoc ? '→ NA (doc col, not in query)' : '→ (blank)');
+    Logger.log('    [' + (c + 1) + '] ' + h + '  ' + status);
   });
-  if (unmatched.length > 0) {
-    Logger.log('   Columns not found in query output (will be blank): ' + unmatched.join(', '));
-  }
 
-  // ── Build output rows ─────────────────────────────────────────────────────
+  // ── Build output rows ──────────────────────────────────────────────────────
   var outRows = result.rows.map(function (srcRow) {
-    return headers.map(function (_, c) {
-      if (mapping[c] < 0) return '';
+    return headers.map(function (h, c) {
+      var isDoc = norm_(h) in DOC_COL_NORMS;
+      if (mapping[c] < 0) {
+        return isDoc ? 'NA' : '';   // doc columns absent from query → NA
+      }
       var v = srcRow[mapping[c]];
-      return v == null ? '' : v;
+      return isDoc ? transformDocValue_(v) : (v == null ? '' : v);
     });
   });
 
-  // ── Clear old data (rows 2+), then write ──────────────────────────────────
+  // ── Clear existing data rows (2 onwards), keep header ─────────────────────
   var lastRow = sh.getLastRow();
-  if (lastRow > 1) {
-    sh.getRange(2, 1, lastRow - 1, headers.length).clearContent();
-  }
+  if (lastRow > 1) sh.getRange(2, 1, lastRow - 1, headers.length).clearContent();
+
+  // ── Write ──────────────────────────────────────────────────────────────────
   if (outRows.length > 0) {
     sh.getRange(2, 1, outRows.length, headers.length).setValues(outRows);
   }
 
-  // ── Final validation log ──────────────────────────────────────────────────
-  Logger.log('   Rows written : ' + outRows.length);
-  Logger.log('   Columns matched: ' + mapping.filter(function (i) { return i >= 0; }).length +
-             ' / ' + headers.length);
-  Logger.log('   Sheet row count (incl. header): ' + (outRows.length + 1));
+  // ── Validation summary ─────────────────────────────────────────────────────
+  var matched   = mapping.filter(function (i) { return i >= 0; }).length;
+  var unmatched = mapping.filter(function (i) { return i < 0;  }).length;
+  Logger.log('  ✓ Rows written   : ' + outRows.length);
+  Logger.log('  ✓ Cols matched   : ' + matched + ' / ' + headers.length);
+  Logger.log('  ✓ Cols unmatched : ' + unmatched + ' (doc cols → NA, others → blank)');
+  Logger.log('  ✓ Sheet total    : ' + (outRows.length + 1) + ' rows (incl. header)');
 }
 
 
-// ── Utility ───────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTO-SYNC TRIGGER MANAGEMENT
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Normalise a column name for fuzzy matching:
- * lower-case, strip spaces / underscores / punctuation.
- */
+function createAutoSync() {
+  deleteAutoSync();
+  ScriptApp.newTrigger('syncMetabaseToSheet')
+    .timeBased()
+    .everyMinutes(CFG.SYNC_EVERY_MINS)
+    .create();
+  Logger.log('Auto-sync ON: every ' + CFG.SYNC_EVERY_MINS + ' min. Run deleteAutoSync() to stop.');
+}
+
+function deleteAutoSync() {
+  var removed = 0;
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'syncMetabaseToSheet') {
+      ScriptApp.deleteTrigger(t);
+      removed++;
+    }
+  });
+  Logger.log(removed ? 'Auto-sync OFF (' + removed + ' trigger(s) removed).' : 'No trigger was active.');
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UTILITY
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Normalise a string for fuzzy column matching
 function norm_(s) {
   return String(s).toLowerCase().replace(/[\s_\-\/(),\.]+/g, '').trim();
 }
