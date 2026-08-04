@@ -1,13 +1,17 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Metabase → Google Sheets Sync
+   Metabase → Google Sheets Sync  (Near Real-Time)
    meta.recykal.com  ·  Queries 5712 (Seller) & 5711 (Buyer)
    ─────────────────────────────────────────────────────────────────────────
-   ONE-TIME SETUP  (do this before running):
+   ONE-TIME SETUP:
      1. Find the line:  METABASE_PASS : 'YOUR_PASSWORD_HERE',
-     2. Replace  YOUR_PASSWORD_HERE  with your actual Metabase password
-     3. Save (Ctrl+S), then click ▶ Run → syncMetabaseToSheet
+        Replace  YOUR_PASSWORD_HERE  with your actual Metabase password.
+     2. Save (Ctrl+S).
+     3. Select  createAutoSync  from the function dropdown → click ▶ Run.
+        This registers a trigger that refreshes the sheet every minute.
+     4. Done — the sheet now auto-updates without any further action.
 
-   The script will log progress in the Apps Script Execution log.
+   TO STOP auto-sync:  run  deleteAutoSync()  the same way.
+   TO SYNC MANUALLY:   run  syncMetabaseToSheet()  at any time.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 // ── Configuration ────────────────────────────────────────────────────────────
@@ -21,7 +25,8 @@ var CFG = {
     { id: 5712, tab: 'Seller' },
     { id: 5711, tab: 'Buyer'  },
   ],
-  MAX_ROWS: 100000,   // safety cap — raise if you ever exceed this
+  MAX_ROWS        : 100000,   // safety cap — raise if you ever exceed this
+  SYNC_EVERY_MINS : 1,        // trigger interval; 1 = every minute (minimum)
 
   // Row-level filter applied after fetching — both conditions must match.
   // Column names are matched case-insensitively and fuzzy (spaces/underscores ignored).
@@ -94,6 +99,44 @@ function syncMetabaseToSheet() {
 
   Logger.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   Logger.log('Sync complete.');
+}
+
+
+// ── Auto-sync trigger management ─────────────────────────────────────────────
+
+/**
+ * Run this ONCE to start automatic syncing every CFG.SYNC_EVERY_MINS minutes.
+ * After running, the sheet refreshes automatically — you never need to run
+ * syncMetabaseToSheet() manually again.
+ */
+function createAutoSync() {
+  // Remove any existing trigger for this function to avoid duplicates
+  deleteAutoSync();
+
+  ScriptApp.newTrigger('syncMetabaseToSheet')
+    .timeBased()
+    .everyMinutes(CFG.SYNC_EVERY_MINS)
+    .create();
+
+  Logger.log('Auto-sync created: syncMetabaseToSheet() will run every ' +
+             CFG.SYNC_EVERY_MINS + ' minute(s). Run deleteAutoSync() to stop.');
+}
+
+/**
+ * Run this to stop automatic syncing.
+ */
+function deleteAutoSync() {
+  var triggers = ScriptApp.getProjectTriggers();
+  var removed = 0;
+  triggers.forEach(function (t) {
+    if (t.getHandlerFunction() === 'syncMetabaseToSheet') {
+      ScriptApp.deleteTrigger(t);
+      removed++;
+    }
+  });
+  Logger.log(removed > 0
+    ? 'Auto-sync stopped (' + removed + ' trigger(s) removed).'
+    : 'No auto-sync trigger was active.');
 }
 
 
