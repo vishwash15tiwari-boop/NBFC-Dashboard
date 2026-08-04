@@ -100,11 +100,11 @@ DOC_COLUMNS.forEach(function (c) { DOC_COL_NORMS[norm_(c)] = true; });
 // Values are arrays of possible Metabase display_name strings, tried in order.
 // This covers cases where the two sides use completely different wording.
 var FIELD_MAP = {
-  // Primary entity name (both tabs)
-  'sellerbusinessname'  : ['Entity Name', 'Business Name', 'Name'],
-  'buyerbusinessname'   : ['Entity Name', 'Business Name', 'Name'],
-  // Region is derived from the "Classification" column via deriveRegion_()
-  'region'              : ['Classification', 'Region'],
+  // Primary entity name — must come from "Entity Name" only
+  'sellerbusinessname'  : ['Entity Name'],
+  'buyerbusinessname'   : ['Entity Name'],
+  // Region is derived from the State column using NORTH/SOUTH_STATES maps (not pulled directly)
+  'region'              : ['State'],
   // Core identity fields
   'vertical'            : ['Vertical', 'Business Vertical', 'Biz Vertical'],
   'sellertype'          : ['Seller Type', 'Seller_Type', 'Type'],
@@ -479,18 +479,21 @@ function writeToSheet_(ss, tabName, result) {
   });
 
   // ── Build output rows ──────────────────────────────────────────────────────
-  var outRows = result.rows.map(function (srcRow) {
+  var outRows = result.rows.map(function (srcRow, rowIdx) {
     return headers.map(function (h, c) {
-      var isDoc  = norm_(h) in DOC_COL_NORMS;
+      var hNorm  = norm_(h);
+      var isDoc  = hNorm in DOC_COL_NORMS;
+
+      // "No." column — always auto-filled with a sequential 1-based serial number
+      if (hNorm === 'no') return rowIdx + 1;
+
       if (mapping[c] < 0) {
         return isDoc ? 'NA' : '';   // doc columns absent from query → NA
       }
       var v = srcRow[mapping[c]];
       if (isDoc) return transformDocValue_(v);
-      // "Region" header matched against a "Classification" source → derive region label
-      if (norm_(h) === 'region' && norm_(matchedSrcName[c]).indexOf('classif') >= 0) {
-        return deriveRegion_(v);
-      }
+      // "Region" — always derived from the State value via North/South/NA logic
+      if (hNorm === 'region') return deriveRegion_(v);
       return v == null ? '' : v;
     });
   });
@@ -615,18 +618,32 @@ function deleteAutoSync() {
 // UTILITY
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Derive a Region label from a Metabase "Classification" value.
-// Returns "North" / "South" / "East" / "West" / "Central" when the value
-// contains a recognisable direction word; otherwise passes the raw value through.
-function deriveRegion_(classificationValue) {
-  if (classificationValue == null || String(classificationValue).trim() === '') return '';
-  var v = String(classificationValue).toLowerCase().trim();
-  if (/north|northern/.test(v)) return 'North';
-  if (/south|southern/.test(v)) return 'South';
-  if (/east|eastern/.test(v))   return 'East';
-  if (/west|western/.test(v))   return 'West';
-  if (/central|centre|center/.test(v)) return 'Central';
-  return String(classificationValue).trim();   // unrecognised — preserve raw value
+// State-to-region lookup tables (keyed on lowercase trimmed state name)
+var NORTH_STATES = {
+  'delhi': true, 'haryana': true, 'himachal pradesh': true,
+  'jammu & kashmir': true, 'jammu and kashmir': true, 'j&k': true,
+  'ladakh': true, 'punjab': true, 'rajasthan': true,
+  'uttar pradesh': true, 'up': true,
+  'uttarakhand': true, 'uttaranchal': true, 'chandigarh': true,
+};
+var SOUTH_STATES = {
+  'andhra pradesh': true, 'ap': true,
+  'karnataka': true, 'kerala': true,
+  'tamil nadu': true, 'tamilnadu': true, 'tn': true,
+  'telangana': true, 'puducherry': true, 'pondicherry': true,
+  'lakshadweep': true,
+  'andaman & nicobar islands': true, 'andaman and nicobar islands': true,
+  'andaman & nicobar': true, 'andaman and nicobar': true,
+};
+
+// Derive Region from the Metabase State value.
+// Returns "North", "South", or "NA" (anything not in the two lists above).
+function deriveRegion_(stateValue) {
+  if (stateValue == null || String(stateValue).trim() === '') return 'NA';
+  var s = String(stateValue).trim().toLowerCase();
+  if (NORTH_STATES[s]) return 'North';
+  if (SOUTH_STATES[s]) return 'South';
+  return 'NA';
 }
 
 // Normalise a string for fuzzy column matching
