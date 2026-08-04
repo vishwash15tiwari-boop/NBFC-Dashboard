@@ -3,12 +3,9 @@
    meta.recykal.com  ·  Queries 5712 (Seller) & 5711 (Buyer)
    ─────────────────────────────────────────────────────────────────────────
    ONE-TIME SETUP  (do this before running):
-     1. In Apps Script editor: Extensions → Apps Script  (or open script.google.com)
-     2. Click the gear icon → "Project settings"
-     3. Scroll to "Script properties" → "+ Add property"
-        Name : METABASE_PASSWORD
-        Value: <your Metabase password for vishwash.tiwari@recykal.com>
-     4. Save, then run syncMetabaseToSheet()
+     1. Find the line:  METABASE_PASS : 'YOUR_PASSWORD_HERE',
+     2. Replace  YOUR_PASSWORD_HERE  with your actual Metabase password
+     3. Save (Ctrl+S), then click ▶ Run → syncMetabaseToSheet
 
    The script will log progress in the Apps Script Execution log.
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -18,6 +15,7 @@
 var CFG = {
   METABASE_URL  : 'https://meta.recykal.com',
   METABASE_USER : 'vishwash.tiwari@recykal.com',
+  METABASE_PASS : 'YOUR_PASSWORD_HERE',          // ← replace with your Metabase password
   SHEET_ID      : '1UMtuarqR9wFI74VM4JWC3GXSF9C9YpkkySeFJgq8rQc',
   QUERIES: [
     { id: 5712, tab: 'Seller' },
@@ -73,13 +71,9 @@ var COLUMN_ORDER = [
 // ── Main entry point ─────────────────────────────────────────────────────────
 
 function syncMetabaseToSheet() {
-  var password = PropertiesService.getScriptProperties().getProperty('METABASE_PASSWORD');
-  if (!password) {
-    throw new Error(
-      'METABASE_PASSWORD not set.\n' +
-      'Go to: Project settings → Script properties → Add property\n' +
-      'Name: METABASE_PASSWORD  |  Value: your Metabase password'
-    );
+  var password = CFG.METABASE_PASS;
+  if (!password || password === 'YOUR_PASSWORD_HERE') {
+    throw new Error('Please replace YOUR_PASSWORD_HERE in CFG.METABASE_PASS with your actual Metabase password.');
   }
 
   Logger.log('Logging in to ' + CFG.METABASE_URL + ' as ' + CFG.METABASE_USER + ' …');
