@@ -99,29 +99,64 @@ DOC_COLUMNS.forEach(function (c) { DOC_COL_NORMS[norm_(c)] = true; });
 // Keys are the normalised sheet header (via norm_()).
 // Values are arrays of possible Metabase display_name strings, tried in order.
 // This covers cases where the two sides use completely different wording.
+// Maps normalised sheet header → ordered list of Metabase column name candidates.
+// norm_() collapses spaces, underscores, hyphens, etc., so "Entity Name", "entity_name",
+// and "EntityName" all normalise to "entityname" — one entry covers all three variants.
 var FIELD_MAP = {
-  // Primary entity name — must come from "Entity Name" only
-  'sellerbusinessname'  : ['Entity Name'],
-  'buyerbusinessname'   : ['Entity Name'],
-  // Region is derived from the State column using NORTH/SOUTH_STATES maps (not pulled directly)
-  'region'              : ['State'],
-  // Core identity fields
-  'vertical'            : ['Vertical', 'Business Vertical', 'Biz Vertical'],
-  'sellertype'          : ['Seller Type', 'Seller_Type', 'Type'],
-  'buyertype'           : ['Buyer Type', 'Buyer_Type', 'Type'],
-  'state'               : ['State'],
-  'sellergstin'         : ['GSTIN', 'Seller GSTIN', 'GST Number', 'GST', 'Seller_GSTIN'],
-  'buyergstin'          : ['GSTIN', 'Buyer GSTIN',  'GST Number', 'GST', 'Buyer_GSTIN'],
-  'vintagewithrecykal'  : ['Vintage with Recykal', 'Vintage_with_Recykal', 'Vintage'],
-  'finoscalerating'     : ['Finoscale Rating', 'Finoscale_Rating', 'Credit Rating', 'Rating'],
-  'mailid'              : ['Mail ID', 'Mail_ID', 'Email', 'Email ID', 'Mail'],
-  'pocmail'             : ['POC Mail', 'POC_mail', 'POC Email', 'POC Mail ID'],
-  'mobileno'            : ['Mobile No', 'Mobile_No', 'Mobile', 'Mobile Number', 'Phone'],
-  'pocnames'            : ['POC Names', 'POC Name'],
-  'dateofregistration'  : ['Date of Registration', 'Date_of_Registration', 'Registration Date'],
-  'entitytype'          : ['Entity Type', 'Entity_Type'],
-  'pendingdocument'     : ['Pending Document', 'Pending_Document'],
-  'debtprofile'         : ['Debt Profile', 'Debt_Profile'],
+  // ── Business name — first candidate wins; others are safe fallbacks ──────────
+  'sellerbusinessname' : [
+    'Entity Name',          // confirmed by user
+    'Seller Name', 'Seller Business Name',
+    'Name', 'Business Name', 'Company Name', 'Organisation Name',
+  ],
+  'buyerbusinessname'  : [
+    'Entity Name',
+    'Buyer Name',  'Buyer Business Name',
+    'Name', 'Business Name', 'Company Name', 'Organisation Name',
+  ],
+
+  // ── Region — derived from State via deriveRegion_() ───────────────────────────
+  'region' : ['State'],
+
+  // ── Core identity ─────────────────────────────────────────────────────────────
+  'vertical'    : ['Vertical', 'Business Vertical', 'Biz Vertical'],
+
+  // Legal structure — "Partnership", "Proprietorship", "Private Limited", etc.
+  'entitytype'  : [
+    'Entity Type', 'Entity_Type', 'Legal Entity Type',
+    'Legal Structure', 'Organisation Type', 'Organization Type',
+    'Type of Entity', 'Registration Type',
+  ],
+
+  // Business category — "Baler", "Trader", "Manufacturer", "Baler cum Trader", etc.
+  'sellertype'  : [
+    'Seller Type', 'Seller_Type',
+    'Seller Category', 'Category', 'Business Type', 'Business Category', 'Type',
+  ],
+  'buyertype'   : [
+    'Buyer Type',  'Buyer_Type',
+    'Buyer Category',  'Category', 'Business Type', 'Business Category', 'Type',
+  ],
+
+  // ── Contact / ID fields ───────────────────────────────────────────────────────
+  'state'       : ['State'],
+  'sellergstin' : ['GSTIN', 'Seller GSTIN', 'GST Number', 'GST No', 'GST', 'Seller_GSTIN'],
+  'buyergstin'  : ['GSTIN', 'Buyer GSTIN',  'GST Number', 'GST No', 'GST', 'Buyer_GSTIN'],
+  'vintagewithrecykal' : ['Vintage with Recykal', 'Vintage_with_Recykal', 'Vintage'],
+  'finoscalerating'    : [
+    'Finoscale Rating', 'Finoscale_Rating', 'Finoscale Score',
+    'Credit Rating', 'Rating',
+  ],
+  'mailid'   : ['Mail ID', 'Mail_ID', 'Email ID', 'Email', 'Mail', 'Email Address'],
+  'pocmail'  : ['POC Mail', 'POC_mail', 'POC Email', 'POC Mail ID', 'POC Email ID'],
+  'mobileno' : ['Mobile No', 'Mobile_No', 'Mobile Number', 'Mobile', 'Phone', 'Contact No'],
+  'pocnames' : ['POC Names', 'POC Name', 'Point of Contact', 'POC'],
+  'dateofregistration' : [
+    'Date of Registration', 'Date_of_Registration',
+    'Registration Date', 'Reg Date', 'Incorporation Date',
+  ],
+  'pendingdocument' : ['Pending Document', 'Pending_Document', 'Pending Documents'],
+  'debtprofile'     : ['Debt Profile', 'Debt_Profile', 'Debt'],
 };
 
 
@@ -464,17 +499,35 @@ function writeToSheet_(ss, tabName, result) {
       }
     }
 
+    // Step 4 — Substring fallback: sheet-header norm is a substring of a Metabase
+    //          col norm, or vice versa. Only for keys ≥ 5 chars (avoids false
+    //          positives on short keys like 'no', 'id', 'gstin').
+    if (idx < 0 && key.length >= 5) {
+      var bestK = null, bestLen = 0;
+      for (var k in colLookup) {
+        if (k.length < 4) continue;
+        if (k.indexOf(key) >= 0 || key.indexOf(k) >= 0) {
+          if (k.length > bestLen) { bestLen = k.length; bestK = k; }
+        }
+      }
+      if (bestK !== null) {
+        idx     = colLookup[bestK];
+        srcName = result.cols[idx];
+      }
+    }
+
     mapping.push(idx);
     matchedSrcName.push(srcName);
   });
 
   // ── Audit: log what matched and what didn't ────────────────────────────────
-  Logger.log('  Column mapping:');
+  Logger.log('  ── Column mapping (' + tabName + ') ──');
+  Logger.log('  Metabase columns available: ' + result.cols.join(' | '));
   headers.forEach(function (h, c) {
     var isDoc = norm_(h) in DOC_COL_NORMS;
     var status = mapping[c] >= 0
-      ? '→ [' + mapping[c] + '] ' + matchedSrcName[c]
-      : (isDoc ? '→ NA (doc col, not in query)' : '→ (blank)');
+      ? '✓ → [' + mapping[c] + '] "' + matchedSrcName[c] + '"'
+      : (isDoc ? '◌ → NA (doc col not in query)' : '✗ → NO MATCH (will be blank)');
     Logger.log('    [' + (c + 1) + '] ' + h + '  ' + status);
   });
 
