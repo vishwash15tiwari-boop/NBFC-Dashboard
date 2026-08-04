@@ -24,6 +24,13 @@ var CFG = {
     { id: 5711, tab: 'Buyer'  },
   ],
   MAX_ROWS: 100000,   // safety cap — raise if you ever exceed this
+
+  // Row-level filter applied after fetching — both conditions must match.
+  // Column names are matched case-insensitively and fuzzy (spaces/underscores ignored).
+  FILTER: {
+    VERTICAL         : 'Open Marketplace',   // must equal Business Vertical / Vertical
+    ONBOARDING_STATUS: 'Completed',          // must equal Onboarding Status
+  },
 };
 
 // Required column order (must match header row in the sheet)
@@ -85,6 +92,8 @@ function syncMetabaseToSheet() {
     Logger.log('━━ Query ' + q.id + ' → "' + q.tab + '" tab ━━');
     var result = metabaseQueryFull_(token, q.id);
     Logger.log('   Received ' + result.rows.length + ' rows, ' + result.cols.length + ' columns');
+    result = applyFilter_(result);
+    Logger.log('   After filter (Vertical="' + CFG.FILTER.VERTICAL + '" + Onboarding Status="' + CFG.FILTER.ONBOARDING_STATUS + '"): ' + result.rows.length + ' rows');
     writeToSheet_(ss, q.tab, result);
     Logger.log('   ✓ "' + q.tab + '" updated');
   });
@@ -177,6 +186,54 @@ function metabaseQueryFull_(token, cardId) {
   }
 
   return { cols: cols, rows: rows };
+}
+
+
+// ── Row filter ────────────────────────────────────────────────────────────────
+
+/**
+ * Keep only rows where:
+ *   Business Vertical / Vertical  =  CFG.FILTER.VERTICAL          ("Open Marketplace")
+ *   Onboarding Status             =  CFG.FILTER.ONBOARDING_STATUS ("Completed")
+ *
+ * Column matching is case-insensitive and ignores spaces / underscores.
+ * If either filter column is absent from the query output a warning is logged
+ * and that condition is skipped (so you still get data rather than nothing).
+ */
+function applyFilter_(result) {
+  var cols = result.cols;
+
+  // Find column indices by normalised name
+  function findCol(candidates) {
+    for (var i = 0; i < cols.length; i++) {
+      var n = norm_(cols[i]);
+      for (var c = 0; c < candidates.length; c++) {
+        if (n === norm_(candidates[c])) return i;
+      }
+    }
+    return -1;
+  }
+
+  var verticalIdx  = findCol(['Vertical', 'Business Vertical', 'BusinessVertical']);
+  var onboardingIdx = findCol(['Onboarding Status', 'OnboardingStatus', 'Onboarding_Status']);
+
+  if (verticalIdx < 0) {
+    Logger.log('   ⚠ "Vertical / Business Vertical" column not found in query output — vertical filter skipped.');
+  }
+  if (onboardingIdx < 0) {
+    Logger.log('   ⚠ "Onboarding Status" column not found in query output — onboarding filter skipped.');
+  }
+
+  var wantVertical   = CFG.FILTER.VERTICAL.toLowerCase().trim();
+  var wantOnboarding = CFG.FILTER.ONBOARDING_STATUS.toLowerCase().trim();
+
+  var filtered = result.rows.filter(function (row) {
+    var verticalOk   = verticalIdx  < 0 || String(row[verticalIdx]  || '').toLowerCase().trim() === wantVertical;
+    var onboardingOk = onboardingIdx < 0 || String(row[onboardingIdx] || '').toLowerCase().trim() === wantOnboarding;
+    return verticalOk && onboardingOk;
+  });
+
+  return { cols: cols, rows: filtered };
 }
 
 
