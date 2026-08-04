@@ -95,6 +95,35 @@ var DOC_COLUMNS = [
 var DOC_COL_NORMS = {};
 DOC_COLUMNS.forEach(function (c) { DOC_COL_NORMS[norm_(c)] = true; });
 
+// Explicit sheet-header → Metabase column name aliases.
+// Keys are the normalised sheet header (via norm_()).
+// Values are arrays of possible Metabase display_name strings, tried in order.
+// This covers cases where the two sides use completely different wording.
+var FIELD_MAP = {
+  // Primary entity name (both tabs)
+  'sellerbusinessname'  : ['Entity Name', 'Business Name', 'Name'],
+  'buyerbusinessname'   : ['Entity Name', 'Business Name', 'Name'],
+  // Region is derived from the "Classification" column via deriveRegion_()
+  'region'              : ['Classification', 'Region'],
+  // Core identity fields
+  'vertical'            : ['Vertical', 'Business Vertical', 'Biz Vertical'],
+  'sellertype'          : ['Seller Type', 'Seller_Type', 'Type'],
+  'buyertype'           : ['Buyer Type', 'Buyer_Type', 'Type'],
+  'state'               : ['State'],
+  'sellergstin'         : ['GSTIN', 'Seller GSTIN', 'GST Number', 'GST', 'Seller_GSTIN'],
+  'buyergstin'          : ['GSTIN', 'Buyer GSTIN',  'GST Number', 'GST', 'Buyer_GSTIN'],
+  'vintagewithrecykal'  : ['Vintage with Recykal', 'Vintage_with_Recykal', 'Vintage'],
+  'finoscalerating'     : ['Finoscale Rating', 'Finoscale_Rating', 'Credit Rating', 'Rating'],
+  'mailid'              : ['Mail ID', 'Mail_ID', 'Email', 'Email ID', 'Mail'],
+  'pocmail'             : ['POC Mail', 'POC_mail', 'POC Email', 'POC Mail ID'],
+  'mobileno'            : ['Mobile No', 'Mobile_No', 'Mobile', 'Mobile Number', 'Phone'],
+  'pocnames'            : ['POC Names', 'POC Name'],
+  'dateofregistration'  : ['Date of Registration', 'Date_of_Registration', 'Registration Date'],
+  'entitytype'          : ['Entity Type', 'Entity_Type'],
+  'pendingdocument'     : ['Pending Document', 'Pending_Document'],
+  'debtprofile'         : ['Debt Profile', 'Debt_Profile'],
+};
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN ENTRY POINT
@@ -390,16 +419,53 @@ function writeToSheet_(ss, tabName, result) {
   result.cols.forEach(function (name, i) { colLookup[norm_(name)] = i; });
 
   // ── Map each sheet header to a result column index (-1 = not found) ───────
-  var mapping = headers.map(function (h) {
-    var key = norm_(h);
-    if (key in colLookup) return colLookup[key];
-    // Fuzzy: try stripping "seller" / "buyer" prefix
-    var stripped = key.replace(/^(seller|buyer)/, '');
-    for (var k in colLookup) {
-      var ks = k.replace(/^(seller|buyer)/, '');
-      if (k === stripped || ks === key || ks === stripped) return colLookup[k];
+  // Also track the matched Metabase column name so we can apply transforms.
+  // Three-step resolution per header:
+  //   1. FIELD_MAP explicit aliases (handles "Seller Business Name" → "Entity Name" etc.)
+  //   2. Direct normalised name match
+  //   3. Prefix-strip fuzzy ("seller"/"buyer" dropped from either side)
+  var mapping        = [];   // result col index for each header (-1 if unmatched)
+  var matchedSrcName = [];   // Metabase column name that was matched ('' if none)
+
+  headers.forEach(function (h) {
+    var key     = norm_(h);
+    var idx     = -1;
+    var srcName = '';
+
+    // Step 1 — FIELD_MAP
+    var aliases = FIELD_MAP[key];
+    if (aliases) {
+      for (var fi = 0; fi < aliases.length; fi++) {
+        var an = norm_(aliases[fi]);
+        if (an in colLookup) {
+          idx     = colLookup[an];
+          srcName = result.cols[idx];
+          break;
+        }
+      }
     }
-    return -1;
+
+    // Step 2 — Direct norm match
+    if (idx < 0 && key in colLookup) {
+      idx     = colLookup[key];
+      srcName = result.cols[idx];
+    }
+
+    // Step 3 — Prefix-strip fuzzy
+    if (idx < 0) {
+      var stripped = key.replace(/^(seller|buyer)/, '');
+      for (var k in colLookup) {
+        var ks = k.replace(/^(seller|buyer)/, '');
+        if (k === stripped || ks === key || ks === stripped) {
+          idx     = colLookup[k];
+          srcName = result.cols[idx];
+          break;
+        }
+      }
+    }
+
+    mapping.push(idx);
+    matchedSrcName.push(srcName);
   });
 
   // ── Audit: log what matched and what didn't ────────────────────────────────
@@ -407,7 +473,7 @@ function writeToSheet_(ss, tabName, result) {
   headers.forEach(function (h, c) {
     var isDoc = norm_(h) in DOC_COL_NORMS;
     var status = mapping[c] >= 0
-      ? '→ [' + mapping[c] + '] ' + result.cols[mapping[c]]
+      ? '→ [' + mapping[c] + '] ' + matchedSrcName[c]
       : (isDoc ? '→ NA (doc col, not in query)' : '→ (blank)');
     Logger.log('    [' + (c + 1) + '] ' + h + '  ' + status);
   });
@@ -415,12 +481,17 @@ function writeToSheet_(ss, tabName, result) {
   // ── Build output rows ──────────────────────────────────────────────────────
   var outRows = result.rows.map(function (srcRow) {
     return headers.map(function (h, c) {
-      var isDoc = norm_(h) in DOC_COL_NORMS;
+      var isDoc  = norm_(h) in DOC_COL_NORMS;
       if (mapping[c] < 0) {
         return isDoc ? 'NA' : '';   // doc columns absent from query → NA
       }
       var v = srcRow[mapping[c]];
-      return isDoc ? transformDocValue_(v) : (v == null ? '' : v);
+      if (isDoc) return transformDocValue_(v);
+      // "Region" header matched against a "Classification" source → derive region label
+      if (norm_(h) === 'region' && norm_(matchedSrcName[c]).indexOf('classif') >= 0) {
+        return deriveRegion_(v);
+      }
+      return v == null ? '' : v;
     });
   });
 
@@ -543,6 +614,20 @@ function deleteAutoSync() {
 // ─────────────────────────────────────────────────────────────────────────────
 // UTILITY
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Derive a Region label from a Metabase "Classification" value.
+// Returns "North" / "South" / "East" / "West" / "Central" when the value
+// contains a recognisable direction word; otherwise passes the raw value through.
+function deriveRegion_(classificationValue) {
+  if (classificationValue == null || String(classificationValue).trim() === '') return '';
+  var v = String(classificationValue).toLowerCase().trim();
+  if (/north|northern/.test(v)) return 'North';
+  if (/south|southern/.test(v)) return 'South';
+  if (/east|eastern/.test(v))   return 'East';
+  if (/west|western/.test(v))   return 'West';
+  if (/central|centre|center/.test(v)) return 'Central';
+  return String(classificationValue).trim();   // unrecognised — preserve raw value
+}
 
 // Normalise a string for fuzzy column matching
 function norm_(s) {
