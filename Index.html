@@ -607,14 +607,71 @@ function buildEntity(raw, type, idx){
    localStorage rebuild from the sheet instead of showing stale demo data. */
 var STORE_KEY = 'nbfc-platform-v3';
 var ENTITIES = [];
+/* LIVE is true only when served by Apps Script (google.script.run exists). In a
+   plain file:// / GitHub preview it stays false and the app runs from the
+   embedded snapshot, so nothing breaks outside the deployed web app. */
+var LIVE = (typeof google !== 'undefined' && google.script && google.script.run);
+var LAST_SYNC = '';
+
+function embeddedEntities(){
+  return SELLERS.map(function(r,i){ return buildEntity(r,'seller',i); })
+    .concat(BUYERS.map(function(r,i){ return buildEntity(r,'buyer',i); }));
+}
 function loadEntities(){
+  /* Live mode: sheet is the source of truth, so never seed from the localStorage
+     cache — that is what let stale statuses shadow the sheet before. Start from
+     the embedded snapshot; refreshFromSheet() replaces it once data arrives. */
+  if(LIVE){ ENTITIES = embeddedEntities(); return; }
   var saved = null;
   try{ saved = JSON.parse(localStorage.getItem(STORE_KEY)); }catch(e){}
   if(saved && saved.entities && saved.entities.length){ ENTITIES = saved.entities; return; }
-  ENTITIES = SELLERS.map(function(r,i){ return buildEntity(r,'seller',i); })
-    .concat(BUYERS.map(function(r,i){ return buildEntity(r,'buyer',i); }));
+  ENTITIES = embeddedEntities();
 }
-function persist(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify({entities:ENTITIES})); }catch(e){} }
+/* Standalone persistence only. In live mode the DocStatus tab holds the truth,
+   so we don't cache entities locally. */
+function persist(){ if(LIVE) return; try{ localStorage.setItem(STORE_KEY, JSON.stringify({entities:ENTITIES})); }catch(e){} }
+
+/* Map one backend record → the same entity shape buildEntity produces, reusing
+   buildEntity for id/vintage/doc-init, then overlay any saved document statuses
+   (keyed by GSTIN||docId from the DocStatus tab). */
+function buildLiveEntities(data){
+  var ds = data.docStatus || {};
+  function mk(rec, i, type){
+    var isS = type==='seller', raw = {};
+    raw[isS?'Seller_Business_Name':'Buyer_Business_Name'] = rec.name;
+    raw[isS?'Seller_GST_Number':'Buyer_GST_Number']       = rec.gstin;
+    raw.Business_Category = rec.businessType;      // "Seller Type" column (Plastic/Metal) → category
+    raw.Region            = rec.region;
+    raw[isS?'Seller_State':'State'] = rec.state;
+    raw.Business_Vintage  = rec.vintage;
+    raw[isS?'Seller_Type':'Customer_Type'] = rec.entityType;   // "Entity Type" column
+    raw.Seller_Status     = rec.onboarding;
+    var e = buildEntity(raw, type, i);
+    var g = (e.gst||'').toUpperCase();
+    CATALOG.forEach(function(d){ var v = ds[g+'||'+d.id]; if(v) e.docs[d.id] = v; });
+    return e;
+  }
+  return (data.sellers||[]).map(function(r,i){ return mk(r,i,'seller'); })
+    .concat((data.buyers||[]).map(function(r,i){ return mk(r,i,'buyer'); }));
+}
+
+/* Pulls the latest sellers/buyers + document statuses from the sheet and
+   re-renders. No-op (calls back false) when not running under Apps Script. */
+function refreshFromSheet(cb){
+  if(!LIVE){ if(cb) cb(false); return; }
+  google.script.run
+    .withSuccessHandler(function(data){
+      if(data && data.ok && ((data.sellers&&data.sellers.length) || (data.buyers&&data.buyers.length))){
+        ENTITIES  = buildLiveEntities(data);
+        LAST_SYNC = data.generatedAt || new Date().toISOString();
+        var st=$('syncTxt'); if(st) st.textContent='Live · synced just now';
+        if($('app') && $('app').style.display!=='none') render();
+      }
+      if(cb) cb(!!(data && data.ok), data);
+    })
+    .withFailureHandler(function(err){ if(cb) cb(false, err); })
+    .getPlatformData();
+}
 
 /* ── 5. Eligibility engine ─────────────────────────────────────────────── */
 function docSatisfied(e, docId){ return e.docs[docId]==='available'; }
@@ -1053,7 +1110,15 @@ function wireSettings(){}
 function setPanel(p){ state.setPanel=p; render(); }
 function setMapNbfc(id){ state.mapNbfc=id; render(); }
 function toggleReq(docId){ var n=NBFC_BY_ID[state.mapNbfc]; var i=n.req.indexOf(docId); if(i>=0)n.req.splice(i,1); else n.req.push(docId); render(); }
-function fakeSync(){ $('syncTxt').textContent='Live · synced just now'; toast('Synced '+ENTITIES.length+' records from Meta'); }
+function fakeSync(){
+  if(LIVE){
+    toast('Syncing from sheet…');
+    refreshFromSheet(function(ok){ toast(ok ? ('Synced '+ENTITIES.length+' records from the sheet') : 'Sync failed — check the Apps Script logs'); });
+  } else {
+    var st=$('syncTxt'); if(st) st.textContent='Live · synced just now';
+    toast('Synced '+ENTITIES.length+' records from Meta');
+  }
+}
 
 /* ═══════════════ DETAIL DRAWER ═══════════════ */
 function openDetail(id){
@@ -1117,7 +1182,7 @@ function openDetail(id){
     ]) +
     vdGroup('Sync', [
       vdCell('Last Document Updated On', ''), // no timestamp column in current sheet
-      vdCell('Last Synced On', ''),
+      vdCell('Last Synced On', LAST_SYNC ? new Date(LAST_SYNC).toLocaleString('en-IN') : ''),
     ]);
 
   var lastCat='',docsH='';
@@ -1175,6 +1240,15 @@ function ring(pct,color){
 function setDoc(entId,docId,val){
   var e=ENTITIES.filter(function(x){return x.id===entId;})[0]; if(!e) return;
   e.docs[docId]=val; persist(); openDetail(entId);
+  /* Live mode: write the change straight back to the sheet's DocStatus tab. */
+  if(LIVE){
+    if(!e.gst){ toast('Cannot save — this entity has no GSTIN'); return; }
+    var cat=CAT_BY_ID[docId];
+    google.script.run
+      .withSuccessHandler(function(res){ toast(res&&res.ok ? 'Saved to sheet' : ('Save failed'+(res&&res.error?': '+res.error:''))); })
+      .withFailureHandler(function(err){ toast('Save failed: '+((err&&err.message)||err)); })
+      .savePlatformDoc({gstin:e.gst, entityType:e.type, docId:docId, docName:cat?cat.name:docId, status:val});
+  }
 }
 function closeDrawer(){ $('scrim').classList.remove('on'); $('drawer').classList.remove('on'); }
 
@@ -1205,6 +1279,7 @@ function toggleTheme(){
 }
 document.addEventListener('DOMContentLoaded',function(){
   loadEntities();
+  if(LIVE) refreshFromSheet();   // pull the live sheet as soon as the page opens
   Array.prototype.forEach.call(document.querySelectorAll('.role-opt'),function(o){
     o.onclick=function(){ document.querySelectorAll('.role-opt').forEach(function(x){x.classList.remove('on');}); o.classList.add('on'); };
   });
