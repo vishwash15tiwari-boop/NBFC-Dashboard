@@ -267,21 +267,25 @@ table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;mi
 @media(max-width:1400px){.kpi-row-7{grid-template-columns:repeat(4,1fr)}}
 @media(max-width:900px){.kpi-row-7{grid-template-columns:repeat(2,1fr)}}
 /* ─────────────────────────── DOCUMENT REQUIREMENT ROWS ─────────────────────────── */
-.drr-list{padding:4px 18px 14px}
-.drr{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line-2)}
-.drr:last-child{border-bottom:none}
-.drr-name{min-width:190px;font-size:13px;font-weight:500;flex-shrink:0}
-.drr-cat{display:inline-block;margin-left:8px;font-size:10.5px;color:var(--ink-3);font-weight:400}
-.drr-mid{display:flex;align-items:center;gap:9px;flex:1;min-width:0}
-.drr-track{flex:1;height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden}
-.drr-fill{height:100%;border-radius:4px;background:var(--ok);transition:width .3s var(--ease)}
-.drr-pct{font-size:12px;color:var(--ink-3);min-width:32px;text-align:right}
-.drr-counts{display:flex;align-items:center;gap:4px;font-size:12px;min-width:220px;justify-content:flex-end;flex-shrink:0}
-.drr-ok{color:var(--ok);font-weight:600}
-.drr-warn{color:var(--warn);font-weight:600}
-.drr-bad{color:var(--bad);font-weight:600}
-.drr-lbl{color:var(--ink-3)}
-.drr-sep{color:var(--line);margin:0 3px}
+/* Document requirements — compact grid. No progress bars: the three counts
+   carry the same information in a fraction of the height, and a 20-document
+   NBFC fits in four rows instead of twenty. 1px gap over a line-coloured
+   background draws the hairline dividers. */
+.drq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));
+  gap:1px;background:var(--line-2);border-top:1px solid var(--line-2)}
+.drq{background:var(--surface);padding:11px 16px 12px;display:flex;flex-direction:column;gap:6px}
+.drq-nm{font-size:12.5px;font-weight:500;line-height:1.32}
+.drq-cat{font-size:10px;color:var(--ink-3);font-weight:400;letter-spacing:.05em;text-transform:uppercase}
+.drq-stat{display:flex;align-items:baseline;gap:10px;font-size:13px;font-variant-numeric:tabular-nums}
+.drq-ok{color:var(--ok);font-weight:600}
+.drq-warn{color:var(--warn);font-weight:600}
+.drq-bad{color:var(--bad);font-weight:600}
+.drq-pct{margin-left:auto;font-size:11.5px;color:var(--ink-3);font-weight:500}
+.drq-none{font-size:11.5px;color:var(--ink-3)}
+/* Legend in the card header, so the bare numbers above read unambiguously. */
+.drq-key{display:flex;gap:12px;align-items:center;font-size:10.5px;color:var(--ink-3)}
+.drq-key span{display:inline-flex;align-items:center;gap:5px}
+.drq-key i{width:6px;height:6px;border-radius:50%}
 .ent-row{display:flex;align-items:center;gap:11px;padding:11px 18px;border-bottom:1px solid var(--line-2);cursor:pointer}
 .ent-row:hover{background:var(--fill)}
 .ent-row:last-child{border-bottom:none}
@@ -575,7 +579,9 @@ function buildEntity(raw, type, idx){
   return e;
 }
 
-var STORE_KEY = 'nbfc-platform-v2';
+/* v3 — bumped so browsers holding the old seeded document statuses in
+   localStorage rebuild from the sheet instead of showing stale demo data. */
+var STORE_KEY = 'nbfc-platform-v3';
 var ENTITIES = [];
 function loadEntities(){
   var saved = null;
@@ -836,27 +842,34 @@ function viewNbfc(n){
     var pct = total>0 ? Math.round(av/total*100) : 0;
     /* Nothing tracked for this document yet — say so rather than printing
        three zeroes, which would read as a measured result. */
-    var countsH = nr===total
-      ? '<span class="drr-lbl">No status on record</span>'
-      : '<span class="drr-ok tnum">'+av+'</span><span class="drr-lbl"> ready</span>'+
-        '<span class="drr-sep">·</span>'+
-        '<span class="drr-warn tnum">'+pe+'</span><span class="drr-lbl"> pending</span>'+
-        '<span class="drr-sep">·</span>'+
-        '<span class="drr-bad tnum">'+mi+'</span><span class="drr-lbl"> missing</span>';
-    return '<div class="drr">'+
-      '<div class="drr-name">'+esc(cat.name)+'<span class="drr-cat">'+esc(cat.cat)+'</span></div>'+
-      '<div class="drr-mid">'+
-        '<div class="drr-track"><div class="drr-fill" style="width:'+pct+'%"></div></div>'+
-        '<span class="drr-pct tnum">'+pct+'%</span>'+
-      '</div>'+
-      '<div class="drr-counts">'+countsH+'</div>'+
+    var statH = nr===total
+      ? '<span class="drq-none">No status on record</span>'
+      : '<span class="drq-ok">'+av+'</span>'+
+        '<span class="drq-warn">'+pe+'</span>'+
+        '<span class="drq-bad">'+mi+'</span>'+
+        '<span class="drq-pct">'+pct+'%</span>';
+    return '<div class="drq">'+
+      '<div class="drq-nm">'+esc(cat.name)+' <span class="drq-cat">'+esc(cat.cat)+'</span></div>'+
+      '<div class="drq-stat">'+statH+'</div>'+
     '</div>';
   }).join('');
 
+  /* Legend only earns its space once at least one document has a status. */
+  var anyTracked = n.req.some(function(docId){
+    return ENTITIES.some(function(e){ return !!e.docs[docId]; });
+  });
+  var keyH = anyTracked
+    ? '<div class="drq-key">'+
+        '<span><i style="background:var(--ok)"></i>ready</span>'+
+        '<span><i style="background:var(--warn)"></i>pending</span>'+
+        '<span><i style="background:var(--bad)"></i>missing</span>'+
+      '</div>'
+    : '';
   var docCard = '<div class="card" style="margin-bottom:18px">'+
     '<div class="card-h"><h3>'+esc(n.name)+' — Document Requirements</h3>'+
-    '<span class="sub">'+n.req.length+' mandatory documents'+(n.vintageYrs?' · '+n.vintageYrs+'-year Recykal vintage required':'')+' — across all '+total+' entities</span></div>'+
-    '<div class="drr-list">'+docRows+'</div></div>';
+    '<span class="sub">'+n.req.length+' mandatory documents'+(n.vintageYrs?' · '+n.vintageYrs+'-year Recykal vintage required':'')+' — across all '+total+' entities</span>'+
+    keyH+'</div>'+
+    '<div class="drq-grid">'+docRows+'</div></div>';
 
   /* ── Entity lists: eligible | blocked ──────────────────────────── */
   var ready=[], blocked=[];
