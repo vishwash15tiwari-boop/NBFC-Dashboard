@@ -404,8 +404,15 @@ table.matrix{border-collapse:separate;border-spacing:0;min-width:100%}
 .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line-2);border:1px solid var(--line-2);
   border-radius:var(--radius-sm);overflow:hidden}
 .meta-cell{background:var(--surface);padding:11px 13px}
+.meta-cell.full{grid-column:1/-1}
 .meta-cell .ml{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:600}
 .meta-cell .mv{font-size:13px;font-weight:500;margin-top:3px;word-break:break-word}
+/* Genuinely-unavailable value — a muted dash, never a substituted number. */
+.meta-cell .mv.muted{color:var(--ink-3);opacity:.5;font-weight:400}
+/* Sub-group label inside the Vendor details profile card. */
+.vd-group{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);margin:15px 0 7px}
+.vd-group.first{margin-top:6px}
 .elig-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px;margin-bottom:6px}
 .es-card{border:1px solid var(--line);border-radius:var(--radius-sm);padding:11px 10px;text-align:center;position:relative}
 .es-card.eligible{border-color:rgba(var(--ok-rgb),.4);background:var(--ok-tint)}
@@ -577,7 +584,7 @@ function buildEntity(raw, type, idx){
     name: raw[isS?'Seller_Business_Name':'Buyer_Business_Name']||'—',
     gst:  raw[isS?'Seller_GST_Number':'Buyer_GST_Number']||'',
     category: raw.Business_Category||'',
-    region: isS ? (raw.Region||'') : '',
+    region: raw.Region||'',        // Buyers carry a Region column too in the master sheet
     state: raw[isS?'Seller_State':'State']||'',
     city:  raw[isS?'Seller_City':'City']||'',
     rh:    isS ? (raw.RH_Name||'') : '',
@@ -1058,8 +1065,60 @@ function openDetail(id){
     return '<div class="es-card '+(m.eligible?'eligible':'blocked')+'"><div class="es-nm">'+esc(n.name)+'</div><div class="es-st">'+(m.eligible?'Eligible':(m.missing.length+(m.vintageOk?'':'+v')+' missing'))+'</div></div>';
   }).join('');
 
-  var meta=[['GST',e.gst||'—'],['Category',e.category||'—'],[e.type==='seller'?'Region':'State',(e.type==='seller'?e.region:e.state)||'—'],['City',e.city||'—'],['Entity type',e.entityType||'—'],['Vintage',e.vintageRaw||'—'],['Registered',excelDate(e.regDate)],[e.type==='seller'?'RH':'Customer',e.rh||e.entityType||'—'],['POC',e.poc||'—'],['Mobile',e.mobile||'—'],['Email',e.email||'—'],['Shipments',e.shipments||'0']];
-  var metaH=meta.map(function(m){return '<div class="meta-cell"><div class="ml">'+esc(m[0])+'</div><div class="mv'+(m[0]==='GST'||m[0]==='Email'?' mono':'')+'" style="'+(m[0]==='GST'||m[0]==='Email'?'font-size:12px':'')+'">'+esc(m[1])+'</div></div>';}).join('');
+  /* Vendor details — a profile card fed from the Meta-synced master sheet.
+     Every value is read from the entity; a field with no data in the sheet shows
+     a muted dash rather than a placeholder or invented value. Credit Limit,
+     Credit Utilisation, and the sync/update timestamps have no column in the
+     current sheet, so they stay blank until one is added. */
+  var typeLabel = e.type==='seller' ? 'Seller' : 'Buyer';
+  var eligNames = eligs.length ? eligs.map(function(x){ return x.name; }).join(', ') : 'None';
+  var onboard   = e.status ? e.status.charAt(0).toUpperCase()+e.status.slice(1).toLowerCase() : '';
+
+  function vdCell(label, value, opts){
+    opts = opts || {};
+    var empty = (value == null || String(value).trim() === '');
+    var v     = empty ? '—' : String(value);
+    var cls   = 'mv' + (opts.mono && !empty ? ' mono' : '') + (empty ? ' muted' : '');
+    var style = (opts.mono && !empty) ? ' style="font-size:12px"' : '';
+    return '<div class="meta-cell'+(opts.full?' full':'')+'"><div class="ml">'+esc(label)+'</div>'+
+           '<div class="'+cls+'"'+style+'>'+esc(v)+'</div></div>';
+  }
+  function vdGroup(title, cells, first){
+    return '<div class="vd-group'+(first?' first':'')+'">'+esc(title)+'</div>'+
+           '<div class="meta-grid">'+cells.join('')+'</div>';
+  }
+
+  var metaH =
+    vdGroup('Business', [
+      vdCell('GSTIN', e.gst, {mono:true}),
+      vdCell(typeLabel+' Business Name', e.name, {full:true}),
+      vdCell('Category', e.category),
+      vdCell('Business Vertical', 'Open Marketplace'),
+      vdCell('Region', e.region),
+      vdCell('State', e.state),
+    ], true) +
+    vdGroup('Classification & onboarding', [
+      vdCell('Entity Type', e.entityType),
+      vdCell(typeLabel+' Type', ''),          // Baler/Trader classification not in this sheet
+      vdCell('Onboarding Status', onboard),
+      vdCell('Vintage with Recykal', e.vintageRaw),
+    ]) +
+    vdGroup('Credit & activity', [
+      vdCell('Credit Limit Assigned', ''),    // not in master sheet yet
+      vdCell('Credit Utilisation', ''),       // not in master sheet yet
+      vdCell('Total Transactions', ''),       // no transactions column in master sheet
+      vdCell('Eligible NBFC(s)', eligNames, {full:true}),
+    ]) +
+    vdGroup('Relationship & contact', [
+      vdCell('Relationship Manager / Account Owner', e.rh, {full:true}),
+      vdCell('Primary Contact Person', e.poc),
+      vdCell('Contact Number', e.mobile),
+      vdCell('Email Address', e.email, {mono:true, full:true}),
+    ]) +
+    vdGroup('Sync', [
+      vdCell('Last Document Updated On', ''), // no timestamp column in current sheet
+      vdCell('Last Synced On', ''),
+    ]);
 
   var lastCat='',docsH='';
   CATALOG.forEach(function(d){
@@ -1086,7 +1145,7 @@ function openDetail(id){
           pillMini('sp-ok',cnt.available+' available')+pillMini('sp-warn',cnt.pending+' pending')+pillMini('sp-bad',cnt.missing+' missing')+(cnt.expired?pillMini('sp-bad',cnt.expired+' expired'):'')+'</div>'+
       '</div></div>'+
       '<div class="dr-sec-h">NBFC eligibility</div><div class="elig-summary">'+esCards+'</div>'+
-      '<div class="dr-sec-h">Vendor details</div><div class="meta-grid">'+metaH+'</div>'+
+      '<div class="dr-sec-h">Vendor details</div>'+metaH+
       '<div class="dr-sec-h" style="margin-top:22px">Documents</div>'+docsH+
     '</div>';
   $('scrim').classList.add('on'); $('drawer').classList.add('on');
