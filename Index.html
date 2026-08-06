@@ -275,7 +275,13 @@ table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;mi
 .nbfc-hero .h-stats{margin-left:auto;display:flex;gap:26px;text-align:right}
 .nbfc-hero .h-stats .s b{display:block;font-size:24px;font-weight:600;letter-spacing:-.02em}
 .nbfc-hero .h-stats .s span{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:600}
-.split-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.split-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+/* Cancel the .card+.card stacking margin inside the grid, and keep both headers
+   a single line tall so the two lists start on the same baseline: the title never
+   shrinks/wraps, and only the sub-text truncates with an ellipsis. */
+.split-cols>.card{margin-top:0}
+.split-cols .card-h h3{white-space:nowrap;flex-shrink:0}
+.split-cols .card-h .sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 @media(max-width:1000px){.split-cols{grid-template-columns:1fr}.nbfc-hero .h-stats{display:none}}
 /* ─────────────────────────── NBFC DASHBOARD — 7-CARD KPI ROW ─────────────────────────── */
 .kpi-row-7{grid-template-columns:repeat(7,1fr);gap:10px}
@@ -295,6 +301,7 @@ table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;mi
 .drq-cat{font-size:10px;color:var(--ink-3);font-weight:400;letter-spacing:.05em;text-transform:uppercase}
 .drq-stat{display:flex;align-items:baseline;gap:10px;font-size:13px;font-variant-numeric:tabular-nums}
 .drq-ok{color:var(--ok);font-weight:600}
+.drq-na{color:var(--ink-3);font-weight:600}
 .drq-warn{color:var(--warn);font-weight:600}
 .drq-bad{color:var(--bad);font-weight:600}
 .drq-pct{margin-left:auto;font-size:11.5px;color:var(--ink-3);font-weight:500}
@@ -328,6 +335,7 @@ table.matrix{border-collapse:separate;border-spacing:0;min-width:100%}
 .mdot{display:inline-block;width:11px;height:11px;border-radius:50%}
 .mdot.ok{background:var(--ok)}.mdot.warn{background:var(--warn)}.mdot.bad{background:var(--bad);opacity:.5}
 .mdot.na{background:transparent;border:1.5px solid var(--na)}
+.mdot.none{background:var(--line-2)}
 .mdot.exp{background:var(--bad);box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px rgba(var(--bad-rgb),.5)}
 
 /* ─────────────────────────── SETTINGS ─────────────────────────── */
@@ -419,13 +427,19 @@ table.matrix{border-collapse:separate;border-spacing:0;min-width:100%}
 .es-card .es-nm{font-size:11.5px;font-weight:600}
 .es-card .es-st{font-size:10.5px;margin-top:4px;font-weight:600}
 .es-card.eligible .es-st{color:var(--ok)}.es-card.blocked .es-st{color:var(--ink-3)}
-.doc-item{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--line-2)}
+.doc-item{display:flex;flex-direction:column;gap:8px;padding:11px 0;border-bottom:1px solid var(--line-2)}
 .doc-item:last-child{border-bottom:none}
+.doc-item .di-row{display:flex;align-items:center;gap:11px}
 .doc-item .di-ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex-shrink:0}
 .doc-item .di-nm{flex:1;font-size:13px;font-weight:500}
 .doc-item .di-nm .di-cat{font-size:10.5px;color:var(--ink-3);font-weight:400;display:block}
 .doc-sel{padding:5px 9px;border-radius:7px;font-size:11.5px;font-weight:600;border:1px solid var(--line);
   background:var(--surface)}
+/* Free-text comment per document, saved back to the sheet alongside its status. */
+.doc-note{width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:7px;font-size:12px;
+  background:var(--surface);color:var(--ink);font-family:var(--font);margin-left:41px;width:calc(100% - 41px)}
+.doc-note::placeholder{color:var(--ink-3)}
+.doc-note:focus{outline:none;border-color:var(--brand)}
 
 @media(max-width:820px){
   :root{--sidebar-w:0px}
@@ -575,7 +589,9 @@ var NODATA = '<span class="k-nodata">—</span>';
 /* '' = no status on record. The master sheet carries identity columns only
    (name / region / vertical / state / GSTIN), so no document has a status
    until ops set one from the detail drawer. */
-var STATUS = ['','available','pending','missing','expired','na'];
+/* Document statuses ops can set. '' = the unset default ("Not on record").
+   'received' is the only state that satisfies an NBFC requirement. */
+var STATUS = ['','received','pending','na'];
 function buildEntity(raw, type, idx){
   var isS = type==='seller';
   var id = (isS?'S':'B')+String(idx+1).padStart(3,'0');
@@ -597,9 +613,9 @@ function buildEntity(raw, type, idx){
     mobile: raw[isS?'Seller_Mobile_Number':'Mobile_Number']||'',
     email: raw[isS?'Seller_Email':'E-Mail ID']||'',
     shipments: raw.Total_Shipments||'0',
-    docs:{}
+    docs:{}, comments:{}
   };
-  CATALOG.forEach(function(d){ e.docs[d.id] = ''; });   // no status on record yet
+  CATALOG.forEach(function(d){ e.docs[d.id] = ''; e.comments[d.id] = ''; });   // no status/comment on record yet
   return e;
 }
 
@@ -648,7 +664,13 @@ function buildLiveEntities(data){
     raw.Seller_Status     = rec.onboarding;
     var e = buildEntity(raw, type, i);
     var g = (e.gst||'').toUpperCase();
-    CATALOG.forEach(function(d){ var v = ds[g+'||'+d.id]; if(v) e.docs[d.id] = v; });
+    CATALOG.forEach(function(d){
+      var rec = ds[g+'||'+d.id];               // { status, comment } from the DocStatus tab
+      if(rec){
+        if(rec.status)  e.docs[d.id]     = rec.status;
+        if(rec.comment) e.comments[d.id] = rec.comment;
+      }
+    });
     return e;
   }
   return (data.sellers||[]).map(function(r,i){ return mk(r,i,'seller'); })
@@ -674,17 +696,17 @@ function refreshFromSheet(cb){
 }
 
 /* ── 5. Eligibility engine ─────────────────────────────────────────────── */
-function docSatisfied(e, docId){ return e.docs[docId]==='available'; }
+function docSatisfied(e, docId){ return e.docs[docId]==='received'; }
 function completion(e){
   var total=CATALOG.length, ok=0;
-  CATALOG.forEach(function(d){ if(e.docs[d.id]==='available') ok++; });
+  CATALOG.forEach(function(d){ if(e.docs[d.id]==='received') ok++; });
   return {ok:ok, total:total, pct: Math.round(ok/total*100)};
 }
 function docCounts(e){
-  var c={available:0,pending:0,missing:0,expired:0,na:0,none:0};
+  var c={received:0,pending:0,na:0,none:0};
   CATALOG.forEach(function(d){
     var s = e.docs[d.id];
-    if(s==='available'||s==='pending'||s==='missing'||s==='expired'||s==='na') c[s]++;
+    if(s==='received'||s==='pending'||s==='na') c[s]++;
     else c.none++;                       // no status on record
   });
   return c;
@@ -692,11 +714,11 @@ function docCounts(e){
 /* Evaluates one entity against one NBFC. Everything here reads nbfc.req — the
    requirement matrix — so editing an NBFC's documents in Settings changes this
    with no code change. The gap is split by what action it needs:
-     blocking — must be uploaded: 'missing', 'expired', or no status on record
+     blocking — must be provided: no status on record (or any non-final state)
      pending  — already submitted, awaiting review
      na       — marked not applicable
    `missing` stays the union of all three, so eligibility is unchanged: an entity
-   is eligible only when every required document is 'available'. */
+   is eligible only when every required document is 'received'. */
 function evalNbfc(e, nbfc){
   var missing = [], blocking = [], pending = [], na = [];
   nbfc.req.forEach(function(id){
@@ -705,7 +727,7 @@ function evalNbfc(e, nbfc){
     var s = e.docs[id];
     if(s === 'pending')   pending.push(id);
     else if(s === 'na')   na.push(id);
-    else                  blocking.push(id);      // 'missing' | 'expired' | ''
+    else                  blocking.push(id);      // '' — not on record
   });
   var vintageOk = true;
   if(nbfc.vintageYrs){ vintageOk = e.vintage >= nbfc.vintageYrs; }
@@ -881,7 +903,6 @@ function regRows(type){
     }).join('');
     var cnt=docCounts(e);
     var pill = eligibleNbfcs(e).length>0 ? '<span class="status-pill sp-ok"><span class="d"></span>'+eligibleNbfcs(e).length+' NBFC'+(eligibleNbfcs(e).length>1?'s':'')+'</span>'
-      : cnt.expired>0 ? '<span class="status-pill sp-bad"><span class="d"></span>Expired docs</span>'
       : cnt.none===CATALOG.length ? '<span class="mut">—</span>'
       : '<span class="status-pill sp-warn"><span class="d"></span>In progress</span>';
     return '<tr onclick="openDetail(\''+e.id+'\')">'+
@@ -930,20 +951,20 @@ function viewNbfc(n){
   /* ── Document requirements table ───────────────────────────────── */
   var docRows = n.req.map(function(docId){
     var cat = CAT_BY_ID[docId]; if(!cat) return '';
-    var av=0, pe=0, mi=0, nr=0;
+    var rcv=0, pe=0, na=0, nr=0;
     ENTITIES.forEach(function(e){
       var s = e.docs[docId];
-      if(s==='available') av++; else if(s==='pending') pe++;
-      else if(s==='missing'||s==='expired') mi++; else nr++;
+      if(s==='received') rcv++; else if(s==='pending') pe++;
+      else if(s==='na') na++; else nr++;
     });
-    var pct = total>0 ? Math.round(av/total*100) : 0;
+    var pct = total>0 ? Math.round(rcv/total*100) : 0;
     /* Nothing tracked for this document yet — say so rather than printing
-       three zeroes, which would read as a measured result. */
+       zeroes, which would read as a measured result. */
     var statH = nr===total
       ? '<span class="drq-none">No status on record</span>'
-      : '<span class="drq-ok">'+av+'</span>'+
+      : '<span class="drq-ok">'+rcv+'</span>'+
         '<span class="drq-warn">'+pe+'</span>'+
-        '<span class="drq-bad">'+mi+'</span>'+
+        '<span class="drq-na">'+na+'</span>'+
         '<span class="drq-pct">'+pct+'%</span>';
     return '<div class="drq">'+
       '<div class="drq-nm">'+esc(cat.name)+' <span class="drq-cat">'+esc(cat.cat)+'</span></div>'+
@@ -957,9 +978,9 @@ function viewNbfc(n){
   });
   var keyH = anyTracked
     ? '<div class="drq-key">'+
-        '<span><i style="background:var(--ok)"></i>ready</span>'+
+        '<span><i style="background:var(--ok)"></i>received</span>'+
         '<span><i style="background:var(--warn)"></i>pending</span>'+
-        '<span><i style="background:var(--bad)"></i>missing</span>'+
+        '<span><i style="background:var(--ink-3)"></i>N/A</span>'+
       '</div>'
     : '';
   var docCard = '<div class="card" style="margin-bottom:18px">'+
@@ -1044,13 +1065,13 @@ function viewMatrix(){
   var body='<tbody>'+ENTITIES.slice(0,120).map(function(e){
     return '<tr><th onclick="openDetail(\''+e.id+'\')" title="'+esc(e.name)+'">'+esc(e.name)+'</th>'+
       docs.map(function(d){ var s=e.docs[d.id];
-        var cls=s==='available'?'ok':s==='pending'?'warn':s==='expired'?'exp':s==='na'?'na':'bad';
-        return '<td title="'+esc(d.name)+': '+s+'"><span class="mdot '+cls+'"></span></td>';
+        var cls=s==='received'?'ok':s==='pending'?'warn':s==='na'?'na':'none';
+        return '<td title="'+esc(d.name)+': '+(statusMeta(s).label)+'"><span class="mdot '+cls+'"></span></td>';
       }).join('')+'</tr>';
   }).join('')+'</tbody>';
   return '<div class="card"><div class="card-h"><h3>Document Matrix</h3><span class="sub">Canonical documents × vendors (first 120)</span>'+
     '<div class="right" style="font-size:11.5px;color:var(--ink-3);display:flex;gap:12px">'+
-      legendDot('ok','Available')+legendDot('warn','Pending')+legendDot('bad','Missing')+legendDot('exp','Expired')+legendDot('na','N/A')+'</div></div>'+
+      legendDot('ok','Received')+legendDot('warn','Pending')+legendDot('na','N/A')+legendDot('none','Not on record')+'</div></div>'+
     '<div class="matrix-wrap"><table class="matrix">'+head+body+'</table></div></div>';
 }
 function legendDot(cls,label){ return '<span style="display:inline-flex;align-items:center;gap:5px"><span class="mdot '+cls+'"></span>'+label+'</span>'; }
@@ -1190,11 +1211,15 @@ function openDetail(id){
     if(d.cat!==lastCat){ docsH+='<div class="dr-sec-h" style="margin:16px 0 8px">'+esc(d.cat)+'</div>'; lastCat=d.cat; }
     var s=e.docs[d.id];
     var meta2=statusMeta(s);
-    docsH+='<div class="doc-item"><div class="di-ic" style="background:'+meta2.tint+';color:'+meta2.color+'">'+meta2.icon+'</div>'+
-      '<div class="di-nm">'+esc(d.name)+'<span class="di-cat">'+esc(d.aliases.split('·')[0].trim())+'</span></div>'+
-      '<select class="doc-sel" style="color:'+meta2.color+'" onchange="setDoc(\''+e.id+'\',\''+d.id+'\',this.value)">'+
-        STATUS.map(function(st){return '<option value="'+st+'"'+(st===s?' selected':'')+'>'+statusMeta(st).label+'</option>';}).join('')+
-      '</select></div>';
+    var note = (e.comments && e.comments[d.id]) || '';
+    docsH+='<div class="doc-item">'+
+      '<div class="di-row"><div class="di-ic" style="background:'+meta2.tint+';color:'+meta2.color+'">'+meta2.icon+'</div>'+
+        '<div class="di-nm">'+esc(d.name)+'<span class="di-cat">'+esc(d.aliases.split('·')[0].trim())+'</span></div>'+
+        '<select class="doc-sel" style="color:'+meta2.color+'" onchange="setDoc(\''+e.id+'\',\''+d.id+'\',this.value)">'+
+          STATUS.map(function(st){return '<option value="'+st+'"'+(st===s?' selected':'')+'>'+statusMeta(st).label+'</option>';}).join('')+
+        '</select></div>'+
+      '<input class="doc-note" type="text" placeholder="Add a comment…" value="'+esc(note)+'" onchange="setDocComment(\''+e.id+'\',\''+d.id+'\',this.value)">'+
+    '</div>';
   });
 
   var ncColor = eligs.length?eligs[0].nc:'#8D8F82';
@@ -1205,9 +1230,9 @@ function openDetail(id){
       '<div style="flex:1;min-width:0"><h2>'+esc(e.name)+'</h2><div class="dh-sub"><span class="gst">'+esc(e.gst)+'</span> · '+esc(e.type)+' · '+esc(e.city||e.state)+'</div></div>'+
       '<button class="dr-x" onclick="closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>'+
     '<div class="dr-body">'+
-      '<div class="dr-ring-row">'+ring(c.pct,ncColor)+'<div class="rr-txt"><b class="tnum">'+c.ok+' of '+c.total+'</b><span>documents available · '+c.pct+'% complete</span>'+
+      '<div class="dr-ring-row">'+ring(c.pct,ncColor)+'<div class="rr-txt"><b class="tnum">'+c.ok+' of '+c.total+'</b><span>documents received · '+c.pct+'% complete</span>'+
         '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+
-          pillMini('sp-ok',cnt.available+' available')+pillMini('sp-warn',cnt.pending+' pending')+pillMini('sp-bad',cnt.missing+' missing')+(cnt.expired?pillMini('sp-bad',cnt.expired+' expired'):'')+'</div>'+
+          pillMini('sp-ok',cnt.received+' received')+pillMini('sp-warn',cnt.pending+' pending')+(cnt.na?pillMini('sp-na',cnt.na+' N/A'):'')+(cnt.none?pillMini('sp-bad',cnt.none+' not on record'):'')+'</div>'+
       '</div></div>'+
       '<div class="dr-sec-h">NBFC eligibility</div><div class="elig-summary">'+esCards+'</div>'+
       '<div class="dr-sec-h">Vendor details</div>'+metaH+
@@ -1217,14 +1242,13 @@ function openDetail(id){
 }
 function pillMini(cls,t){ return '<span class="status-pill '+cls+'"><span class="d"></span>'+esc(t)+'</span>'; }
 function statusMeta(s){
-  return ({
-    available:{label:'Available',color:'var(--ok)',tint:'var(--ok-tint)',icon:iconChk()},
+  var m={
+    received:{label:'Received',color:'var(--ok)',tint:'var(--ok-tint)',icon:iconChk()},
     pending:{label:'Pending',color:'var(--warn)',tint:'var(--warn-tint)',icon:iconClock()},
-    missing:{label:'Missing',color:'var(--bad)',tint:'var(--bad-tint)',icon:iconX()},
-    expired:{label:'Expired',color:'var(--bad)',tint:'var(--bad-tint)',icon:iconAlert()},
-    na:{label:'N/A',color:'var(--na)',tint:'var(--na-tint)',icon:iconDash()},
+    na:{label:'NA',color:'var(--na)',tint:'var(--na-tint)',icon:iconDash()},
     '':{label:'Not on record',color:'var(--na)',tint:'var(--na-tint)',icon:iconDash()}
-  })[s||''];
+  };
+  return m[s||''] || m[''];   // any legacy value falls back to "Not on record"
 }
 function iconChk(){return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>';}
 function iconClock(){return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';}
@@ -1237,18 +1261,31 @@ function ring(pct,color){
     '<circle cx="37" cy="37" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="7" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+off+'" transform="rotate(-90 37 37)"/>'+
     '<text x="37" y="37" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="600" fill="var(--ink)" font-family="Poppins">'+pct+'%</text></svg>';
 }
+/* Write one document's status + comment back to the sheet's DocStatus tab.
+   No-op unless served by Apps Script. Both are sent together so either change
+   persists the other's current value. */
+function saveDocLive(e, docId){
+  if(!LIVE) return;
+  if(!e.gst){ toast('Cannot save — this entity has no GSTIN'); return; }
+  var cat=CAT_BY_ID[docId];
+  google.script.run
+    .withSuccessHandler(function(res){ toast(res&&res.ok ? 'Saved to sheet' : ('Save failed'+(res&&res.error?': '+res.error:''))); })
+    .withFailureHandler(function(err){ toast('Save failed: '+((err&&err.message)||err)); })
+    .savePlatformDoc({
+      gstin:e.gst, entityType:e.type, docId:docId, docName:cat?cat.name:docId,
+      status:e.docs[docId]||'', comment:(e.comments&&e.comments[docId])||''
+    });
+}
 function setDoc(entId,docId,val){
   var e=ENTITIES.filter(function(x){return x.id===entId;})[0]; if(!e) return;
-  e.docs[docId]=val; persist(); openDetail(entId);
-  /* Live mode: write the change straight back to the sheet's DocStatus tab. */
-  if(LIVE){
-    if(!e.gst){ toast('Cannot save — this entity has no GSTIN'); return; }
-    var cat=CAT_BY_ID[docId];
-    google.script.run
-      .withSuccessHandler(function(res){ toast(res&&res.ok ? 'Saved to sheet' : ('Save failed'+(res&&res.error?': '+res.error:''))); })
-      .withFailureHandler(function(err){ toast('Save failed: '+((err&&err.message)||err)); })
-      .savePlatformDoc({gstin:e.gst, entityType:e.type, docId:docId, docName:cat?cat.name:docId, status:val});
-  }
+  e.docs[docId]=val; persist(); openDetail(entId);   // re-render to recolour the row
+  saveDocLive(e,docId);
+}
+function setDocComment(entId,docId,text){
+  var e=ENTITIES.filter(function(x){return x.id===entId;})[0]; if(!e) return;
+  if(!e.comments) e.comments={};
+  e.comments[docId]=text; persist();                 // no re-render — keep the input's focus/caret
+  saveDocLive(e,docId);
 }
 function closeDrawer(){ $('scrim').classList.remove('on'); $('drawer').classList.remove('on'); }
 

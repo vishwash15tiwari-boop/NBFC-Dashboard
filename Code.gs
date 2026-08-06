@@ -148,7 +148,7 @@ function readPlatformTab_(ss, tabName, type) {
   return out;
 }
 
-/** Reads the DocStatus tab into { "<GSTIN>||<docId>": "<status>" }. */
+/** Reads the DocStatus tab into { "<GSTIN>||<docId>": { status, comment } }. */
 function readPlatformDocStatus_(ss) {
   var map = {};
   var sh = ss.getSheetByName(PLATFORM_DOCSTATUS_TAB);
@@ -156,12 +156,15 @@ function readPlatformDocStatus_(ss) {
   var vals = sh.getDataRange().getValues();
   if (vals.length < 2) return map;
   var H  = vals[0].map(function (h) { return String(h).trim().toLowerCase(); });
-  var gi = H.indexOf('gstin'), di = H.indexOf('doc id'), si = H.indexOf('status');
+  var gi = H.indexOf('gstin'), di = H.indexOf('doc id'), si = H.indexOf('status'), ci = H.indexOf('comment');
   if (gi < 0 || di < 0 || si < 0) return map;
   for (var r = 1; r < vals.length; r++) {
     var g = String(vals[r][gi]).trim().toUpperCase();
     var d = String(vals[r][di]).trim();
-    if (g && d) map[g + '||' + d] = String(vals[r][si]).trim();
+    if (g && d) map[g + '||' + d] = {
+      status:  String(vals[r][si]).trim(),
+      comment: ci >= 0 ? String(vals[r][ci] == null ? '' : vals[r][ci]).trim() : ''
+    };
   }
   return map;
 }
@@ -186,9 +189,9 @@ function getPlatformData() {
 }
 
 /**
- * Called from Index.html when ops set a document's status. Upserts one row in
- * the DocStatus tab, keyed by (GSTIN, docId). Creates the tab on first write.
- * payload = { gstin, entityType, docId, docName, status }
+ * Called from Index.html when ops set a document's status or comment. Upserts
+ * one row in the DocStatus tab, keyed by (GSTIN, docId). Creates the tab on
+ * first write. payload = { gstin, entityType, docId, docName, status, comment }
  */
 function savePlatformDoc(payload) {
   try {
@@ -202,7 +205,7 @@ function savePlatformDoc(payload) {
     var sh = ss.getSheetByName(PLATFORM_DOCSTATUS_TAB);
     if (!sh) {
       sh = ss.insertSheet(PLATFORM_DOCSTATUS_TAB);
-      sh.getRange(1, 1, 1, 6).setValues([['GSTIN', 'Entity Type', 'Doc ID', 'Doc Name', 'Status', 'Updated At']]);
+      sh.getRange(1, 1, 1, 7).setValues([['GSTIN', 'Entity Type', 'Doc ID', 'Doc Name', 'Status', 'Comment', 'Updated At']]);
       sh.setFrozenRows(1);
     }
 
@@ -212,8 +215,9 @@ function savePlatformDoc(payload) {
       if (String(vals[r][0]).trim().toUpperCase() === gst &&
           String(vals[r][2]).trim() === docId) { rowNum = r + 1; break; }
     }
-    var rowVals = [gst, payload.entityType || '', docId, payload.docName || '', payload.status || '', new Date()];
-    if (rowNum > 0) sh.getRange(rowNum, 1, 1, 6).setValues([rowVals]);
+    var rowVals = [gst, payload.entityType || '', docId, payload.docName || '',
+                   payload.status || '', payload.comment || '', new Date()];
+    if (rowNum > 0) sh.getRange(rowNum, 1, 1, 7).setValues([rowVals]);
     else            sh.appendRow(rowVals);
 
     return { ok: true };
