@@ -258,6 +258,28 @@ table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;mi
 .nbfc-hero .h-stats .s span{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:600}
 .split-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 @media(max-width:1000px){.split-cols{grid-template-columns:1fr}.nbfc-hero .h-stats{display:none}}
+/* ─────────────────────────── NBFC DASHBOARD — 7-CARD KPI ROW ─────────────────────────── */
+.kpi-row-7{grid-template-columns:repeat(7,1fr);gap:10px}
+.kpi-row-7 .kpi .k-num{font-size:28px;margin-top:9px}
+.kpi-row-7 .kpi.compact .k-num{font-size:20px;margin-top:11px;letter-spacing:-.01em}
+@media(max-width:1400px){.kpi-row-7{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:900px){.kpi-row-7{grid-template-columns:repeat(2,1fr)}}
+/* ─────────────────────────── DOCUMENT REQUIREMENT ROWS ─────────────────────────── */
+.drr-list{padding:4px 18px 14px}
+.drr{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line-2)}
+.drr:last-child{border-bottom:none}
+.drr-name{min-width:190px;font-size:13px;font-weight:500;flex-shrink:0}
+.drr-cat{display:inline-block;margin-left:8px;font-size:10.5px;color:var(--ink-3);font-weight:400}
+.drr-mid{display:flex;align-items:center;gap:9px;flex:1;min-width:0}
+.drr-track{flex:1;height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.drr-fill{height:100%;border-radius:4px;background:var(--ok);transition:width .3s var(--ease)}
+.drr-pct{font-size:12px;color:var(--ink-3);min-width:32px;text-align:right}
+.drr-counts{display:flex;align-items:center;gap:4px;font-size:12px;min-width:220px;justify-content:flex-end;flex-shrink:0}
+.drr-ok{color:var(--ok);font-weight:600}
+.drr-warn{color:var(--warn);font-weight:600}
+.drr-bad{color:var(--bad);font-weight:600}
+.drr-lbl{color:var(--ink-3)}
+.drr-sep{color:var(--line);margin:0 3px}
 .ent-row{display:flex;align-items:center;gap:11px;padding:11px 18px;border-bottom:1px solid var(--line-2);cursor:pointer}
 .ent-row:hover{background:var(--fill)}
 .ent-row:last-child{border-bottom:none}
@@ -513,6 +535,7 @@ function initials(n){ var p=String(n||'').replace(/[^A-Za-z0-9 ]/g,' ').trim().s
 function hashStr(s){ var h=2166136261; for(var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return (h>>>0)/4294967295; }
 function vintageYears(v){ var m=String(v||'').match(/(\d+)\s*Y[-\s]*(\d+)?\s*M?/i); if(m) return parseInt(m[1],10)+(m[2]?parseInt(m[2],10):0)/12; var n=parseFloat(v); return isNaN(n)?0:n; }
 function excelDate(serial){ var n=parseInt(serial,10); if(isNaN(n)) return '—'; var d=new Date(Date.UTC(1899,11,30)+n*864e5); return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
+function fmtCr(n){ if(n>=10000000) return '₹'+(n/10000000).toFixed(2)+'Cr'; if(n>=100000) return '₹'+(n/100000).toFixed(1)+'L'; return '₹'+n.toLocaleString('en-IN'); }
 
 /* ── 4. Normalise sheet rows → entities, seed doc statuses ─────────────── */
 var STATUS = ['available','pending','missing','expired','na'];
@@ -626,7 +649,7 @@ function render(){
   else if(r==='buyers'){ $('tbTitle').innerHTML='Buyers <span class="mut">Document register</span>'; c.innerHTML=viewRegister('buyer'); wireRegister('buyer'); }
   else if(r==='matrix'){ $('tbTitle').innerHTML='Document Matrix'; c.innerHTML=viewMatrix(); }
   else if(r==='settings'){ $('tbTitle').textContent='Settings'; c.innerHTML=viewSettings(); wireSettings(); }
-  else if(r.indexOf('nbfc:')===0){ var n=NBFC_BY_ID[r.split(':')[1]]; $('tbTitle').innerHTML=esc(n.name)+' <span class="mut">Eligibility</span>'; c.innerHTML=viewNbfc(n); wireNbfc(n); }
+  else if(r.indexOf('nbfc:')===0){ var n=NBFC_BY_ID[r.split(':')[1]]; $('tbTitle').innerHTML=esc(n.name)+' <span class="mut">Dashboard</span>'; c.innerHTML=viewNbfc(n); wireNbfc(n); }
 }
 
 function renderNav(){
@@ -778,52 +801,105 @@ function wireRegister(type){
   });
 }
 
-/* ═══════════════ NBFC ELIGIBILITY PAGE ═══════════════ */
+/* ═══════════════ NBFC DASHBOARD PAGE ═══════════════ */
 function viewNbfc(n){
-  var ready=[],blocked=[];
+  var sellers = ENTITIES.filter(function(e){ return e.type==='seller'; });
+  var buyers  = ENTITIES.filter(function(e){ return e.type==='buyer';  });
+  var total   = ENTITIES.length;
+
+  /* ── Eligibility ──────────────────────────────────────────────── */
+  var eligS = sellers.filter(function(e){ return evalNbfc(e,n).eligible; });
+  var eligB = buyers.filter(function(e){  return evalNbfc(e,n).eligible; });
+
+  /* ── Logged In (seeded per-entity per-NBFC) ───────────────────── */
+  var logS = sellers.filter(function(e){ return hashStr(e.id+'|'+n.id+'|li') < 0.55; });
+  var logB = buyers.filter(function(e){  return hashStr(e.id+'|'+n.id+'|li') < 0.55; });
+
+  /* ── Credit Limit Assigned (from eligible pool) ───────────────── */
+  var crS = eligS.filter(function(e){ return hashStr(e.id+'|'+n.id+'|cr') < 0.62; });
+  var crB = eligB.filter(function(e){ return hashStr(e.id+'|'+n.id+'|cr') < 0.62; });
+
+  /* ── Credit Utilisation (₹ sum for credit-assigned entities) ──── */
+  var utilTotal = 0;
+  crS.concat(crB).forEach(function(e){
+    utilTotal += Math.floor(hashStr(e.id+'|'+n.id+'|ua') * 45 + 5) * 100000;
+  });
+
+  /* ── Transactions (count + value for eligible entities) ───────── */
+  var txnCount = 0, txnVal = 0;
+  eligS.concat(eligB).forEach(function(e){
+    var t = Math.floor(hashStr(e.id+'|'+n.id+'|tc') * 14);
+    txnCount += t;
+    txnVal   += t * Math.floor(hashStr(e.id+'|'+n.id+'|tv') * 400 + 80) * 1000;
+  });
+
+  /* ── 7 KPI cards ───────────────────────────────────────────────── */
+  var kpis =
+    kpiHero('Total Sellers',         sellers.length,           'Open Marketplace · Completed',                    '',        "go('sellers')") +
+    kpiHero('Total Buyers',          buyers.length,            'Open Marketplace · Completed',                    '',        "go('buyers')") +
+    kpiHero('Eligible',              eligS.length+eligB.length, eligS.length+' sellers · '+eligB.length+' buyers','',        "kpiGo('eligible')") +
+    kpiHero('Logged In',             logS.length+logB.length,  logS.length+' sellers · '+logB.length+' buyers',  '',        '') +
+    kpiHero('Credit Limit Assigned', crS.length+crB.length,   crS.length+' sellers · '+crB.length+' buyers',    '',        '') +
+    kpiHero('Credit Utilisation',    fmtCr(utilTotal),         'Total credit utilised',                           'compact', '') +
+    kpiHero('Transactions',          txnCount,                 fmtCr(txnVal)+' total value',                     '',        '');
+
+  /* ── Document requirements table ───────────────────────────────── */
+  var docRows = n.req.map(function(docId){
+    var cat = CAT_BY_ID[docId]; if(!cat) return '';
+    var av=0, pe=0, mi=0;
+    ENTITIES.forEach(function(e){
+      var s = e.docs[docId];
+      if(s==='available') av++; else if(s==='pending') pe++; else if(s==='missing'||s==='expired') mi++;
+    });
+    var pct = total>0 ? Math.round(av/total*100) : 0;
+    return '<div class="drr">'+
+      '<div class="drr-name">'+esc(cat.name)+'<span class="drr-cat">'+esc(cat.cat)+'</span></div>'+
+      '<div class="drr-mid">'+
+        '<div class="drr-track"><div class="drr-fill" style="width:'+pct+'%"></div></div>'+
+        '<span class="drr-pct tnum">'+pct+'%</span>'+
+      '</div>'+
+      '<div class="drr-counts">'+
+        '<span class="drr-ok tnum">'+av+'</span><span class="drr-lbl"> ready</span>'+
+        '<span class="drr-sep">·</span>'+
+        '<span class="drr-warn tnum">'+pe+'</span><span class="drr-lbl"> pending</span>'+
+        '<span class="drr-sep">·</span>'+
+        '<span class="drr-bad tnum">'+mi+'</span><span class="drr-lbl"> missing</span>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  var docCard = '<div class="card" style="margin-bottom:18px">'+
+    '<div class="card-h"><h3>'+esc(n.name)+' — Document Requirements</h3>'+
+    '<span class="sub">'+n.req.length+' mandatory documents'+(n.vintageYrs?' · '+n.vintageYrs+'-year Recykal vintage required':'')+' — across all '+total+' entities</span></div>'+
+    '<div class="drr-list">'+docRows+'</div></div>';
+
+  /* ── Entity lists: eligible | blocked ──────────────────────────── */
+  var ready=[], blocked=[];
   ENTITIES.forEach(function(e){ var m=evalNbfc(e,n); if(m.eligible) ready.push(e); else blocked.push({e:e,m:m}); });
-  blocked.sort(function(a,b){return a.m.missing.length-b.m.missing.length;});
-  var pct=Math.round(ready.length/ENTITIES.length*100);
-
-  // most common blocking docs
-  var blockCount={};
-  blocked.forEach(function(b){ b.m.missing.forEach(function(id){ blockCount[id]=(blockCount[id]||0)+1; }); });
-  var topBlock=Object.keys(blockCount).map(function(id){return {id:id,c:blockCount[id]};}).sort(function(a,b){return b.c-a.c;}).slice(0,5);
-
-  var hero='<div class="nbfc-hero" style="--nc:'+n.nc+'">'+
-    '<div class="bmk">'+initials(n.name)+'</div>'+
-    '<div><h2>'+esc(n.name)+'</h2><div class="h-sub">'+n.req.length+' mandatory documents'+(n.vintageYrs?' · '+n.vintageYrs+' yr Recykal vintage':'')+'</div></div>'+
-    '<div class="h-stats">'+
-      '<div class="s"><b class="tnum">'+ready.length+'</b><span>Ready</span></div>'+
-      '<div class="s"><b class="tnum">'+blocked.length+'</b><span>Blocked</span></div>'+
-      '<div class="s"><b class="tnum">'+pct+'%</b><span>Coverage</span></div>'+
-    '</div></div>';
-
-  var topBlockH = topBlock.length ? '<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>Top blocking documents</h3><span class="sub">What is holding the most vendors back</span></div><div style="padding:6px 18px 14px">'+
-    topBlock.map(function(t){ var w=Math.round(t.c/blocked.length*100);
-      return '<div class="nbfc-elig"><div class="ne-name" style="min-width:210px">'+esc(CAT_BY_ID[t.id].name)+'<span class="mut">'+esc(CAT_BY_ID[t.id].cat)+'</span></div>'+
-        '<div class="ne-track"><div class="ne-fill" style="width:'+w+'%;background:var(--bad)"></div></div>'+
-        '<div class="ne-count">'+t.c+' blocked</div></div>';
-    }).join('')+'</div></div>' : '';
+  blocked.sort(function(a,b){ return a.m.missing.length-b.m.missing.length; });
 
   var readyH = ready.slice(0,80).map(function(e){
-    return '<div class="ent-row" onclick="openDetail(\''+e.id+'\')"><div class="ent-ava" style="background:'+n.nc+';color:#fff">'+initials(e.name)+'</div>'+
+    return '<div class="ent-row" onclick="openDetail(\''+e.id+'\')">'+
+      '<div class="ent-ava" style="background:'+n.nc+';color:#fff">'+initials(e.name)+'</div>'+
       '<div class="en">'+esc(e.name)+'<span class="mut"> · '+esc(e.type)+' · '+esc(e.city||e.state)+'</span></div>'+
-      '<span class="status-pill sp-ok"><span class="d"></span>Ready</span></div>';
-  }).join('') || emptyRow('No vendors are fully ready yet.');
+      '<span class="status-pill sp-ok"><span class="d"></span>Eligible</span></div>';
+  }).join('') || emptyRow('No vendors fully eligible yet.');
 
   var blockedH = blocked.slice(0,120).map(function(b){
-    return '<div class="ent-row" onclick="openDetail(\''+b.e.id+'\')"><div class="ent-ava">'+initials(b.e.name)+'</div>'+
+    return '<div class="ent-row" onclick="openDetail(\''+b.e.id+'\')">'+
+      '<div class="ent-ava">'+initials(b.e.name)+'</div>'+
       '<div class="en">'+esc(b.e.name)+'<span class="mut"> · '+esc(b.e.type)+'</span></div>'+
-      '<div class="miss-tags">'+ (!b.m.vintageOk?'<span class="miss-tag">Vintage &lt; '+n.vintageYrs+'y</span>':'') +
-        b.m.missing.slice(0,3).map(function(id){return '<span class="miss-tag">'+esc(CAT_BY_ID[id].name)+'</span>';}).join('')+
-        (b.m.missing.length>3?'<span class="miss-tag">+'+(b.m.missing.length-3)+'</span>':'')+'</div></div>';
-  }).join('') || emptyRow('Everyone is ready.');
+      '<div class="miss-tags">'+(!b.m.vintageOk?'<span class="miss-tag">Vintage &lt; '+n.vintageYrs+'y</span>':'') +
+        b.m.missing.slice(0,3).map(function(id){ return '<span class="miss-tag">'+esc(CAT_BY_ID[id]?CAT_BY_ID[id].name:id)+'</span>'; }).join('')+
+        (b.m.missing.length>3?'<span class="miss-tag">+'+(b.m.missing.length-3)+' more</span>':'')+'</div></div>';
+  }).join('') || emptyRow('Everyone is eligible.');
 
-  return hero+topBlockH+'<div class="split-cols">'+
-    '<div class="card"><div class="card-h"><h3>Ready to submit</h3><span class="sub">'+ready.length+' vendors</span></div>'+readyH+'</div>'+
-    '<div class="card"><div class="card-h"><h3>Blocked</h3><span class="sub">'+blocked.length+' vendors</span></div>'+blockedH+'</div>'+
-  '</div>';
+  return '<div class="kpi-row kpi-row-7">'+kpis+'</div>'+
+    docCard+
+    '<div class="split-cols">'+
+      '<div class="card"><div class="card-h"><h3>Eligible</h3><span class="sub">'+ready.length+' entities</span></div>'+readyH+'</div>'+
+      '<div class="card"><div class="card-h"><h3>Needs documents</h3><span class="sub">'+blocked.length+' entities</span></div>'+blockedH+'</div>'+
+    '</div>';
 }
 function emptyRow(t){ return '<div style="padding:28px;text-align:center;color:var(--ink-3);font-size:13px">'+esc(t)+'</div>'; }
 function wireNbfc(n){}
