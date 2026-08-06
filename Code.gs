@@ -21,7 +21,7 @@ var DRIVE_ROOT_ID = '1i5melXCocWrV9rR-3gM75wwSwWy7Dqit';
 
 // Marketplace sheet — source of truth for total active sellers & buyers.
 // Only rows where the Vertical column = MB_VERTICAL_FILTER are counted.
-var MB_SHEET_ID        = '10RJ1D1GXh-f_7a5M3YMAEt8jDQ7X6jQm2-krTNOBts8';
+var MB_SHEET_ID        = '1d57KGl00-pGWVjYKouyMu8jt0Y4UMEc2HaHWtMWPjeM';
 var MB_VERTICAL_FILTER = 'Open Marketplace';
 
 var CONFIG = {
@@ -808,8 +808,6 @@ function getMbCounts_() {
           if (vIdx === -1 && nk.indexOf('vertical') !== -1) vIdx = c;
           if (sIdx === -1 && nk.indexOf('onboarding') !== -1) sIdx = c;
         }
-        // Fallback to column F (0-based index 5) if no "Onboarding" header found
-        if (sIdx === -1 && headers.length > 5) sIdx = 5;
         var mbStatusLower    = MB_STATUS_FILTER.toLowerCase();
         var mbVerticalLower  = MB_VERTICAL_FILTER.toLowerCase();
         var data = sh.getRange(2, 1, sh.getLastRow() - 1, lastCol).getDisplayValues();
@@ -830,8 +828,8 @@ function getMbCounts_() {
       } catch (e) { return { count: 0, headers: [], vCol: null, sCol: null, sampleVals: [], error: String(e.message) }; }
     }
 
-    var sellerInfo = analyseTab('_mb_sellers');
-    var buyerInfo  = analyseTab('_mb_buyers');
+    var sellerInfo = analyseTab('Sellers');
+    var buyerInfo  = analyseTab('Buyers');
     return {
       ok:      true,
       sellers: sellerInfo.count,

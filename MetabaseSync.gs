@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    Metabase → Google Sheets Sync  (Near Real-Time)
-   meta.recykal.com  ·  Query 5712 → Seller tab  |  Query 5711 → Buyer tab
+   meta.recykal.com  ·  Query 5711 → Sellers tab  |  Query 5712 → Buyers tab
    ─────────────────────────────────────────────────────────────────────────
    SETUP (do once):
      1. Find METABASE_PASS below → replace YOUR_PASSWORD_HERE with your password
@@ -20,11 +20,11 @@ var CFG = {
   METABASE_URL    : 'https://meta.recykal.com',
   METABASE_USER   : 'vishwash.tiwari@recykal.com',
   METABASE_PASS   : 'YOUR_PASSWORD_HERE',   // ← replace with your password
-  SHEET_ID        : '1UMtuarqR9wFI74VM4JWC3GXSF9C9YpkkySeFJgq8rQc',
+  SHEET_ID        : '1d57KGl00-pGWVjYKouyMu8jt0Y4UMEc2HaHWtMWPjeM',
   SYNC_EVERY_MINS : 1,
   QUERIES: [
-    { id: 5712, tab: 'Seller' },
-    { id: 5711, tab: 'Buyer'  },
+    { id: 5711, tab: 'Sellers' },
+    { id: 5712, tab: 'Buyers'  },
   ],
   FILTER: {
     VERTICAL         : 'Open Marketplace',
@@ -36,40 +36,20 @@ var CFG = {
 // SCHEMA
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Exact column order that must appear in the sheet (header row 1)
+// Exact column order that must appear in the sheet (header row 1).
+// Used only when the tab has no existing headers — otherwise row 1 of the
+// sheet is the source of truth.  Column names here match the Sellers tab;
+// the Buyers tab pre-exists with 'Buyer Business Name' / 'Buyer Type'.
 var COLUMN_ORDER = [
   'No.',
   'Seller Business Name',
   'Region',
   'Vertical',
-  'Seller_Type',
+  'Seller Type',
   'State',
-  'Seller_GSTIN',
-  'Vintage_with_Recykal',
-  'Finoscale_Rating',
-  'Mail_ID',
-  'POC_mail',
-  'Mobile_No',
-  'POC Names',
-  'Date_of_Registration',
+  'GSTIN',
+  'Vintage with Recykal',
   'Entity Type',
-  'Pending Document',
-  'Debt Profile',
-  '2 yr Audited Financial, Current Provisional',
-  'Bank Statement',
-  'GSTR 3B - 12 Month',
-  'ITR (Last 2 years)',
-  'CIBIL Consent',
-  'Sanction Letter of all loans',
-  'Partnership Deed',
-  'Entity PAN',
-  'MSME',
-  'GST Certificate',
-  'Owner / Director / Partner PAN',
-  'Aadhar (Owner / Director / Partner)',
-  'Electricity Bill / Rental Agreement',
-  'MOA, AOA, COI',
-  'Shareholding Details',
 ];
 
 // Document columns — values are mapped: 1/2/3 → "Received", 0 → "Not Received",
@@ -115,8 +95,8 @@ var FIELD_MAP = {
     'Name', 'Business Name', 'Company Name', 'Organisation Name',
   ],
 
-  // ── Region — derived from State via deriveRegion_() ───────────────────────────
-  'region' : ['State'],
+  // ── Region — use Meta's Region column if present, else derive from State ─────
+  'region' : ['Region', 'region', 'State'],
 
   // ── Core identity ─────────────────────────────────────────────────────────────
   'vertical'    : ['Vertical', 'Business Vertical', 'Biz Vertical'],
@@ -689,11 +669,17 @@ var SOUTH_STATES = {
   'andaman & nicobar': true, 'andaman and nicobar': true,
 };
 
-// Derive Region from the Metabase State value.
-// Returns "North", "South", or "NA" (anything not in the two lists above).
+// Derive Region from a State name, or pass through an already-computed region.
+// Accepts "North"/"South"/"East"/"West" directly if Meta returns them.
+// Returns "North", "South", or "NA" for unrecognised state names.
 function deriveRegion_(stateValue) {
   if (stateValue == null || String(stateValue).trim() === '') return 'NA';
   var s = String(stateValue).trim().toLowerCase();
+  // Already a region label — pass through
+  if (s === 'north') return 'North';
+  if (s === 'south') return 'South';
+  if (s === 'east')  return 'East';
+  if (s === 'west')  return 'West';
   if (NORTH_STATES[s]) return 'North';
   if (SOUTH_STATES[s]) return 'South';
   return 'NA';
