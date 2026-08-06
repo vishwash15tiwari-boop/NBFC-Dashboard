@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    Metabase → Google Sheets Sync  (Near Real-Time)
-   meta.recykal.com  ·  Query 5711 → Sellers tab  |  Query 5712 → Buyers tab
+   meta.recykal.com  ·  Query 5712 → Sellers tab  |  Query 5711 → Buyers tab
    ─────────────────────────────────────────────────────────────────────────
    SETUP (do once):
      1. Find METABASE_PASS below → replace YOUR_PASSWORD_HERE with your password
@@ -23,8 +23,8 @@ var CFG = {
   SHEET_ID        : '1d57KGl00-pGWVjYKouyMu8jt0Y4UMEc2HaHWtMWPjeM',
   SYNC_EVERY_MINS : 1,
   QUERIES: [
-    { id: 5711, tab: 'Sellers' },
-    { id: 5712, tab: 'Buyers'  },
+    { id: 5712, tab: 'Sellers' },
+    { id: 5711, tab: 'Buyers'  },
   ],
   FILTER: {
     VERTICAL         : 'Open Marketplace',
