@@ -84,15 +84,23 @@ DOC_COLUMNS.forEach(function (c) { DOC_COL_NORMS[norm_(c)] = true; });
 // and "EntityName" all normalise to "entityname" — one entry covers all three variants.
 var FIELD_MAP = {
   // ── Business name — first candidate wins; others are safe fallbacks ──────────
+  // Each list ends with the *other* side's wording. The Buyers tab is seeded
+  // with the seller header text ("Seller Business Name"), so a buyer query that
+  // returns "Buyer Name" must still resolve — that mismatch is exactly why the
+  // buyer name column came through empty.
   'sellerbusinessname' : [
     'Entity Name',          // confirmed by user
     'Seller Name', 'Seller Business Name',
-    'Name', 'Business Name', 'Company Name', 'Organisation Name',
+    'Name', 'Business Name', 'Company Name', 'Organisation Name', 'Organization Name',
+    'Vendor Name', 'Party Name', 'Legal Name', 'Trade Name',
+    'Buyer Name', 'Buyer Business Name', 'Customer Name',
   ],
   'buyerbusinessname'  : [
     'Entity Name',
-    'Buyer Name',  'Buyer Business Name',
-    'Name', 'Business Name', 'Company Name', 'Organisation Name',
+    'Buyer Name',  'Buyer Business Name', 'Customer Name', 'Customer Business Name',
+    'Name', 'Business Name', 'Company Name', 'Organisation Name', 'Organization Name',
+    'Vendor Name', 'Party Name', 'Legal Name', 'Trade Name',
+    'Seller Name', 'Seller Business Name',
   ],
 
   // ── Region — use Meta's Region column if present, else derive from State ─────
@@ -442,14 +450,24 @@ function writeToSheet_(ss, tabName, result) {
   var mapping        = [];   // result col index for each header (-1 if unmatched)
   var matchedSrcName = [];   // Metabase column name that was matched ('' if none)
 
+  // The tab decides which side's aliases apply — not the header wording. Both
+  // tabs get seeded from COLUMN_ORDER, which is seller-worded, so the Buyers tab
+  // reads "Seller Business Name" and would otherwise never try the buyer aliases.
+  var isBuyerTab = norm_(tabName).indexOf('buyer') >= 0;
+
   headers.forEach(function (h) {
     var key     = norm_(h);
     var idx     = -1;
     var srcName = '';
 
-    // Step 1 — FIELD_MAP
-    var aliases = FIELD_MAP[key];
-    if (aliases) {
+    // Step 1 — FIELD_MAP, tab-appropriate key first
+    var keys = [key];
+    if (isBuyerTab && key.indexOf('seller') === 0) keys.unshift('buyer'  + key.slice(6));
+    if (!isBuyerTab && key.indexOf('buyer') === 0) keys.unshift('seller' + key.slice(5));
+
+    for (var ki = 0; ki < keys.length && idx < 0; ki++) {
+      var aliases = FIELD_MAP[keys[ki]];
+      if (!aliases) continue;
       for (var fi = 0; fi < aliases.length; fi++) {
         var an = norm_(aliases[fi]);
         if (an in colLookup) {
@@ -510,6 +528,21 @@ function writeToSheet_(ss, tabName, result) {
       : (isDoc ? '◌ → NA (doc col not in query)' : '✗ → NO MATCH (will be blank)');
     Logger.log('    [' + (c + 1) + '] ' + h + '  ' + status);
   });
+
+  // The business-name column failing to resolve is the one miss that looks like
+  // a working sync — every row writes, the name is just blank. Call it out with
+  // the query's actual column names so the alias can be added in one pass.
+  var nameCol = -1;
+  headers.forEach(function (h, c) { if (norm_(h).indexOf('businessname') >= 0) nameCol = c; });
+  if (nameCol >= 0 && mapping[nameCol] < 0) {
+    Logger.log(
+      '  ⚠ BUSINESS NAME UNRESOLVED on "' + tabName + '" — that column will be blank.\n' +
+      '    Sheet header : "' + headers[nameCol] + '"\n' +
+      '    Query returns: ' + result.cols.join(' | ') + '\n' +
+      '    Fix: add the correct name to FIELD_MAP[\'' +
+        (isBuyerTab ? 'buyerbusinessname' : 'sellerbusinessname') + '\'].'
+    );
+  }
 
   // ── Build output rows ──────────────────────────────────────────────────────
   var outRows = result.rows.map(function (srcRow, rowIdx) {
