@@ -241,8 +241,17 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none}
 .ne-name .mut{display:block;font-size:11px;color:var(--ink-3);font-weight:400}
 .ne-track{flex:1;height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden}
 .ne-fill{height:100%;border-radius:4px}
-.ne-count{font-size:12.5px;font-weight:600;min-width:118px;text-align:right;font-variant-numeric:tabular-nums}
+.ne-count{font-size:12.5px;font-weight:600;min-width:132px;text-align:right;font-variant-numeric:tabular-nums}
 .ne-count .mut{color:var(--ink-3);font-weight:400}
+.nbfc-elig.clk{margin:0 -18px;padding:11px 18px;cursor:pointer;border-radius:0;transition:background .13s var(--ease)}
+.nbfc-elig.clk:hover{background:var(--fill)}
+/* Command-centre — Level-1 state line + Level-2 attention header */
+.cmd-summary{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;margin:-4px 0 20px;
+  font-size:13.5px;color:var(--ink-2)}
+.cmd-summary b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.cmd-summary .sep{width:4px;height:4px;border-radius:50%;background:var(--ink-4);opacity:.6}
+.attn-count{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+  color:var(--warn);background:var(--warn-tint);padding:3px 10px;border-radius:999px}
 
 /* ─────────────────────────── TABLES ─────────────────────────── */
 .toolbar{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -949,27 +958,31 @@ function viewDashboard(){
   var firstCheckSet = sellers.filter(function(e){ return eligibleNbfcs(e).length>0; });
   var pendingSellers= sellers.filter(function(e){ return docCounts(e).pending>0; }).length;
 
+  /* Level-1 KPI band. Each card answers status + next action (an arrow into the
+     matching filtered queue). Logged In / Credit Limit have no column in the
+     master sheet, so they stay honestly blank — never a fabricated trend. */
   var kpis=
     kpiHero('Total Sellers', sellers.length, 'Open Marketplace · Completed', '', "kpiGo('all')") +
     kpiHero('Total Buyers', buyers.length, 'Open Marketplace · Completed', '', "go('buyers')") +
-    kpiHero('First Check', firstCheckSet.length, 'Pre-screening passed', '', "kpiGo('eligible')") +
+    kpiHero('First Check', firstCheckSet.length, (firstCheckSet.length?'Ready to submit':'Pre-screening passed'), '', "kpiGo('eligible')") +
     kpiHero('Logged In', NODATA, 'Not in master sheet', '', '') +
     kpiHero('Credit Limit Assigned', NODATA, 'Not in master sheet', '', '') +
-    kpiHero('Pending', pendingSellers, 'Documents still awaited', 'amber', "kpiGo('pending')");
+    kpiHero('Pending', pendingSellers, (pendingSellers?'Review awaited documents':'Documents still awaited'), 'amber', "kpiGo('pending')");
 
-  // per-NBFC eligibility
+  // Level-3 pipeline: per-NBFC eligible vs. still-needing-docs, click into the workspace
   var neRows=NBFCS.map(function(n){
     var elig=ENTITIES.filter(function(e){return evalNbfc(e,n).eligible;}).length;
+    var needs=ENTITIES.length-elig;
     var pct=Math.round(elig/ENTITIES.length*100);
-    return '<div class="nbfc-elig">'+
+    return '<div class="nbfc-elig clk" onclick="go(\'nbfc:'+n.id+'\')">'+
       '<div class="ne-badge" style="background:'+n.nc+'">'+initials(n.name)+'</div>'+
       '<div class="ne-name">'+esc(n.name)+'<span class="mut">'+n.req.length+' docs required</span></div>'+
       '<div class="ne-track"><div class="ne-fill" style="width:'+pct+'%;background:'+n.nc+'"></div></div>'+
-      '<div class="ne-count">'+elig+' eligible <span class="mut">/ '+ENTITIES.length+'</span></div>'+
+      '<div class="ne-count">'+elig+' eligible <span class="mut">/ '+needs+' need docs</span></div>'+
     '</div>';
   }).join('');
 
-  // attention: entities closest to eligibility (1-2 docs from any NBFC)
+  // Level-2 attention queue: entities 1-2 documents from a new NBFC (act on these first)
   var near=[];
   ENTITIES.forEach(function(e){
     if(eligibleNbfcs(e).length>0) return;
@@ -984,12 +997,20 @@ function viewDashboard(){
       '<div class="en">'+esc(x.e.name)+'<span class="mut"> · '+esc(x.e.type)+' · '+x.miss+' doc'+(x.miss>1?'s':'')+' from '+esc(x.n.name)+'</span></div>'+
       '<div class="miss-tags">'+x.missing.map(function(id){return '<span class="miss-tag">'+esc(CAT_BY_ID[id].name)+'</span>';}).join('')+'</div>'+
     '</div>';
-  }).join('') || '<div style="padding:24px;text-align:center;color:var(--ink-3)">No one within 2 documents of a new NBFC.</div>';
+  }).join('') || '<div style="padding:24px;text-align:center;color:var(--ink-3)">No one within 2 documents of a new NBFC — nothing needs attention right now.</div>';
 
-  return '<div class="kpi-row">'+kpis+'</div>'+
+  /* Level-1 state line — the 10-second read, derived from the same values. */
+  var summary='<div class="cmd-summary">'+
+    '<b>'+sellers.length+'</b> sellers <span class="sep"></span> <b>'+buyers.length+'</b> buyers in the Open Marketplace pipeline'+
+    ' <span class="sep"></span> <b>'+firstCheckSet.length+'</b> ready for first check'+
+    ' <span class="sep"></span> <b>'+pendingSellers+'</b> awaiting documents'+
+    (near.length?'<span class="attn-count">'+near.length+' need attention</span>':'')+
+  '</div>';
+
+  return summary+'<div class="kpi-row">'+kpis+'</div>'+
     '<div class="grid-2">'+
-      '<div class="card"><div class="card-h"><h3>Submission readiness</h3><span class="sub">Vendors within 2 documents of a new NBFC</span></div>'+nearRows+'</div>'+
-      '<div class="card"><div class="card-h"><h3>NBFC-wise eligibility</h3></div><div class="nbfc-elig-list">'+neRows+'</div></div>'+
+      '<div class="card"><div class="card-h"><h3>Needs attention</h3><span class="sub">1–2 documents from a new NBFC — clear these first</span></div>'+nearRows+'</div>'+
+      '<div class="card"><div class="card-h"><h3>NBFC pipeline</h3><span class="sub">Eligible vs. still needing documents</span></div><div class="nbfc-elig-list">'+neRows+'</div></div>'+
     '</div>';
 }
 /* Hero KPI card — big number, uppercase label, muted sub-line ending in an arrow.
