@@ -343,6 +343,66 @@ function savePOCFollowup(fu) {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   NBFC REQUIREMENT MATRIX  ·  backend-configurable document requirements
+   ───────────────────────────────────────────────────────────────────────────
+   One row per NBFC in the "NBFC Requirements" tab holds its mandatory document
+   ids (comma-separated) and an optional vintage threshold. Editing that row —
+   from the sheet or the dashboard's Settings → NBFC Requirements — changes what
+   the Needs-documents panel and the eligibility engine require, with no code
+   change. Never touched by the Metabase sync.
+   ═══════════════════════════════════════════════════════════════════════════ */
+var PLATFORM_REQ_TAB = 'NBFC Requirements';
+
+/** Read the matrix → { config: { <nbfcId>: { req:[docId…], vintageYrs } } }. */
+function getNbfcConfig() {
+  try {
+    var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
+    var sh = ss.getSheetByName(PLATFORM_REQ_TAB);
+    var config = {};
+    if (sh) {
+      var v = sh.getDataRange().getValues();
+      if (v.length >= 2) {
+        var H = {}; v[0].forEach(function (h, i) { H[String(h).trim().toLowerCase()] = i; });
+        var gi = H['nbfc id'], di = H['required doc ids'], vi = H['vintage years'];
+        for (var r = 1; r < v.length; r++) {
+          var id = gi != null ? String(v[r][gi]).trim() : '';
+          if (!id) continue;
+          var raw = di != null ? String(v[r][di] == null ? '' : v[r][di]) : '';
+          var req = raw.split(',').map(function (s) { return s.trim(); }).filter(String);
+          var vy = vi != null ? String(v[r][vi] == null ? '' : v[r][vi]).trim() : '';
+          config[id] = { req: req, vintageYrs: vy === '' ? '' : Number(vy) };
+        }
+      }
+    }
+    return { ok: true, config: config };
+  } catch (e) {
+    return { ok: false, error: String(e && e.message || e), config: {} };
+  }
+}
+
+/** Upsert one NBFC's requirement row. payload = { id, req:[…], vintageYrs }. */
+function saveNbfcConfig(payload) {
+  try {
+    payload = payload || {};
+    var id = String(payload.id || '').trim();
+    if (!id) return { ok: false, error: 'NBFC id is required' };
+    var req = (payload.req || []).join(',');
+    var vy  = (payload.vintageYrs == null ? '' : payload.vintageYrs);
+    var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
+    var sh = ss.getSheetByName(PLATFORM_REQ_TAB);
+    if (!sh) { sh = ss.insertSheet(PLATFORM_REQ_TAB); sh.getRange(1, 1, 1, 4).setValues([['NBFC ID', 'Required Doc IDs', 'Vintage Years', 'Updated At']]); sh.setFrozenRows(1); }
+    var vals = sh.getDataRange().getValues(), rowNum = -1;
+    for (var r = 1; r < vals.length; r++) { if (String(vals[r][0]).trim() === id) { rowNum = r + 1; break; } }
+    var row = [id, req, vy, new Date()];
+    if (rowNum > 0) sh.getRange(rowNum, 1, 1, 4).setValues([row]);
+    else            sh.appendRow(row);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e && e.message || e) };
+  }
+}
+
 /* ─────────────────────────── Spreadsheet access ────────────────────────── */
 
 function getSpreadsheet_() {

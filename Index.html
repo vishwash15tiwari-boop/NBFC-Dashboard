@@ -618,6 +618,59 @@ var NBFCS = [
 ];
 var NBFC_BY_ID = {}; NBFCS.forEach(function(n){ NBFC_BY_ID[n.id]=n; });
 
+/* ── NBFC requirement matrix — configurable & persisted ──────────────────────
+   NBFCS[].req above are only DEFAULTS. The live matrix is loaded from (and saved
+   to) storage so an admin can change what each NBFC requires with no code change:
+   standalone → localStorage; live → the "NBFC Requirements" sheet tab. Because
+   the Needs-documents panel, the pending count, and the eligibility engine all
+   read nbfc.req, they update automatically the instant the matrix changes. */
+var REQCFG_KEY = 'nbfc-reqconfig-v1';
+function applyNbfcConfig(cfg){
+  if(!cfg) return;
+  NBFCS.forEach(function(n){
+    var c=cfg[n.id]; if(!c) return;                       // NBFC absent from config → keep defaults
+    if(Array.isArray(c.req)) n.req = c.req.filter(function(id){ return CAT_BY_ID[id]; });  // only valid catalog ids
+    if(c.vintageYrs===''||c.vintageYrs==null) delete n.vintageYrs;
+    else n.vintageYrs = +c.vintageYrs;
+  });
+}
+function currentNbfcConfig(){
+  var cfg={}; NBFCS.forEach(function(n){ cfg[n.id]={ req:n.req.slice(), vintageYrs:(n.vintageYrs!=null?n.vintageYrs:'') }; });
+  return cfg;
+}
+function loadNbfcConfig(){
+  if(LIVE) return;                                         // live pulls from the sheet via refreshNbfcConfig()
+  var saved=null; try{ saved=JSON.parse(localStorage.getItem(REQCFG_KEY)); }catch(e){}
+  if(saved) applyNbfcConfig(saved);
+}
+function persistNbfcConfig(nbfcId){
+  if(LIVE){ saveNbfcConfigLive(nbfcId); return; }
+  try{ localStorage.setItem(REQCFG_KEY, JSON.stringify(currentNbfcConfig())); }catch(e){}
+}
+var _reqSeeded=false;
+function refreshNbfcConfig(){
+  if(!LIVE) return;
+  google.script.run
+    .withSuccessHandler(function(data){
+      if(!data || !data.ok) return;
+      var cfg=data.config||{};
+      if(Object.keys(cfg).length===0 && !_reqSeeded){     // empty tab → seed it with the current matrix once
+        _reqSeeded=true; NBFCS.forEach(function(n){ saveNbfcConfigLive(n.id); }); return;
+      }
+      applyNbfcConfig(cfg);
+      if($('app') && $('app').style.display!=='none' && (state.route.indexOf('nbfc:')===0 || state.route==='settings')) render();
+    })
+    .withFailureHandler(function(){ /* keep defaults */ })
+    .getNbfcConfig();
+}
+function saveNbfcConfigLive(nbfcId){
+  if(!LIVE) return;
+  var n=NBFC_BY_ID[nbfcId]; if(!n) return;
+  google.script.run
+    .withFailureHandler(function(err){ toast('Requirement save failed: '+((err&&err.message)||err)); })
+    .saveNbfcConfig({ id:nbfcId, req:n.req.slice(), vintageYrs:(n.vintageYrs!=null?n.vintageYrs:'') });
+}
+
 /* ── 3. Helpers ────────────────────────────────────────────────────────── */
 function $(id){ return document.getElementById(id); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -1156,10 +1209,10 @@ function panelMapping(){
     var on=n.req.indexOf(d.id)>=0;
     items+='<div class="reqmap-item'+(on?' req':'')+'" onclick="toggleReq(\''+d.id+'\')"><div class="rm-check">'+(on?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>':'')+'</div><div class="rm-name">'+esc(d.name)+'</div><div class="rm-cat">'+esc(d.cat)+'</div></div>';
   });
-  return '<div class="set-panel'+(state.setPanel==='mapping'?' on':'')+'"><div class="card"><div class="card-h"><h3>NBFC Requirements</h3><span class="sub">Map each NBFC\'s required documents onto the catalog — this drives the eligibility engine</span></div>'+
+  return '<div class="set-panel'+(state.setPanel==='mapping'?' on':'')+'"><div class="card"><div class="card-h"><h3>NBFC Requirements</h3><span class="sub">Configure each NBFC\'s mandatory documents — this drives the Needs-documents panel, the outstanding count, and eligibility</span></div>'+
     '<div class="map-nbfc-tabs">'+tabs+'</div>'+
     '<div style="padding:6px 0 10px">'+items+'</div>'+
-    '<div style="padding:12px 16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-3)">'+n.req.length+' documents required by '+esc(n.name)+(n.vintageYrs?' · plus '+n.vintageYrs+'-year Recykal vintage':'')+'</div>'+
+    '<div style="padding:12px 16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-3)">'+n.req.length+' documents required by '+esc(n.name)+(n.vintageYrs?' · plus '+n.vintageYrs+'-year Recykal vintage':'')+' · <span style="color:var(--ok)">saved '+(LIVE?'to the sheet':'automatically')+'</span></div>'+
   '</div></div>';
 }
 function panelSync(){
@@ -1181,7 +1234,7 @@ function panelUsers(){
 function wireSettings(){}
 function setPanel(p){ state.setPanel=p; render(); }
 function setMapNbfc(id){ state.mapNbfc=id; render(); }
-function toggleReq(docId){ var n=NBFC_BY_ID[state.mapNbfc]; var i=n.req.indexOf(docId); if(i>=0)n.req.splice(i,1); else n.req.push(docId); render(); }
+function toggleReq(docId){ var n=NBFC_BY_ID[state.mapNbfc]; var i=n.req.indexOf(docId); if(i>=0)n.req.splice(i,1); else n.req.push(docId); persistNbfcConfig(n.id); render(); }
 function fakeSync(){
   if(LIVE){
     toast('Syncing from sheet…');
@@ -1704,9 +1757,10 @@ function toggleTheme(){
   document.documentElement.setAttribute('data-theme',state.theme);
 }
 document.addEventListener('DOMContentLoaded',function(){
+  loadNbfcConfig();              // apply any persisted requirement-matrix overrides before first render
   loadEntities();
   loadPOCs();                    // POC Directory (additive)
-  if(LIVE){ refreshFromSheet(); refreshPOCs(); }   // pull the live sheet as soon as the page opens
+  if(LIVE){ refreshFromSheet(); refreshPOCs(); refreshNbfcConfig(); }   // pull the live sheet as soon as the page opens
   Array.prototype.forEach.call(document.querySelectorAll('.role-opt'),function(o){
     o.onclick=function(){ document.querySelectorAll('.role-opt').forEach(function(x){x.classList.remove('on');}); o.classList.add('on'); };
   });
