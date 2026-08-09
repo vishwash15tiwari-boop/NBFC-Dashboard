@@ -435,6 +435,10 @@ table.matrix{border-collapse:separate;border-spacing:0;min-width:100%}
 .doc-item .di-nm .di-cat{font-size:10.5px;color:var(--ink-3);font-weight:400;display:block}
 .doc-sel{padding:5px 9px;border-radius:7px;font-size:11.5px;font-weight:600;border:1px solid var(--line);
   background:var(--surface)}
+/* NBFC selector in the Documents header — normal casing (the dr-sec-h around it is uppercase). */
+.doc-nbfc-sel{text-transform:none;letter-spacing:0;font-size:12px;font-weight:600;padding:5px 9px;
+  border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.doc-nbfc-sel:focus{outline:none;border-color:var(--brand)}
 /* Free-text comment per document, saved back to the sheet alongside its status. */
 .doc-note{width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:7px;font-size:12px;
   background:var(--surface);color:var(--ink);font-family:var(--font);margin-left:41px;width:calc(100% - 41px)}
@@ -838,7 +842,8 @@ function eligibleNbfcs(e){ return NBFCS.filter(function(n){ return evalNbfc(e,n)
 /* ── 6. App state / router ─────────────────────────────────────────────── */
 var state = { route:'dashboard', role:'Operations', user:'Ops User', email:'ops@recykal.com',
   sellerQ:'', sellerFilter:'all', buyerQ:'', theme:'light', setPanel:'catalog', mapNbfc:'billmart',
-  pocQ:'', pocNbfc:'all', pocStatus:'active' };
+  pocQ:'', pocNbfc:'all', pocStatus:'active',
+  docNbfc:'', _docEnt:null };   // which NBFC's matrix drives the seller detail checklist
 
 var NAV = [
   {id:'dashboard', label:'Dashboard', icon:'grid'},
@@ -1248,7 +1253,23 @@ function fakeSync(){
 /* ═══════════════ DETAIL DRAWER ═══════════════ */
 function openDetail(id){
   var e=ENTITIES.filter(function(x){return x.id===id;})[0]; if(!e) return;
-  var c=completion(e), cnt=docCounts(e);
+  /* The document checklist is NBFC-specific. Choose the NBFC whose requirement
+     matrix drives it: the NBFC page this was opened from, else the last NBFC
+     chosen in the drawer, else the first NBFC. The selector in the Documents
+     header switches it. Only valid catalog ids survive the filter, so no blank
+     rows remain. This is the ONLY behavioural change — everything else in the
+     drawer is unchanged. */
+  var ctxNbfc = state.route.indexOf('nbfc:')===0 ? state.route.split(':')[1] : null;
+  if(state._docEnt !== id){ state._docEnt = id; state.docNbfc = ctxNbfc || state.docNbfc || NBFCS[0].id; }
+  var docNbfc = (state.docNbfc && NBFC_BY_ID[state.docNbfc]) ? state.docNbfc : NBFCS[0].id;
+  var reqIds  = (NBFC_BY_ID[docNbfc].req||[]).filter(function(rid){ return CAT_BY_ID[rid]; });
+  /* Ring + count pills summarise THIS checklist (the selected NBFC's docs),
+     computed inline so the global completion()/docCounts() stay untouched. */
+  var c={ok:0,total:reqIds.length,pct:0}, cnt={received:0,pending:0,na:0,none:0};
+  reqIds.forEach(function(rid){ var s=e.docs[rid];
+    if(s==='received'){ c.ok++; cnt.received++; } else if(s==='pending') cnt.pending++;
+    else if(s==='na') cnt.na++; else cnt.none++; });
+  c.pct = reqIds.length ? Math.round(c.ok/reqIds.length*100) : 0;
   var eligs=eligibleNbfcs(e);
 
   var esCards=NBFCS.map(function(n){ var m=evalNbfc(e,n);
@@ -1310,9 +1331,13 @@ function openDetail(id){
       vdCell('Last Synced On', LAST_SYNC ? new Date(LAST_SYNC).toLocaleString('en-IN') : ''),
     ]);
 
-  var lastCat='',docsH='';
-  CATALOG.forEach(function(d){
-    if(d.cat!==lastCat){ docsH+='<div class="dr-sec-h" style="margin:16px 0 8px">'+esc(d.cat)+'</div>'; lastCat=d.cat; }
+  /* Render only the selected NBFC's required documents, in the configured
+     requirement order. Status dropdown, comment, and save/update per document
+     are unchanged — they key on (entity, docId) regardless of which NBFC's
+     checklist is on screen. */
+  var docsH='';
+  reqIds.forEach(function(rid){
+    var d=CAT_BY_ID[rid]; if(!d) return;
     var s=e.docs[d.id];
     var meta2=statusMeta(s);
     var note = (e.comments && e.comments[d.id]) || '';
@@ -1325,6 +1350,7 @@ function openDetail(id){
       '<input class="doc-note" type="text" placeholder="Add a comment…" value="'+esc(note)+'" onchange="setDocComment(\''+e.id+'\',\''+d.id+'\',this.value)">'+
     '</div>';
   });
+  if(!docsH) docsH='<div style="padding:16px 0;color:var(--ink-3);font-size:12.5px">No documents configured for '+esc(NBFC_BY_ID[docNbfc].name)+'.</div>';
 
   var ncColor = eligs.length?eligs[0].nc:'#8D8F82';
   $('drawer').style.setProperty('--nc', ncColor);
@@ -1340,10 +1366,18 @@ function openDetail(id){
       '</div></div>'+
       '<div class="dr-sec-h">NBFC eligibility</div><div class="elig-summary">'+esCards+'</div>'+
       '<div class="dr-sec-h">Vendor details</div>'+metaH+
-      '<div class="dr-sec-h" style="margin-top:22px">Documents</div>'+docsH+
+      '<div class="dr-sec-h" style="margin-top:22px;display:flex;justify-content:space-between;align-items:center;gap:10px">'+
+        '<span>Document checklist</span>'+
+        '<select class="doc-nbfc-sel" title="Show the checklist for a different NBFC" onchange="setDocNbfc(\''+e.id+'\',this.value)">'+
+          NBFCS.map(function(nn){ return '<option value="'+nn.id+'"'+(nn.id===docNbfc?' selected':'')+'>'+esc(nn.name)+'</option>'; }).join('')+
+        '</select>'+
+      '</div>'+
+      '<div style="font-size:11.5px;color:var(--ink-3);margin:-2px 0 12px">'+reqIds.length+' document'+(reqIds.length===1?'':'s')+' required by '+esc(NBFC_BY_ID[docNbfc].name)+(NBFC_BY_ID[docNbfc].vintageYrs?' · plus '+NBFC_BY_ID[docNbfc].vintageYrs+'-year vintage':'')+'</div>'+
+      docsH+
     '</div>';
   $('scrim').classList.add('on'); $('drawer').classList.add('on');
 }
+function setDocNbfc(entId, nbfcId){ if(NBFC_BY_ID[nbfcId]) state.docNbfc=nbfcId; openDetail(entId); }
 function pillMini(cls,t){ return '<span class="status-pill '+cls+'"><span class="d"></span>'+esc(t)+'</span>'; }
 function statusMeta(s){
   var m={
