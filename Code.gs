@@ -226,6 +226,123 @@ function savePlatformDoc(payload) {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   POC DIRECTORY  ·  live storage for Index.html's POC module (additive)
+   ───────────────────────────────────────────────────────────────────────────
+   Two tabs, both untouched by the Metabase sync:
+     PLATFORM_POC_TAB    — one row per contact, keyed by POC ID
+     PLATFORM_POCFU_TAB  — one row per logged interaction
+   getPOCData() joins them; savePOC() upserts a contact; savePOCFollowup()
+   appends an interaction. Nothing here reads or writes the existing tabs.
+   ═══════════════════════════════════════════════════════════════════════════ */
+var PLATFORM_POC_TAB   = 'POC Directory';
+var PLATFORM_POCFU_TAB = 'POC Followups';
+var POC_HEADERS   = ['POC ID','NBFC','Name','Designation','Department','Organization','Role','Primary',
+                     'Channel','Mobile','Alt Mobile','Email','Alt Email','Remarks','Status',
+                     'Last Contact','Next Followup','Updated At'];
+var POCFU_HEADERS = ['Followup ID','POC ID','NBFC','Date','Mode','Summary','Next Action','Next Date','By','Created At'];
+
+function pocRowFrom_(p) {
+  return [p.id||'', p.nbfc||'', p.name||'', p.designation||'', p.department||'', p.org||'', p.role||'',
+          p.primary ? 'Yes' : 'No', p.channel||'', p.mobile||'', p.altMobile||'', p.email||'', p.altEmail||'',
+          p.remarks||'', p.status||'Active', p.lastContact||'', p.nextFollowup||'', new Date()];
+}
+
+/** Read POC Directory + Followups → { pocs:[…], followups:{ pocId:[…] } }. */
+function getPOCData() {
+  try {
+    var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
+    var pocs = [], followups = {};
+
+    var sh = ss.getSheetByName(PLATFORM_POC_TAB);
+    if (sh) {
+      var v = sh.getDataRange().getValues();
+      if (v.length >= 2) {
+        var H = {}; v[0].forEach(function (h, i) { H[String(h).trim().toLowerCase()] = i; });
+        function c(row, name) { var i = H[name.toLowerCase()]; return i == null ? '' : String(row[i] == null ? '' : row[i]).trim(); }
+        for (var r = 1; r < v.length; r++) {
+          var id = c(v[r], 'poc id');
+          if (!id) continue;
+          pocs.push({
+            id: id, nbfc: c(v[r], 'nbfc'), name: c(v[r], 'name'), designation: c(v[r], 'designation'),
+            department: c(v[r], 'department'), org: c(v[r], 'organization'), role: c(v[r], 'role'),
+            primary: /^(yes|true|1|primary)$/i.test(c(v[r], 'primary')), channel: c(v[r], 'channel'),
+            mobile: c(v[r], 'mobile'), altMobile: c(v[r], 'alt mobile'), email: c(v[r], 'email'),
+            altEmail: c(v[r], 'alt email'), remarks: c(v[r], 'remarks'), status: c(v[r], 'status') || 'Active',
+            lastContact: c(v[r], 'last contact'), nextFollowup: c(v[r], 'next followup')
+          });
+        }
+      }
+    }
+
+    var fsh = ss.getSheetByName(PLATFORM_POCFU_TAB);
+    if (fsh) {
+      var fv = fsh.getDataRange().getValues();
+      if (fv.length >= 2) {
+        var FH = {}; fv[0].forEach(function (h, i) { FH[String(h).trim().toLowerCase()] = i; });
+        function fc(row, name) { var i = FH[name.toLowerCase()]; return i == null ? '' : String(row[i] == null ? '' : row[i]).trim(); }
+        for (var d = 1; d < fv.length; d++) {
+          var pid = fc(fv[d], 'poc id');
+          if (!pid) continue;
+          (followups[pid] = followups[pid] || []).push({
+            id: fc(fv[d], 'followup id'), pocId: pid, nbfc: fc(fv[d], 'nbfc'), date: fc(fv[d], 'date'),
+            mode: fc(fv[d], 'mode'), summary: fc(fv[d], 'summary'), nextAction: fc(fv[d], 'next action'),
+            nextDate: fc(fv[d], 'next date'), by: fc(fv[d], 'by')
+          });
+        }
+      }
+    }
+    return { ok: true, pocs: pocs, followups: followups, generatedAt: new Date().toISOString() };
+  } catch (e) {
+    return { ok: false, error: String(e && e.message || e), pocs: [], followups: {} };
+  }
+}
+
+/** Upsert one contact (keyed by POC ID). Creates the tab on first write. */
+function savePOC(poc) {
+  try {
+    poc = poc || {};
+    var id = String(poc.id || '').trim();
+    if (!id) return { ok: false, error: 'POC ID is required' };
+    var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
+    var sh = ss.getSheetByName(PLATFORM_POC_TAB);
+    if (!sh) { sh = ss.insertSheet(PLATFORM_POC_TAB); sh.getRange(1, 1, 1, POC_HEADERS.length).setValues([POC_HEADERS]); sh.setFrozenRows(1); }
+    var vals = sh.getDataRange().getValues(), rowNum = -1;
+    for (var r = 1; r < vals.length; r++) { if (String(vals[r][0]).trim() === id) { rowNum = r + 1; break; } }
+    var row = pocRowFrom_(poc);
+    if (rowNum > 0) sh.getRange(rowNum, 1, 1, row.length).setValues([row]);
+    else            sh.appendRow(row);
+    // Enforce one primary per NBFC: demote other rows of the same NBFC.
+    if (poc.primary) {
+      var v2 = sh.getDataRange().getValues();
+      for (var k = 1; k < v2.length; k++) {
+        if (String(v2[k][1]).trim() === String(poc.nbfc).trim() && String(v2[k][0]).trim() !== id && /^(yes|true|1|primary)$/i.test(String(v2[k][7]))) {
+          sh.getRange(k + 1, 8).setValue('No');
+        }
+      }
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e && e.message || e) };
+  }
+}
+
+/** Append one interaction to the Followups tab. */
+function savePOCFollowup(fu) {
+  try {
+    fu = fu || {};
+    if (!fu.pocId) return { ok: false, error: 'pocId is required' };
+    var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
+    var sh = ss.getSheetByName(PLATFORM_POCFU_TAB);
+    if (!sh) { sh = ss.insertSheet(PLATFORM_POCFU_TAB); sh.getRange(1, 1, 1, POCFU_HEADERS.length).setValues([POCFU_HEADERS]); sh.setFrozenRows(1); }
+    sh.appendRow([fu.id || ('FU-' + fu.pocId + '-' + Date.now()), fu.pocId, fu.nbfc || '', fu.date || '',
+                  fu.mode || '', fu.summary || '', fu.nextAction || '', fu.nextDate || '', fu.by || '', new Date()]);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e && e.message || e) };
+  }
+}
+
 /* ─────────────────────────── Spreadsheet access ────────────────────────── */
 
 function getSpreadsheet_() {

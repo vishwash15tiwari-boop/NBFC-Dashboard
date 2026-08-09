@@ -447,6 +447,52 @@ table.matrix{border-collapse:separate;border-spacing:0;min-width:100%}
   .main{margin-left:0}
   .tb-search{display:none}
 }
+
+/* ═══════════════ POC DIRECTORY (additive module) ═══════════════ */
+.poc-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+  padding:2px 9px;border-radius:999px;color:#fff;white-space:nowrap}
+.poc-chip .pd{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.85)}
+.qbtns{display:inline-flex;gap:5px}
+.qbtn{width:29px;height:29px;border-radius:8px;border:1px solid var(--line);background:var(--surface);
+  display:grid;place-items:center;cursor:pointer;color:var(--ink-2);transition:.13s;flex-shrink:0}
+.qbtn:hover{border-color:var(--ink-3);color:var(--ink);background:var(--fill)}
+.qbtn svg{width:14px;height:14px;stroke-width:2}
+.tag-pri{font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--ok);background:var(--ok-tint);border-radius:4px;padding:1px 6px}
+.tag-sec{font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--ink-3);background:var(--fill);border-radius:4px;padding:1px 6px}
+.poc-inactive{opacity:.55}
+/* POC strip on the NBFC page */
+.poc-strip .ps-row{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line-2)}
+.poc-strip .ps-row:last-child{border-bottom:none}
+.poc-strip .ps-main{flex:1;min-width:0}
+.poc-strip .ps-nm{font-size:13px;font-weight:600;line-height:1.25}
+.poc-strip .ps-sub{font-size:11.5px;color:var(--ink-3);margin-top:1px}
+/* Follow-up timeline in the POC drawer */
+.fu-list{display:flex;flex-direction:column;gap:0}
+.fu-item{position:relative;padding:0 0 16px 20px;border-left:2px solid var(--line-2)}
+.fu-item:last-child{border-left-color:transparent;padding-bottom:2px}
+.fu-item::before{content:"";position:absolute;left:-6px;top:2px;width:10px;height:10px;border-radius:50%;
+  background:var(--nc,var(--brand));box-shadow:0 0 0 3px var(--surface)}
+.fu-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px}
+.fu-mode{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--nc,var(--brand));background:rgba(var(--nc-rgb,0,93,255),.1);border-radius:4px;padding:1px 7px}
+.fu-date{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.fu-sum{font-size:12.5px;line-height:1.45}
+.fu-next{font-size:11.5px;color:var(--ink-3);margin-top:3px}
+.fu-next b{color:var(--ink-2);font-weight:600}
+/* POC form fields */
+.pf-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pf-field.full{grid-column:1/-1}
+.pf-field label{display:block;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--ink-3);margin-bottom:5px}
+.poc-in{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;
+  background:var(--surface);color:var(--ink);font-family:var(--font)}
+.poc-in:focus{outline:none;border-color:var(--brand)}
+textarea.poc-in{resize:vertical;min-height:60px}
+.poc-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.btn-ghost{background:var(--surface);color:var(--ink-2)}
+.btn-danger{background:var(--bad-tint);color:var(--bad);border-color:transparent}
 </style>
 </head>
 <body>
@@ -738,7 +784,8 @@ function eligibleNbfcs(e){ return NBFCS.filter(function(n){ return evalNbfc(e,n)
 
 /* ── 6. App state / router ─────────────────────────────────────────────── */
 var state = { route:'dashboard', role:'Operations', user:'Ops User', email:'ops@recykal.com',
-  sellerQ:'', sellerFilter:'all', buyerQ:'', theme:'light', setPanel:'catalog', mapNbfc:'billmart' };
+  sellerQ:'', sellerFilter:'all', buyerQ:'', theme:'light', setPanel:'catalog', mapNbfc:'billmart',
+  pocQ:'', pocNbfc:'all', pocStatus:'active' };
 
 var NAV = [
   {id:'dashboard', label:'Dashboard', icon:'grid'},
@@ -746,6 +793,7 @@ var NAV = [
   {id:'sellers', label:'Sellers', icon:'store'},
   {id:'buyers',  label:'Buyers',  icon:'cart'},
   {id:'matrix',  label:'Document Matrix', icon:'table'},
+  {id:'poc',     label:'POC Directory', icon:'contact'},
   {group:'NBFC Eligibility'},
   {id:'nbfc:billmart',  label:'Billmart',   icon:'dot', nc:'#005DFF'},
   {id:'nbfc:capitalxb', label:'Capital XB', icon:'dot', nc:'#8460D4'},
@@ -760,7 +808,8 @@ var ICONS = {
   store:'<path d="M3 9l1.5-5h15L21 9M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9M4 9h16"/>',
   cart:'<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.4 13.2a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L22 7H6"/>',
   table:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>',
-  gear:'<circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0v-.2a1.6 1.6 0 0 0-2.7-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 4.6 15H4.5a2 2 0 0 1 0-4h.2a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1.1V4.5a2 2 0 0 1 4 0v.2a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-1.1 2.7v.1a2 2 0 0 1 0 4h-.1z"/>'
+  gear:'<circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0v-.2a1.6 1.6 0 0 0-2.7-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 4.6 15H4.5a2 2 0 0 1 0-4h.2a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1.1V4.5a2 2 0 0 1 4 0v.2a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-1.1 2.7v.1a2 2 0 0 1 0 4h-.1z"/>',
+  contact:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>'
 };
 
 function go(route){ state.route=route; render(); window.scrollTo(0,0); }
@@ -772,6 +821,7 @@ function render(){
   else if(r==='sellers'){ $('tbTitle').innerHTML='Sellers <span class="mut">Document register</span>'; c.innerHTML=viewRegister('seller'); wireRegister('seller'); }
   else if(r==='buyers'){ $('tbTitle').innerHTML='Buyers <span class="mut">Document register</span>'; c.innerHTML=viewRegister('buyer'); wireRegister('buyer'); }
   else if(r==='matrix'){ $('tbTitle').innerHTML='Document Matrix'; c.innerHTML=viewMatrix(); }
+  else if(r==='poc'){ $('tbTitle').innerHTML='POC Directory <span class="mut">Follow-up contacts</span>'; c.innerHTML=viewPocDirectory(); wirePocDirectory(); }
   else if(r==='settings'){ $('tbTitle').textContent='Settings'; c.innerHTML=viewSettings(); wireSettings(); }
   else if(r.indexOf('nbfc:')===0){ var n=NBFC_BY_ID[r.split(':')[1]]; $('tbTitle').innerHTML=esc(n.name)+' <span class="mut">Dashboard</span>'; c.innerHTML=viewNbfc(n); wireNbfc(n); }
 }
@@ -1047,6 +1097,7 @@ function viewNbfc(n){
   }
 
   return '<div class="kpi-row kpi-row-7">'+kpis+'</div>'+
+    pocStrip(n)+
     docCard+
     '<div class="split-cols">'+
       '<div class="card"><div class="card-h"><h3>Eligible</h3><span class="sub">'+ready.length+' entities</span></div>'+readyH+'</div>'+
@@ -1298,6 +1349,344 @@ function toast(msg){
   setTimeout(function(){ t.style.opacity='0'; setTimeout(function(){t.remove();},300); },2200);
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   POC DIRECTORY  ·  additive module — no existing behaviour is changed.
+   Each POC is linked to one NBFC. Standalone edits persist to localStorage;
+   in live mode they round-trip through the sheet (see refreshPOCs / *Live).
+   ══════════════════════════════════════════════════════════════════════════ */
+var POC_STORE_KEY = 'nbfc-pocs-v1';
+var POCS = [];            // flat list; each POC carries .nbfc
+var FOLLOWUPS = {};       // pocId → [ interactions ]
+var POC_CHANNELS = ['Call','Email','WhatsApp'];
+var POC_ROLES    = ['Relationship Manager','Sales','Operations','Credit','Legal','Collections','Technical','Other'];
+var FU_MODES     = ['Call','Email','WhatsApp','Meeting','SMS'];
+
+/* Sample directory — replace with real contacts. Emails use the reserved
+   .example domain and numbers are placeholders, so nothing here is real PII. */
+function seedPOCData(){
+  // [nbfc, name, designation, dept, role, primary, channel, mobile, altMobile, email, altEmail, remarks, status, last, next]
+  var R=[
+    ['billmart','Rahul Mehta','Regional Relationship Manager','Sales','Relationship Manager',1,'WhatsApp','+91 90000 10001','+91 90000 10002','rahul.mehta@billmart.example','rm.south@billmart.example','Primary escalation point for onboarding & limits.','Active','2026-08-05','2026-08-13'],
+    ['billmart','Sneha Kulkarni','Credit Analyst','Credit','Credit',0,'Email','+91 90000 10011','','sneha.k@billmart.example','','Handles credit-file queries and sanction notes.','Active','2026-07-30','2026-08-14'],
+    ['capitalxb','Arjun Nair','Key Account Manager','Sales','Relationship Manager',1,'Call','+91 90000 20001','','arjun.nair@capitalxb.example','kam@capitalxb.example','Owns the Capital XB relationship end to end.','Active','2026-08-06','2026-08-11'],
+    ['capitalxb','Farah Khan','Operations Lead','Operations','Operations',0,'Email','+91 90000 20011','','farah.khan@capitalxb.example','','Document intake and disbursal coordination.','Active','2026-08-01','2026-08-18'],
+    ['strideone','Vikram Iyer','Relationship Manager','Sales','Relationship Manager',1,'WhatsApp','+91 90000 30001','','vikram.iyer@strideone.example','','Buyer-side onboarding for Stride One.','Active','2026-08-04','2026-08-12'],
+    ['strideone','Deepa Menon','Collections Officer','Collections','Collections',0,'Call','+91 90000 30011','','deepa.menon@strideone.example','','Post-disbursal follow-ups and overdue tracking.','Active','2026-07-28','2026-08-20'],
+    ['credable','Karan Shah','Partnerships Manager','Sales','Relationship Manager',1,'Email','+91 90000 40001','','karan.shah@credable.example','partners@credable.example','Single window for Credable integration.','Active','2026-08-07','2026-08-15'],
+    ['karncy','Priya Rao','Relationship Manager','Sales','Relationship Manager',1,'WhatsApp','+91 90000 50001','','priya.rao@karncy.example','','Primary contact for Karncy limits & queries.','Active','2026-08-03','2026-08-12'],
+    ['karncy','Imran Sheikh','Technical Integration','Technical','Technical',0,'Email','+91 90000 50011','','imran.sheikh@karncy.example','','API / data-exchange setup.','Active','2026-08-02','2026-08-19'],
+    ['karncy','Ashok Gupta','Former RM','Sales','Relationship Manager',0,'Call','+91 90000 50021','','ashok.gupta@karncy.example','','Replaced by Priya Rao — kept for history.','Inactive','2026-06-15','']
+  ];
+  var seq={}, pocs=R.map(function(r){
+    var pre=({billmart:'BM',capitalxb:'CX',strideone:'SO',credable:'CR',karncy:'KY'})[r[0]];
+    seq[pre]=(seq[pre]||0)+1;
+    return { id:'P-'+pre+'-'+String(seq[pre]).padStart(2,'0'), nbfc:r[0], name:r[1], designation:r[2],
+      department:r[3], org:(NBFC_BY_ID[r[0]]?NBFC_BY_ID[r[0]].name:''), role:r[4], primary:!!r[5],
+      channel:r[6], mobile:r[7], altMobile:r[8], email:r[9], altEmail:r[10], remarks:r[11],
+      status:r[12], lastContact:r[13], nextFollowup:r[14] };
+  });
+  var fu={
+    'P-BM-1':[
+      {id:'FU-BM1-2',date:'2026-08-05',mode:'WhatsApp',summary:'Shared 3 pending seller files; RM to confirm limit revision.',nextAction:'Await revised limit letter',nextDate:'2026-08-13',by:'Ops User'},
+      {id:'FU-BM1-1',date:'2026-07-29',mode:'Call',summary:'Kick-off on August onboarding cohort. Agreed weekly sync.',nextAction:'Send cohort list',nextDate:'2026-08-01',by:'Ops User'}
+    ],
+    'P-CX-1':[
+      {id:'FU-CX1-1',date:'2026-08-06',mode:'Call',summary:'Reviewed CapXB doc checklist; audited financials still open for 4 sellers.',nextAction:'Chase audited financials',nextDate:'2026-08-11',by:'Credit User'}
+    ]
+  };
+  // Normalise the sample followup keys to the generated POC ids (…-01 vs …-1)
+  var norm={}; Object.keys(fu).forEach(function(k){ var p=k.replace(/-(\d+)$/,function(_,n){return '-'+String(n).padStart(2,'0');}); norm[p]=fu[k]; });
+  return { pocs:pocs, followups:norm };
+}
+function loadPOCs(){
+  if(LIVE){ var s=seedPOCData(); POCS=s.pocs; FOLLOWUPS=s.followups; return; }   // baseline; refreshPOCs replaces
+  var saved=null; try{ saved=JSON.parse(localStorage.getItem(POC_STORE_KEY)); }catch(e){}
+  if(saved && saved.pocs){ POCS=saved.pocs; FOLLOWUPS=saved.followups||{}; return; }
+  var seed=seedPOCData(); POCS=seed.pocs; FOLLOWUPS=seed.followups;
+}
+function persistPOCs(){ if(LIVE) return; try{ localStorage.setItem(POC_STORE_KEY, JSON.stringify({pocs:POCS,followups:FOLLOWUPS})); }catch(e){} }
+
+function pocById(id){ return POCS.filter(function(p){return p.id===id;})[0]; }
+function pocsForNbfc(id){ return POCS.filter(function(p){ return p.nbfc===id; }); }
+function primaryPoc(id){
+  var l=pocsForNbfc(id).filter(function(p){ return p.status==='Active'; });
+  return l.filter(function(p){ return p.primary; })[0] || l[0] || null;
+}
+function fmtDate(d){ if(!d) return ''; var t=new Date(d); if(isNaN(t)) return d;
+  return t.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function pocInit(p){ return initials(p.name); }
+
+/* ── Quick actions ─────────────────────────────────────────────────────── */
+function telHref(n){ return 'tel:'+String(n||'').replace(/[^\d+]/g,''); }
+function waHref(n){ return 'https://wa.me/'+String(n||'').replace(/[^\d]/g,''); }
+function pocCopy(id){
+  var p=pocById(id); if(!p) return;
+  var lines=[p.name+(p.designation?' · '+p.designation:''), (NBFC_BY_ID[p.nbfc]?NBFC_BY_ID[p.nbfc].name:'')+(p.role?' · '+p.role:''),
+    p.mobile?('Mobile: '+p.mobile):'', p.altMobile?('Alt: '+p.altMobile):'', p.email?('Email: '+p.email):'', p.altEmail?('Alt: '+p.altEmail):''].filter(Boolean);
+  var txt=lines.join('\n');
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(function(){ toast('Contact details copied'); },function(){ toast('Copy failed'); }); }
+  else { try{ var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('Contact details copied'); }catch(e){ toast('Copy failed'); } }
+}
+function qbtn(title, svg, onclick){
+  return '<button class="qbtn" title="'+esc(title)+'" onclick="event.stopPropagation();'+onclick+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor">'+svg+'</svg></button>';
+}
+var PIC={
+  phone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.1-1.1a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7A2 2 0 0 1 22 16.9z"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  wa:'<path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 21l2.1-5.3A8.5 8.5 0 1 1 21 11.5z"/>',
+  copy:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>',
+  power:'<path d="M12 2v9"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>'
+};
+function pocQuickBtns(p){
+  var h='';
+  if(p.mobile){ h+=qbtn('Call '+p.mobile, PIC.phone, "location.href='"+telHref(p.mobile)+"'"); }
+  if(p.email){ h+=qbtn('Email '+p.email, PIC.mail, "location.href='mailto:"+esc(p.email)+"'"); }
+  if(p.mobile){ h+=qbtn('WhatsApp', PIC.wa, "window.open('"+waHref(p.mobile)+"','_blank')"); }
+  h+=qbtn('Copy contact details', PIC.copy, "pocCopy('"+p.id+"')");
+  return '<span class="qbtns">'+h+'</span>';
+}
+function nbfcChip(id){ var n=NBFC_BY_ID[id]; if(!n) return ''; return '<span class="poc-chip" style="background:'+n.nc+'"><span class="pd"></span>'+esc(n.name)+'</span>'; }
+function pocStatusPill(p){ return p.status==='Active'
+  ? '<span class="status-pill sp-ok"><span class="d"></span>Active</span>'
+  : '<span class="status-pill sp-na"><span class="d"></span>Inactive</span>'; }
+
+/* ── Directory page ────────────────────────────────────────────────────── */
+function viewPocDirectory(){
+  var chips='<button class="chip'+(state.pocNbfc==='all'?' on':'')+'" data-nb="all">All NBFCs</button>'+
+    NBFCS.map(function(n){ return '<button class="chip'+(state.pocNbfc===n.id?' on':'')+'" data-nb="'+n.id+'">'+esc(n.name)+'</button>'; }).join('');
+  return '<div class="card">'+
+    '<div class="toolbar">'+
+      '<div class="search-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>'+
+        '<input id="pocQ" type="search" placeholder="Search name, department, role, email…" value="'+esc(state.pocQ)+'"></div>'+
+      chips+
+      '<button class="chip'+(state.pocStatus==='all'?' on':'')+'" id="pocStatusToggle">'+(state.pocStatus==='all'?'Active + Inactive':'Active only')+'</button>'+
+      '<span class="tbl-count" id="pocCount"></span>'+
+      '<button class="btn btn-sm btn-primary" onclick="openPocForm(null,\''+(state.pocNbfc!=='all'?state.pocNbfc:'')+'\')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="vertical-align:-2px;margin-right:3px"><path d="M12 5v14M5 12h14"/></svg>Add POC</button>'+
+    '</div>'+
+    '<div class="tbl-wrap"><table class="tbl"><thead><tr>'+
+      '<th>Contact</th><th>NBFC</th><th>Role</th><th>Department</th><th>Reach</th><th>Priority</th><th>Status</th><th>Next follow-up</th>'+
+    '</tr></thead><tbody id="pocBody"></tbody></table></div>'+
+  '</div>';
+}
+function pocRows(){
+  var q=(state.pocQ||'').toLowerCase().trim();
+  var list=POCS.filter(function(p){
+    if(state.pocNbfc!=='all' && p.nbfc!==state.pocNbfc) return false;
+    if(state.pocStatus!=='all' && p.status!=='Active') return false;
+    if(q){ var hay=(p.name+' '+p.designation+' '+p.department+' '+p.role+' '+p.org+' '+p.email+' '+(NBFC_BY_ID[p.nbfc]?NBFC_BY_ID[p.nbfc].name:'')).toLowerCase(); if(hay.indexOf(q)===-1) return false; }
+    return true;
+  });
+  // primary first, then name
+  list.sort(function(a,b){ return (b.primary-a.primary) || a.name.localeCompare(b.name); });
+  var cnt=$('pocCount'); if(cnt) cnt.textContent=list.length+' contact'+(list.length===1?'':'s');
+  var body=$('pocBody'); if(!body) return;
+  body.innerHTML = list.map(function(p){
+    return '<tr class="'+(p.status!=='Active'?'poc-inactive':'')+'" onclick="openPoc(\''+p.id+'\')">'+
+      '<td><div class="cell-name">'+esc(p.name)+'<div class="cell-sub">'+esc(p.designation||'—')+'</div></div></td>'+
+      '<td>'+nbfcChip(p.nbfc)+'</td>'+
+      '<td>'+esc(p.role||'—')+'</td>'+
+      '<td>'+esc(p.department||'—')+'</td>'+
+      '<td>'+pocQuickBtns(p)+'</td>'+
+      '<td>'+(p.primary?'<span class="tag-pri">Primary</span>':'<span class="tag-sec">Secondary</span>')+'</td>'+
+      '<td>'+pocStatusPill(p)+'</td>'+
+      '<td class="tnum">'+(p.nextFollowup?esc(fmtDate(p.nextFollowup)):'<span class="mut">—</span>')+'</td>'+
+    '</tr>';
+  }).join('') || '<tr><td colspan="8" style="padding:28px;text-align:center;color:var(--ink-3)">No contacts match these filters.</td></tr>';
+}
+function wirePocDirectory(){
+  pocRows();
+  var q=$('pocQ'); if(q) q.oninput=function(e){ state.pocQ=e.target.value; pocRows(); };
+  Array.prototype.forEach.call(document.querySelectorAll('.chip[data-nb]'),function(b){
+    b.onclick=function(){ state.pocNbfc=b.getAttribute('data-nb'); render(); };
+  });
+  var st=$('pocStatusToggle'); if(st) st.onclick=function(){ state.pocStatus=(state.pocStatus==='all'?'active':'all'); render(); };
+}
+
+/* ── POC detail drawer ─────────────────────────────────────────────────── */
+function openPoc(id){
+  var p=pocById(id); if(!p) return;
+  var n=NBFC_BY_ID[p.nbfc], nc=n?n.nc:'#8D8F82';
+  $('drawer').style.setProperty('--nc', nc);
+  $('drawer').style.setProperty('--nc-rgb', hexRgb(nc));
+
+  var meta=[
+    ['Designation',p.designation],['Department',p.department],['Organization',p.org],['Role / Purpose',p.role],
+    ['Preferred channel',p.channel],['Priority',p.primary?'Primary':'Secondary'],
+    ['Mobile',p.mobile,'mono'],['Alternate mobile',p.altMobile,'mono'],
+    ['Official email',p.email,'mono'],['Alternate email',p.altEmail,'mono'],
+    ['Last contact',fmtDate(p.lastContact)],['Next follow-up',fmtDate(p.nextFollowup)]
+  ];
+  var metaH=meta.map(function(m){
+    var empty=(m[1]==null||String(m[1]).trim()===''); var v=empty?'—':String(m[1]);
+    return '<div class="meta-cell"><div class="ml">'+esc(m[0])+'</div><div class="mv'+(m[2]&&!empty?' mono':'')+(empty?' muted':'')+'"'+(m[2]&&!empty?' style="font-size:12px"':'')+'>'+esc(v)+'</div></div>';
+  }).join('') + '<div class="meta-cell full"><div class="ml">Remarks / Notes</div><div class="mv'+(p.remarks?'':' muted')+'">'+esc(p.remarks||'—')+'</div></div>';
+
+  var fus=(FOLLOWUPS[id]||[]).slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  var fuH=fus.length ? '<div class="fu-list">'+fus.map(function(f){
+    return '<div class="fu-item">'+
+      '<div class="fu-top"><span class="fu-mode">'+esc(f.mode||'Note')+'</span><span class="fu-date">'+esc(fmtDate(f.date))+'</span>'+(f.by?'<span class="fu-date">· '+esc(f.by)+'</span>':'')+'</div>'+
+      '<div class="fu-sum">'+esc(f.summary||'')+'</div>'+
+      ((f.nextAction||f.nextDate)?'<div class="fu-next"><b>Next:</b> '+esc(f.nextAction||'—')+(f.nextDate?' · by '+esc(fmtDate(f.nextDate)):'')+'</div>':'')+
+    '</div>';
+  }).join('')+'</div>' : '<div style="padding:6px 0 14px;color:var(--ink-3);font-size:12.5px">No interactions logged yet.</div>';
+
+  var addFu='<div class="pf-grid" style="margin-top:6px">'+
+    '<div class="pf-field"><label>Date</label><input class="poc-in" id="fu_date" type="date" value="'+todayISO()+'"></div>'+
+    '<div class="pf-field"><label>Mode</label><select class="poc-in" id="fu_mode">'+FU_MODES.map(function(m){return '<option>'+m+'</option>';}).join('')+'</select></div>'+
+    '<div class="pf-field full"><label>Discussion summary</label><textarea class="poc-in" id="fu_summary" placeholder="What was discussed…"></textarea></div>'+
+    '<div class="pf-field"><label>Next action</label><input class="poc-in" id="fu_next" type="text" placeholder="e.g. Send revised limit letter"></div>'+
+    '<div class="pf-field"><label>Next follow-up date</label><input class="poc-in" id="fu_nextdate" type="date"></div>'+
+    '<div class="pf-field full"><button class="btn btn-sm btn-primary" onclick="addFollowup(\''+id+'\')">Log interaction</button></div>'+
+  '</div>';
+
+  $('drawer').innerHTML=
+    '<div class="dr-head"><div class="dr-ava">'+pocInit(p)+'</div>'+
+      '<div style="flex:1;min-width:0"><h2>'+esc(p.name)+'</h2>'+
+        '<div class="dh-sub">'+esc(p.designation||'')+' '+nbfcChip(p.nbfc)+' '+(p.primary?'<span class="tag-pri">Primary</span>':'<span class="tag-sec">Secondary</span>')+' '+pocStatusPill(p)+'</div></div>'+
+      '<button class="dr-x" onclick="closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>'+
+    '<div class="dr-body">'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">'+pocQuickBtns(p)+'</div>'+
+      '<div class="dr-sec-h">Contact details</div><div class="meta-grid">'+metaH+'</div>'+
+      '<div class="dr-sec-h" style="margin-top:22px">Interaction history</div>'+fuH+
+      '<div class="dr-sec-h" style="margin-top:8px">Log a new interaction</div>'+addFu+
+      '<div class="poc-actions">'+
+        '<button class="btn btn-sm btn-primary" onclick="openPocForm(\''+id+'\',\'\')">Edit contact</button>'+
+        '<button class="btn btn-sm '+(p.status==='Active'?'btn-danger':'btn-ghost')+'" onclick="togglePocStatus(\''+id+'\')">'+(p.status==='Active'?'Deactivate':'Reactivate')+'</button>'+
+      '</div>'+
+    '</div>';
+  $('scrim').classList.add('on'); $('drawer').classList.add('on');
+}
+
+/* ── Create / edit form (in the drawer) ────────────────────────────────── */
+function openPocForm(id, presetNbfc){
+  var p = id ? pocById(id) : null;
+  var nbfcSel = NBFCS.map(function(n){ var sel=(p?p.nbfc:presetNbfc)===n.id?' selected':''; return '<option value="'+n.id+'"'+sel+'>'+esc(n.name)+'</option>'; }).join('');
+  function fld(label,idf,val,full,type){ return '<div class="pf-field'+(full?' full':'')+'"><label>'+esc(label)+'</label><input class="poc-in" id="'+idf+'" type="'+(type||'text')+'" value="'+esc(val||'')+'"></div>'; }
+  function sel(label,idf,opts,val){ return '<div class="pf-field"><label>'+esc(label)+'</label><select class="poc-in" id="'+idf+'">'+opts.map(function(o){return '<option'+(o===val?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></div>'; }
+  $('drawer').style.setProperty('--nc', '#8460D4'); $('drawer').style.setProperty('--nc-rgb', hexRgb('#8460D4'));
+  $('drawer').innerHTML=
+    '<div class="dr-head"><div class="dr-ava"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:22px;height:22px"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg></div>'+
+      '<div style="flex:1;min-width:0"><h2>'+(p?'Edit contact':'Add contact')+'</h2><div class="dh-sub">'+(p?esc(p.name):'New point of contact')+'</div></div>'+
+      '<button class="dr-x" onclick="'+(p?'openPoc(\''+id+'\')':'closeDrawer()')+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>'+
+    '<div class="dr-body"><div class="pf-grid">'+
+      '<div class="pf-field"><label>NBFC</label><select class="poc-in" id="pf_nbfc">'+nbfcSel+'</select></div>'+
+      sel('Priority','pf_primary',['Primary','Secondary'],p?(p.primary?'Primary':'Secondary'):'Secondary')+
+      fld('Full name','pf_name',p?p.name:'',true)+
+      fld('Designation','pf_desig',p?p.designation:'')+
+      fld('Department','pf_dept',p?p.department:'')+
+      sel('Role / Purpose','pf_role',POC_ROLES,p?p.role:'Relationship Manager')+
+      fld('Organization','pf_org',p?p.org:'')+
+      sel('Preferred channel','pf_channel',POC_CHANNELS,p?p.channel:'Email')+
+      fld('Mobile number','pf_mobile',p?p.mobile:'')+
+      fld('Alternate mobile','pf_altmobile',p?p.altMobile:'')+
+      fld('Official email','pf_email',p?p.email:'','',' email'.trim())+
+      fld('Alternate email','pf_altemail',p?p.altEmail:'')+
+      fld('Last contact date','pf_last',p?p.lastContact:'',false,'date')+
+      fld('Next follow-up date','pf_next',p?p.nextFollowup:'',false,'date')+
+      '<div class="pf-field full"><label>Remarks / Notes</label><textarea class="poc-in" id="pf_remarks" placeholder="Context, escalation notes…">'+esc(p?p.remarks:'')+'</textarea></div>'+
+    '</div>'+
+      '<div class="poc-actions">'+
+        '<button class="btn btn-sm btn-primary" onclick="savePocRecord('+(p?'\''+id+'\'':'null')+')">'+(p?'Save changes':'Create contact')+'</button>'+
+        '<button class="btn btn-sm btn-ghost" onclick="'+(p?'openPoc(\''+id+'\')':'closeDrawer()')+'">Cancel</button>'+
+      '</div>'+
+    '</div>';
+  $('scrim').classList.add('on'); $('drawer').classList.add('on');
+}
+function savePocRecord(id){
+  var nbfc=$('pf_nbfc').value, name=($('pf_name').value||'').trim();
+  if(!name){ toast('Name is required'); return; }
+  var rec={
+    nbfc:nbfc, name:name, designation:($('pf_desig').value||'').trim(), department:($('pf_dept').value||'').trim(),
+    role:$('pf_role').value, org:($('pf_org').value||'').trim(), channel:$('pf_channel').value,
+    primary:$('pf_primary').value==='Primary',
+    mobile:($('pf_mobile').value||'').trim(), altMobile:($('pf_altmobile').value||'').trim(),
+    email:($('pf_email').value||'').trim(), altEmail:($('pf_altemail').value||'').trim(),
+    lastContact:$('pf_last').value||'', nextFollowup:$('pf_next').value||'', remarks:($('pf_remarks').value||'').trim()
+  };
+  var p;
+  if(id){ p=pocById(id); if(!p){ toast('Contact not found'); return; } Object.keys(rec).forEach(function(k){ p[k]=rec[k]; }); }
+  else {
+    var pre=({billmart:'BM',capitalxb:'CX',strideone:'SO',credable:'CR',karncy:'KY'})[nbfc]||'XX';
+    var nums=POCS.filter(function(x){return x.nbfc===nbfc;}).map(function(x){ var m=String(x.id).match(/-(\d+)$/); return m?+m[1]:0; });
+    var nextN=(nums.length?Math.max.apply(null,nums):0)+1;
+    p={ id:'P-'+pre+'-'+String(nextN).padStart(2,'0'), status:'Active' };
+    Object.keys(rec).forEach(function(k){ p[k]=rec[k]; }); POCS.push(p);
+  }
+  /* One primary per NBFC: demote the others if this one is primary. */
+  if(p.primary){ POCS.forEach(function(x){ if(x.nbfc===p.nbfc && x.id!==p.id) x.primary=false; }); }
+  persistPOCs(); savePocLive(p); toast(id?'Contact updated':'Contact added'); openPoc(p.id);
+  if(state.route==='poc') pocRows();
+}
+function togglePocStatus(id){
+  var p=pocById(id); if(!p) return;
+  p.status = p.status==='Active' ? 'Inactive' : 'Active';
+  if(p.status==='Inactive') p.primary=false;       // an inactive contact can't be the primary
+  persistPOCs(); savePocLive(p); toast(p.status==='Active'?'Contact reactivated':'Contact deactivated (history kept)');
+  openPoc(id); if(state.route==='poc') pocRows();
+}
+function addFollowup(pocId){
+  var p=pocById(pocId); if(!p) return;
+  var summary=($('fu_summary').value||'').trim();
+  if(!summary){ toast('Add a short summary first'); return; }
+  var fu={ id:'FU-'+pocId+'-'+Date.now(), pocId:pocId, nbfc:p.nbfc, date:$('fu_date').value||todayISO(),
+    mode:$('fu_mode').value, summary:summary, nextAction:($('fu_next').value||'').trim(), nextDate:$('fu_nextdate').value||'', by:state.user||'User' };
+  (FOLLOWUPS[pocId]=FOLLOWUPS[pocId]||[]).push(fu);
+  p.lastContact=fu.date; if(fu.nextDate) p.nextFollowup=fu.nextDate;   // keep the POC's dates in sync
+  persistPOCs(); savePocLive(p); saveFollowupLive(fu); toast('Interaction logged'); openPoc(pocId);
+}
+
+/* ── NBFC-page strip: primary POC + view-all ───────────────────────────── */
+function pocStrip(n){
+  var all=pocsForNbfc(n.id), active=all.filter(function(p){return p.status==='Active';});
+  var prim=primaryPoc(n.id);
+  var head='<div class="card-h"><h3>Points of Contact</h3><span class="sub">'+active.length+' active contact'+(active.length===1?'':'s')+' for '+esc(n.name)+'</span>'+
+    '<div class="right"><button class="btn btn-sm btn-primary" onclick="openPocForm(null,\''+n.id+'\')">+ Add POC</button></div></div>';
+  var bodyH;
+  if(prim){
+    bodyH='<div class="poc-strip"><div class="ps-row" onclick="openPoc(\''+prim.id+'\')" style="cursor:pointer">'+
+      '<div class="ent-ava" style="background:'+n.nc+';color:#fff">'+pocInit(prim)+'</div>'+
+      '<div class="ps-main"><div class="ps-nm">'+esc(prim.name)+' <span class="tag-pri">Primary</span></div>'+
+        '<div class="ps-sub">'+esc(prim.designation||'')+(prim.role?' · '+esc(prim.role):'')+(prim.mobile?' · '+esc(prim.mobile):'')+'</div></div>'+
+      pocQuickBtns(prim)+'</div>'+
+      '<div style="padding:11px 18px;display:flex;justify-content:space-between;align-items:center">'+
+        '<span class="mut" style="font-size:12px">'+(active.length>1?(active.length-1)+' more contact'+(active.length-1===1?'':'s'):'No other active contacts')+'</span>'+
+        '<button class="btn btn-sm" onclick="state.pocNbfc=\''+n.id+'\';state.pocStatus=\'active\';go(\'poc\')">View all POCs</button>'+
+      '</div></div>';
+  } else {
+    bodyH='<div style="padding:22px 18px;text-align:center;color:var(--ink-3);font-size:13px">No points of contact yet for '+esc(n.name)+'. <a href="javascript:void(0)" onclick="openPocForm(null,\''+n.id+'\')" style="color:var(--brand);font-weight:600">Add one</a>.</div>';
+  }
+  return '<div class="card" style="margin-bottom:18px">'+head+bodyH+'</div>';
+}
+
+/* ── Live bridge (mirrors the entity read/write) ───────────────────────── */
+function refreshPOCs(){
+  if(!LIVE) return;
+  google.script.run
+    .withSuccessHandler(function(data){
+      if(data && data.ok && data.pocs){
+        POCS = data.pocs; FOLLOWUPS = data.followups || {};
+        if($('app') && $('app').style.display!=='none' && (state.route==='poc' || state.route.indexOf('nbfc:')===0)) render();
+      }
+    })
+    .withFailureHandler(function(){ /* keep the embedded baseline */ })
+    .getPOCData();
+}
+function savePocLive(p){
+  if(!LIVE) return;
+  google.script.run
+    .withFailureHandler(function(err){ toast('Sheet save failed: '+((err&&err.message)||err)); })
+    .savePOC(p);
+}
+function saveFollowupLive(fu){
+  if(!LIVE) return;
+  google.script.run
+    .withFailureHandler(function(err){ toast('Follow-up save failed: '+((err&&err.message)||err)); })
+    .savePOCFollowup(fu);
+}
+
 /* ═══════════════ LOGIN / THEME / BOOT ═══════════════ */
 function doLogin(){
   var role='Management';
@@ -1316,7 +1705,8 @@ function toggleTheme(){
 }
 document.addEventListener('DOMContentLoaded',function(){
   loadEntities();
-  if(LIVE) refreshFromSheet();   // pull the live sheet as soon as the page opens
+  loadPOCs();                    // POC Directory (additive)
+  if(LIVE){ refreshFromSheet(); refreshPOCs(); }   // pull the live sheet as soon as the page opens
   Array.prototype.forEach.call(document.querySelectorAll('.role-opt'),function(o){
     o.onclick=function(){ document.querySelectorAll('.role-opt').forEach(function(x){x.classList.remove('on');}); o.classList.add('on'); };
   });
