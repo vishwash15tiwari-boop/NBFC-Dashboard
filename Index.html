@@ -252,6 +252,26 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none}
 .cmd-summary .sep{width:4px;height:4px;border-radius:50%;background:var(--ink-4);opacity:.6}
 .attn-count{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
   color:var(--warn);background:var(--warn-tint);padding:3px 10px;border-radius:999px}
+.cmd-summary .attn-count{margin-left:0}
+/* Onboarding pipeline funnel — the seller journey as connected stages */
+.funnel{display:flex;flex-wrap:wrap}
+.fn-stage{flex:1;min-width:130px;padding:17px 20px;border-right:1px solid var(--line-2);transition:background .13s var(--ease)}
+.fn-stage:last-child{border-right:none}
+.fn-stage.clk{cursor:pointer}
+.fn-stage.clk:hover{background:var(--fill)}
+.fn-l{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+.fn-l .fn-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.fn-n{font-size:30px;font-weight:600;letter-spacing:-.03em;line-height:1.1;margin:9px 0 11px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.fn-bar{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.fn-bar i{display:block;height:100%;border-radius:3px;transition:width .5s var(--ease-out)}
+.fn-conv{font-size:11.5px;color:var(--ink-3);margin-top:8px;display:flex;align-items:center;gap:5px}
+.fn-conv .arw{opacity:.5}
+.head-stats{margin-left:auto;display:flex;gap:8px}
+.head-stat{font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);
+  padding:5px 11px;border-radius:8px;cursor:pointer;transition:.13s;font-variant-numeric:tabular-nums}
+.head-stat:hover{background:var(--fill);border-color:var(--ink-4)}
+.head-stat b{color:var(--ink)} .head-stat.amber b{color:var(--warn)}
+@media(max-width:820px){.fn-stage{flex-basis:50%;border-right:none;border-bottom:1px solid var(--line-2)}}
 
 /* ─────────────────────────── TABLES ─────────────────────────── */
 .toolbar{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -958,16 +978,35 @@ function viewDashboard(){
   var firstCheckSet = sellers.filter(function(e){ return eligibleNbfcs(e).length>0; });
   var pendingSellers= sellers.filter(function(e){ return docCounts(e).pending>0; }).length;
 
-  /* Level-1 KPI band. Each card answers status + next action (an arrow into the
-     matching filtered queue). Logged In / Credit Limit have no column in the
-     master sheet, so they stay honestly blank — never a fabricated trend. */
-  var kpis=
-    kpiHero('Total Sellers', sellers.length, 'Open Marketplace · Completed', '', "kpiGo('all')") +
-    kpiHero('Total Buyers', buyers.length, 'Open Marketplace · Completed', '', "go('buyers')") +
-    kpiHero('First Check', firstCheckSet.length, (firstCheckSet.length?'Ready to submit':'Pre-screening passed'), '', "kpiGo('eligible')") +
-    kpiHero('Logged In', NODATA, 'Not in master sheet', '', '') +
-    kpiHero('Credit Limit Assigned', NODATA, 'Not in master sheet', '', '') +
-    kpiHero('Pending', pendingSellers, (pendingSellers?'Review awaited documents':'Documents still awaited'), 'amber', "kpiGo('pending')");
+  /* Level-1 hero: the seller onboarding pipeline as a connected funnel — Total →
+     First Check → Logged In → Credit Assigned. Replaces six disconnected KPI
+     tiles with one journey that shows drop-off at a glance. Every value is the
+     same one computed above; Logged In / Credit have no master-sheet column, so
+     they stay honestly blank (never a fabricated number). Stages drill into the
+     same filtered queues the old KPI cards did. */
+  var journey=[
+    {l:'Total Sellers', n:sellers.length, click:"kpiGo('all')",      color:'var(--brand)'},
+    {l:'First Check',   n:firstCheckSet.length, click:"kpiGo('eligible')", color:'var(--brand-purple)'},
+    {l:'Logged In',     n:null,           color:'var(--brand-mint)'},
+    {l:'Credit Assigned', n:null,         color:'var(--brand-green)'}
+  ];
+  var funnelStages=journey.map(function(s,i){
+    var has=s.n!=null, pct=(has&&sellers.length)?Math.round(s.n/sellers.length*100):0;
+    var conv=i===0?'of the pipeline':(has?(pct+'% of total <span class="arw">→</span>'):'Not in master sheet');
+    return '<div class="fn-stage'+(s.click?' clk':'')+'"'+(s.click?' onclick="'+s.click+'"':'')+'>'+
+      '<div class="fn-l"><span class="fn-dot" style="background:'+s.color+'"></span>'+esc(s.l)+'</div>'+
+      '<div class="fn-n">'+(has?s.n:NODATA)+'</div>'+
+      '<div class="fn-bar"><i style="width:'+(has?pct:0)+'%;background:'+s.color+'"></i></div>'+
+      '<div class="fn-conv">'+conv+'</div>'+
+    '</div>';
+  }).join('');
+  var funnelCard='<div class="card" style="margin-bottom:18px">'+
+    '<div class="card-h"><h3>Seller onboarding pipeline</h3><span class="sub">Open Marketplace → credit-eligible</span>'+
+      '<div class="head-stats">'+
+        '<button class="head-stat" onclick="go(\'buyers\')"><b>'+buyers.length+'</b> buyers</button>'+
+        '<button class="head-stat amber" onclick="kpiGo(\'pending\')"><b>'+pendingSellers+'</b> awaiting docs</button>'+
+      '</div></div>'+
+    '<div class="funnel">'+funnelStages+'</div></div>';
 
   // Level-3 pipeline: per-NBFC eligible vs. still-needing-docs, click into the workspace
   var neRows=NBFCS.map(function(n){
@@ -1007,7 +1046,7 @@ function viewDashboard(){
     (near.length?'<span class="attn-count">'+near.length+' need attention</span>':'')+
   '</div>';
 
-  return summary+'<div class="kpi-row">'+kpis+'</div>'+
+  return summary+funnelCard+
     '<div class="grid-2">'+
       '<div class="card"><div class="card-h"><h3>Needs attention</h3><span class="sub">1–2 documents from a new NBFC — clear these first</span></div>'+nearRows+'</div>'+
       '<div class="card"><div class="card-h"><h3>NBFC pipeline</h3><span class="sub">Eligible vs. still needing documents</span></div><div class="nbfc-elig-list">'+neRows+'</div></div>'+
