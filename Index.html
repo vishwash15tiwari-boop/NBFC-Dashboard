@@ -2781,7 +2781,24 @@ function saveFollowupLive(fu){
    from the POC Directory on every request and strips rows the caller may not
    see BEFORE responding, so hiding a nav item is a courtesy, not a control:
    editing this file cannot widen what the backend will hand over. */
+/* Sign-in gate switch. false = the dashboard opens straight away with no login.
+   Must match AUTH_ENABLED in Code.gs: that one governs whether the backend still
+   demands a session token, and if the two disagree the app loads with no data.
+   Everything else in the auth implementation is left intact, so setting both
+   back to true restores the gate with no other change. */
+var AUTH_ENABLED = false;
+
 var SESSION = { token:'', profile:null };
+
+/* The identity used while the gate is off — full access, so no nav item is
+   hidden and no route is refused. Mirrors openAccessProfile_() in Code.gs. */
+function openAccessProfile(){
+  return { email:'', name:'Recykal', designation:'', role:'Admin', roleKey:'admin',
+           roleLabel:'Admin', team:'', states:[], statesRaw:'', reportsTo:'', rank:'',
+           escL1:'', escL2:'', active:true, lastLogin:'', authDisabled:true,
+           perms:{ label:'Admin', viewAllStates:true, viewAllTeams:true, editDocs:true,
+                   managePOC:true, configure:true, manageUsers:true, exportData:true, routes:'*' } };
+}
 
 function hasPerm(p){
   return !!(SESSION.profile && SESSION.profile.perms && SESSION.profile.perms[p]);
@@ -2968,11 +2985,16 @@ function forceLogout(msg){
 /** Returns true (and bounces to login) when a response reports a dead session,
     so every caller can guard with one line. */
 function authLost(res){
+  /* With the gate off the backend never reports authRequired; ignoring it here
+     too means a stale response can never strand the user on a login screen that
+     is not in use. */
+  if(!AUTH_ENABLED) return false;
   if(res && res.authRequired){ forceLogout(res.error || 'Your session has expired. Please sign in again.'); return true; }
   return false;
 }
 
 function logout(){
+  if(!AUTH_ENABLED) return;          // nothing to sign out of
   var t=SESSION.token;
   if(LIVE && t){ google.script.run.withFailureHandler(function(){}).logout(t); }
   forceLogout('');
@@ -2981,6 +3003,17 @@ function logout(){
 /* ── Header identity + profile menu ─────────────────────────────────────── */
 function renderProfileChrome(){
   var p=SESSION.profile; if(!p) return;
+  /* With the gate off there is no signed-in user, so the identity chip and the
+     sidebar sign-out row are hidden rather than filled with a placeholder name
+     — a fake identity reads worse than none. */
+  var chip=document.querySelector('.pm-wrap'), sbUser=document.querySelector('.sb-user');
+  if(p.authDisabled){
+    if(chip) chip.style.display='none';
+    if(sbUser) sbUser.style.display='none';
+    return;
+  }
+  if(chip) chip.style.display='';
+  if(sbUser) sbUser.style.display='';
   var nm=p.name||p.email||'User';
   $('tbAva').textContent=initials(nm);
   $('tbUserNm').textContent=nm;
@@ -3094,10 +3127,17 @@ document.addEventListener('DOMContentLoaded',function(){
   loadNbfcConfig();              // apply any persisted requirement-matrix overrides before first render
   loadEntities();
   loadPOCs();                    // POC Directory (additive)
-  /* No sheet data is fetched here any more. Every read now requires a session
-     token, and enterApp() triggers the pull once the server has authenticated
-     the user — so an unauthenticated page holds nothing to look at. */
-  var em=$('li-email'); if(em) em.focus();
+  if(!AUTH_ENABLED){
+    /* Gate off — go straight to the dashboard. enterApp() still does the data
+       pull, so the boot path is identical to a successful sign-in. */
+    SESSION = { token:'', profile:openAccessProfile() };
+    var lg=$('login'); if(lg) lg.style.display='none';
+    enterApp();
+  } else {
+    /* Nothing is fetched before sign-in: every read requires a session token,
+       and enterApp() triggers the pull once the server has authenticated. */
+    var em=$('li-email'); if(em) em.focus();
+  }
   $('globalSearch') && ($('globalSearch').oninput=function(e){
     var v=e.target.value; if(!v) return;
     if(state.route!=='sellers'&&state.route!=='buyers'){

@@ -623,7 +623,30 @@ function validateSession_(token) {
 }
 
 /** Throws on an invalid session so no endpoint can forget to check. */
+/* ── Sign-in gate switch ──────────────────────────────────────────────────────
+   AUTH_ENABLED = false opens the dashboard to anyone who can reach the web app:
+   no sign-in, and every endpoint answers with full visibility. The whole auth
+   implementation below stays in place and tested — flipping this back to true
+   (and the matching flag in Index.html) restores the gate with no other change.
+
+   While this is false there is no access control: no per-user scoping by state
+   or team, and no role restrictions. Deploy accordingly. */
+var AUTH_ENABLED = false;
+
+/** The identity used when the gate is off — full access, so no view is scoped
+    and no route is blocked. Shaped exactly like a real profile so every caller
+    downstream (applyScope_, perms checks, the client) needs no special case. */
+function openAccessProfile_() {
+  return {
+    email:'', name:'Recykal', designation:'', role:'Admin', roleKey:'admin',
+    roleLabel:'Admin', team:'', states:[], statesRaw:'', reportsTo:'', rank:'',
+    escL1:'', escL2:'', active:true, lastLogin:'', authDisabled:true,
+    perms: ROLE_PERMISSIONS.admin
+  };
+}
+
 function requireSession_(token) {
+  if (!AUTH_ENABLED) return openAccessProfile_();
   var p = validateSession_(token);
   if (!p) throw new Error('AUTH_REQUIRED');
   return p;
