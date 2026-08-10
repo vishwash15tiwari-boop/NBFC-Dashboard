@@ -906,7 +906,8 @@ function eligibleNbfcs(e){ return NBFCS.filter(function(n){ return evalNbfc(e,n)
 var state = { route:'dashboard', role:'Operations', user:'Ops User', email:'ops@recykal.com',
   sellerQ:'', sellerFilter:'all', buyerQ:'', theme:'light', setPanel:'catalog', mapNbfc:'billmart',
   pocQ:'', pocNbfc:'all', pocStatus:'active',
-  docNbfc:'', _docEnt:null };   // which NBFC's matrix drives the seller detail checklist
+  docNbfc:'', _docEnt:null,     // which NBFC's matrix drives the seller detail checklist
+  nbfcEntityType:'seller' };    // controls the Eligible / Needs-documents split on NBFC pages
 
 var NAV = [
   {id:'dashboard', label:'Dashboard', icon:'grid'},
@@ -1216,9 +1217,14 @@ function viewNbfc(n){
     keyH+'</div>'+
     '<div class="drq-grid">'+docRows+'</div></div>';
 
-  /* ── Entity lists: eligible | blocked ──────────────────────────── */
+  /* ── Entity lists: eligible | blocked (filtered by entity type) ── */
+  var nbfcET   = state.nbfcEntityType || 'seller';
+  var typeSing = nbfcET === 'seller' ? 'seller' : 'buyer';
+  var typeCapP = nbfcET === 'seller' ? 'Sellers' : 'Buyers';
+  var pool     = ENTITIES.filter(function(e){ return e.type === nbfcET; });
+
   var ready=[], blocked=[];
-  ENTITIES.forEach(function(e){ var m=evalNbfc(e,n); if(m.eligible) ready.push(e); else blocked.push({e:e,m:m}); });
+  pool.forEach(function(e){ var m=evalNbfc(e,n); if(m.eligible) ready.push(e); else blocked.push({e:e,m:m}); });
   blocked.sort(function(a,b){ return a.m.missing.length-b.m.missing.length; });
 
   var readyH = ready.slice(0,80).map(function(e){
@@ -1226,7 +1232,7 @@ function viewNbfc(n){
       '<div class="ent-ava" style="background:'+n.nc+';color:#fff">'+initials(e.name)+'</div>'+
       '<div class="en">'+esc(e.name)+'<span class="mut"> · '+esc(e.type)+' · '+esc(e.city||e.state)+'</span></div>'+
       '<span class="status-pill sp-ok"><span class="d"></span>Eligible</span></div>';
-  }).join('') || emptyRow('No vendors fully eligible yet.');
+  }).join('') || emptyRow('No '+typeSing+'s are fully eligible yet.');
 
   /* One row per entity not yet eligible for THIS NBFC. Chips are the documents
      n.req asks for and this entity has not supplied — nothing else is listed. */
@@ -1264,22 +1270,30 @@ function viewNbfc(n){
       '</div>'+
       '<span class="status-pill sp-bad nd-status"><span class="d"></span>Not eligible</span>'+
     '</div>';
-  }).join('') || emptyRow('Every seller and buyer is eligible for '+n.name+'.');
+  }).join('') || emptyRow('Every '+typeSing+' is eligible for '+n.name+'.');
 
   /* The list is capped for DOM weight — say so, rather than letting the header
      count and the visible rows silently disagree. */
   if(blocked.length > 120){
     blockedH += '<div class="nd-meta" style="padding:12px 18px;border-top:1px solid var(--line-2)">'+
-      'Showing first 120 of '+blocked.length+' · use the Sellers and Buyers registers for the full list</div>';
+      'Showing first 120 of '+blocked.length+' · use the '+typeCapP+' register for the full list</div>';
   }
+
+  var typeToggle =
+    '<div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">'+
+      '<span style="font-size:12px;font-weight:500;color:var(--ink-3)">View eligibility for:</span>'+
+      '<button class="chip'+(nbfcET==='seller'?' on':'')+'" onclick="setNbfcEntityType(\'seller\')">Sellers</button>'+
+      '<button class="chip'+(nbfcET==='buyer'?' on':'')+'" onclick="setNbfcEntityType(\'buyer\')">Buyers</button>'+
+    '</div>';
 
   return '<div class="kpi-row kpi-row-7">'+kpis+'</div>'+
     pocStrip(n)+
     docCard+
+    typeToggle+
     '<div class="split-cols">'+
-      '<div class="card"><div class="card-h"><h3>Eligible</h3><span class="sub">'+ready.length+' entities</span></div>'+readyH+'</div>'+
+      '<div class="card"><div class="card-h"><h3>Eligible</h3><span class="sub">'+ready.length+' '+typeSing+'s</span></div>'+readyH+'</div>'+
       '<div class="card"><div class="card-h"><h3>Needs documents</h3>'+
-        '<span class="sub">'+blocked.length+' of '+total+' not yet eligible for '+esc(n.name)+
+        '<span class="sub">'+blocked.length+' of '+pool.length+' '+typeSing+'s not yet eligible for '+esc(n.name)+
         ' · '+n.req.length+' documents required</span></div>'+blockedH+'</div>'+
     '</div>';
 }
@@ -1357,6 +1371,7 @@ function panelUsers(){
 }
 function wireSettings(){}
 function setPanel(p){ state.setPanel=p; render(); }
+function setNbfcEntityType(t){ state.nbfcEntityType=t; render(); }
 function setMapNbfc(id){ state.mapNbfc=id; render(); }
 function toggleReq(docId){ var n=NBFC_BY_ID[state.mapNbfc]; var i=n.req.indexOf(docId); if(i>=0)n.req.splice(i,1); else n.req.push(docId); persistNbfcConfig(n.id); render(); }
 function fakeSync(){
