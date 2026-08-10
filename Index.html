@@ -253,25 +253,26 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none}
 .attn-count{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
   color:var(--warn);background:var(--warn-tint);padding:3px 10px;border-radius:999px}
 .cmd-summary .attn-count{margin-left:0}
-/* Onboarding pipeline funnel — the seller journey as connected stages */
-.funnel{display:flex;flex-wrap:wrap}
-.fn-stage{flex:1;min-width:130px;padding:17px 20px;border-right:1px solid var(--line-2);transition:background .13s var(--ease)}
-.fn-stage:last-child{border-right:none}
-.fn-stage.clk{cursor:pointer}
-.fn-stage.clk:hover{background:var(--fill)}
-.fn-l{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);display:flex;align-items:center;gap:6px}
-.fn-l .fn-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.fn-n{font-size:30px;font-weight:600;letter-spacing:-.03em;line-height:1.1;margin:9px 0 11px;font-variant-numeric:tabular-nums;color:var(--ink)}
-.fn-bar{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
-.fn-bar i{display:block;height:100%;border-radius:3px;transition:width .5s var(--ease-out)}
-.fn-conv{font-size:11.5px;color:var(--ink-3);margin-top:8px;display:flex;align-items:center;gap:5px}
-.fn-conv .arw{opacity:.5}
+/* Onboarding pipeline — sellers AND buyers across the journey stages */
+.pipe{overflow-x:auto}
+.pipe-row{display:flex;align-items:stretch;border-top:1px solid var(--line-2);transition:background .13s var(--ease);min-width:600px}
+.pipe-row:first-child{border-top:none}
+.pipe-rl{width:124px;flex-shrink:0;padding:14px 18px;display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600}
+.pipe-rl .fn-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.pipe-cell{flex:1;padding:14px 16px;border-left:1px solid var(--line-2);min-width:0;transition:background .13s var(--ease)}
+.pipe-cell.click{cursor:pointer}
+.pipe-cell.click:hover{background:var(--fill)}
+.pipe-head .pipe-rl,.pipe-head .pipe-cell{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);padding-top:14px;padding-bottom:11px}
+.pc-n{font-size:23px;font-weight:600;letter-spacing:-.025em;font-variant-numeric:tabular-nums;line-height:1;color:var(--ink)}
+.pipe-cell.mut .pc-n{color:var(--ink-4)}
+.pc-bar{height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-top:10px}
+.pc-bar i{display:block;height:100%;border-radius:3px;transition:width .5s var(--ease-out)}
+.pc-sub{font-size:11px;color:var(--ink-4);margin-top:8px}
 .head-stats{margin-left:auto;display:flex;gap:8px}
 .head-stat{font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);
   padding:5px 11px;border-radius:8px;cursor:pointer;transition:.13s;font-variant-numeric:tabular-nums}
 .head-stat:hover{background:var(--fill);border-color:var(--ink-4)}
 .head-stat b{color:var(--ink)} .head-stat.amber b{color:var(--warn)}
-@media(max-width:820px){.fn-stage{flex-basis:50%;border-right:none;border-bottom:1px solid var(--line-2)}}
 
 /* ─────────────────────────── TABLES ─────────────────────────── */
 .toolbar{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -978,35 +979,39 @@ function viewDashboard(){
   var firstCheckSet = sellers.filter(function(e){ return eligibleNbfcs(e).length>0; });
   var pendingSellers= sellers.filter(function(e){ return docCounts(e).pending>0; }).length;
 
-  /* Level-1 hero: the seller onboarding pipeline as a connected funnel — Total →
-     First Check → Logged In → Credit Assigned. Replaces six disconnected KPI
-     tiles with one journey that shows drop-off at a glance. Every value is the
-     same one computed above; Logged In / Credit have no master-sheet column, so
-     they stay honestly blank (never a fabricated number). Stages drill into the
-     same filtered queues the old KPI cards did. */
-  var journey=[
-    {l:'Total Sellers', n:sellers.length, click:"kpiGo('all')",      color:'var(--brand)'},
-    {l:'First Check',   n:firstCheckSet.length, click:"kpiGo('eligible')", color:'var(--brand-purple)'},
-    {l:'Logged In',     n:null,           color:'var(--brand-mint)'},
-    {l:'Credit Assigned', n:null,         color:'var(--brand-green)'}
-  ];
-  var funnelStages=journey.map(function(s,i){
-    var has=s.n!=null, pct=(has&&sellers.length)?Math.round(s.n/sellers.length*100):0;
-    var conv=i===0?'of the pipeline':(has?(pct+'% of total <span class="arw">→</span>'):'Not in master sheet');
-    return '<div class="fn-stage'+(s.click?' clk':'')+'"'+(s.click?' onclick="'+s.click+'"':'')+'>'+
-      '<div class="fn-l"><span class="fn-dot" style="background:'+s.color+'"></span>'+esc(s.l)+'</div>'+
-      '<div class="fn-n">'+(has?s.n:NODATA)+'</div>'+
-      '<div class="fn-bar"><i style="width:'+(has?pct:0)+'%;background:'+s.color+'"></i></div>'+
-      '<div class="fn-conv">'+conv+'</div>'+
-    '</div>';
-  }).join('');
+  /* Level-1 hero: the onboarding pipeline across BOTH populations — sellers and
+     buyers — over the same journey stages (Total → First Check → Logged In →
+     Credit). Buyers run the identical eligibility engine, so they get their own
+     row rather than a header stat. Every value is computed the same way; Logged
+     In / Credit have no master-sheet column and stay honestly blank. Cells drill
+     into the matching filtered register the old KPI cards did. */
+  var buyerFirst = buyers.filter(function(e){ return eligibleNbfcs(e).length>0; }).length;
+  var pendingAll = ENTITIES.filter(function(e){ return docCounts(e).pending>0; }).length;
+
+  function pipeCell(n, total, color, click){
+    if(n==null) return '<div class="pipe-cell mut"><div class="pc-n">—</div><div class="pc-sub">Not in master sheet</div></div>';
+    var pct = total ? Math.round(n/total*100) : 0;
+    return '<div class="pipe-cell'+(click?' click':'')+'"'+(click?' onclick="'+click+'"':'')+'>'+
+      '<div class="pc-n">'+n+'</div>'+
+      '<div class="pc-bar"><i style="width:'+pct+'%;background:'+color+'"></i></div></div>';
+  }
+  var pipeHead='<div class="pipe-row pipe-head"><div class="pipe-rl">Population</div>'+
+    '<div class="pipe-cell">Total</div><div class="pipe-cell">First Check</div>'+
+    '<div class="pipe-cell">Logged In</div><div class="pipe-cell">Credit Assigned</div></div>';
+  var sellerRow='<div class="pipe-row"><div class="pipe-rl"><span class="fn-dot" style="background:var(--brand)"></span>Sellers</div>'+
+    pipeCell(sellers.length, sellers.length, 'var(--brand)', "kpiGo('all')")+
+    pipeCell(firstCheckSet.length, sellers.length, 'var(--brand-purple)', "kpiGo('eligible')")+
+    pipeCell(null)+pipeCell(null)+'</div>';
+  var buyerRow='<div class="pipe-row"><div class="pipe-rl"><span class="fn-dot" style="background:var(--brand-mint)"></span>Buyers</div>'+
+    pipeCell(buyers.length, buyers.length, 'var(--brand-mint)', "state.sellerFilter='all';go('buyers')")+
+    pipeCell(buyerFirst, buyers.length, 'var(--brand-green)', "state.sellerFilter='eligible';go('buyers')")+
+    pipeCell(null)+pipeCell(null)+'</div>';
   var funnelCard='<div class="card" style="margin-bottom:18px">'+
-    '<div class="card-h"><h3>Seller onboarding pipeline</h3><span class="sub">Open Marketplace → credit-eligible</span>'+
+    '<div class="card-h"><h3>Onboarding pipeline</h3><span class="sub">Open Marketplace → credit-eligible</span>'+
       '<div class="head-stats">'+
-        '<button class="head-stat" onclick="go(\'buyers\')"><b>'+buyers.length+'</b> buyers</button>'+
-        '<button class="head-stat amber" onclick="kpiGo(\'pending\')"><b>'+pendingSellers+'</b> awaiting docs</button>'+
+        '<button class="head-stat amber" onclick="kpiGo(\'pending\')"><b>'+pendingAll+'</b> awaiting docs</button>'+
       '</div></div>'+
-    '<div class="funnel">'+funnelStages+'</div></div>';
+    '<div class="pipe">'+pipeHead+sellerRow+buyerRow+'</div></div>';
 
   // Level-3 pipeline: per-NBFC eligible vs. still-needing-docs, click into the workspace
   var neRows=NBFCS.map(function(n){
@@ -1041,8 +1046,8 @@ function viewDashboard(){
   /* Level-1 state line — the 10-second read, derived from the same values. */
   var summary='<div class="cmd-summary">'+
     '<b>'+sellers.length+'</b> sellers <span class="sep"></span> <b>'+buyers.length+'</b> buyers in the Open Marketplace pipeline'+
-    ' <span class="sep"></span> <b>'+firstCheckSet.length+'</b> ready for first check'+
-    ' <span class="sep"></span> <b>'+pendingSellers+'</b> awaiting documents'+
+    ' <span class="sep"></span> <b>'+(firstCheckSet.length+buyerFirst)+'</b> ready for first check'+
+    ' <span class="sep"></span> <b>'+pendingAll+'</b> awaiting documents'+
     (near.length?'<span class="attn-count">'+near.length+' need attention</span>':'')+
   '</div>';
 
