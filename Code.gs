@@ -182,18 +182,37 @@ function readPlatformDocStatus_(ss) {
  * Called from Index.html on load. Returns sellers + buyers (identity from the
  * Metabase-synced tabs) plus the document statuses ops have entered.
  */
-function getPlatformData() {
+function getPlatformData(token) {
   try {
+    var me = requireSession_(token);
     var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
+
+    var sellers = applyScope_(me, readPlatformTab_(ss, 'Sellers', 'seller'));
+    var buyers  = applyScope_(me, readPlatformTab_(ss, 'Buyers',  'buyer'));
+
+    /* Document statuses are keyed by GSTIN, so they need the same narrowing —
+       otherwise an out-of-scope vendor's document history would still ship. */
+    var visible = {};
+    sellers.concat(buyers).forEach(function (r) { visible[String(r.gstin || '').toUpperCase()] = true; });
+    var all = readPlatformDocStatus_(ss), docStatus = {};
+    Object.keys(all).forEach(function (k) { if (visible[k.split('||')[0]]) docStatus[k] = all[k]; });
+
     return {
       ok:          true,
-      sellers:     readPlatformTab_(ss, 'Sellers', 'seller'),
-      buyers:      readPlatformTab_(ss, 'Buyers',  'buyer'),
-      docStatus:   readPlatformDocStatus_(ss),
+      sellers:     sellers,
+      buyers:      buyers,
+      docStatus:   docStatus,
+      profile:     scrubClientPayload_(me),
+      scoped:      !me.perms.viewAllStates,
       generatedAt: new Date().toISOString()
     };
   } catch (e) {
-    return { ok: false, error: String(e && e.message || e), sellers: [], buyers: [], docStatus: {} };
+    var msg = String(e && e.message || e);
+    if (msg === 'AUTH_REQUIRED') {
+      return { ok:false, authRequired:true, error:'Your session has expired. Please sign in again.',
+               sellers:[], buyers:[], docStatus:{} };
+    }
+    return { ok:false, error:msg, sellers:[], buyers:[], docStatus:{} };
   }
 }
 
@@ -202,8 +221,10 @@ function getPlatformData() {
  * one row in the DocStatus tab, keyed by (GSTIN, docId). Creates the tab on
  * first write. payload = { gstin, entityType, docId, docName, status, comment }
  */
-function savePlatformDoc(payload) {
+function savePlatformDoc(payload, token) {
   try {
+    var me = requireSession_(token);
+    if (!me.perms.editDocs) return { ok:false, error:'Your role cannot edit documents.' };
     payload = payload || {};
     var gst   = String(payload.gstin || '').trim().toUpperCase();
     var docId = String(payload.docId || '').trim();
@@ -281,9 +302,49 @@ var POC_FIELDS = [
   { key:'createdBy',     header:'Created By',                       aliases:['created by'] },
   { key:'createdOn',     header:'Created On',                      aliases:['created on','created date','created at'] },
   { key:'modifiedBy',    header:'Last Modified By',                aliases:['last modified by','modified by','updated by'] },
-  { key:'modifiedOn',    header:'Last Modified On',                aliases:['last modified on','modified on','updated at','updated','last modified'] }
+  { key:'modifiedOn',    header:'Last Modified On',                aliases:['last modified on','modified on','updated at','updated','last modified'] },
+
+  /* ── Access management ────────────────────────────────────────────────────
+     Drives who may log in and what they may see. Safe to send to the client:
+     these are directory attributes, not credentials. `active` is the login
+     gate; `states` scopes an Operations user's visible rows; `reportsTo`/`rank`
+     build the hierarchy; `escL1`/`escL2` are read live so escalation addresses
+     are never hardcoded anywhere in the app. */
+  { key:'team',          header:'Team',                            aliases:['team','department team','business team'] },
+  { key:'states',        header:'States',                          aliases:['states','state','assigned states','territory'] },
+  { key:'reportsTo',     header:'Reports To',                      aliases:['reports to','manager','reporting manager','reports to email'] },
+  { key:'rank',          header:'Rank',                            aliases:['rank','level','seniority'] },
+  { key:'escL1',         header:'Esc L1',                          aliases:['esc l1','escalation level 1','escalation 1','escalation l1'] },
+  { key:'escL2',         header:'Esc L2',                          aliases:['esc l2','escalation level 2','escalation 2','escalation l2'] },
+  { key:'active',        header:'Active',                          aliases:['active','active status','is active','enabled'] }
 ];
 var POC_HEADERS   = POC_FIELDS.map(function (f) { return f.header; });
+
+/* ── Credential columns ──────────────────────────────────────────────────────
+   Deliberately NOT part of POC_FIELDS. getPOCData() builds its client payload
+   by walking POC_FIELDS, so keeping these out of that list is what guarantees a
+   hash can never be serialized to the browser by accident. They live in the same
+   POC Directory tab (one sheet, as specified) but are read only by the auth code
+   below, and scrubClientPayload_() is a second, independent guard. */
+var POC_AUTH_FIELDS = [
+  { key:'pwHash',    header:'Password Hash', aliases:['password hash','pw hash','passwordhash'] },
+  { key:'pwSalt',    header:'Password Salt', aliases:['password salt','pw salt','passwordsalt'] },
+  { key:'lastLogin', header:'Last Login',    aliases:['last login','last login at','last signed in'] }
+];
+var POC_AUTH_HEADERS = POC_AUTH_FIELDS.map(function (f) { return f.header; });
+
+/** Defence in depth: strip anything credential-shaped from a client payload,
+    whatever list it arrived through. Runs on every authenticated response. */
+function scrubClientPayload_(obj) {
+  if (obj == null || typeof obj !== 'object') return obj;
+  if (Object.prototype.toString.call(obj) === '[object Array]') return obj.map(scrubClientPayload_);
+  var out = {};
+  Object.keys(obj).forEach(function (k) {
+    if (/pass|hash|salt|secret|token|pepper|credential/i.test(k)) return;
+    out[k] = scrubClientPayload_(obj[k]);
+  });
+  return out;
+}
 var POCFU_HEADERS = ['Followup ID','POC ID','NBFC','Date','Mode','Summary','Next Action','Next Date','By','Created At'];
 
 /** Map the sheet's current headers → { fieldKey: colIndex } via the alias table. */
@@ -296,15 +357,28 @@ function pocColIndex_(headers) {
   return CI;
 }
 
+/** Map the sheet's headers → { authFieldKey: colIndex }. Server-side only. */
+function pocAuthColIndex_(headers) {
+  var H = {}; headers.forEach(function (h, i) { H[String(h).trim().toLowerCase()] = i; });
+  var CI = {};
+  POC_AUTH_FIELDS.forEach(function (f) {
+    for (var i = 0; i < f.aliases.length; i++) { if (H[f.aliases[i]] != null) { CI[f.key] = H[f.aliases[i]]; break; } }
+  });
+  return CI;
+}
+
 /** Guarantee every canonical field has a column, appending any missing ones to
     the right. Never reorders or deletes existing columns, so an existing tab's
-    formatting and architecture are preserved. Returns a fresh CI map. */
+    formatting and architecture are preserved. Returns a fresh CI map.
+    Credential columns are provisioned alongside so a tab is login-ready, but
+    they are indexed separately and never enter the client mapping. */
 function ensurePocColumns_(sh) {
   var lastCol = Math.max(1, sh.getLastColumn());
   var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0];
-  var CI = pocColIndex_(headers);
+  var CI = pocColIndex_(headers), ACI = pocAuthColIndex_(headers);
   var toAdd = [];
-  POC_FIELDS.forEach(function (f) { if (CI[f.key] == null) toAdd.push(f.header); });
+  POC_FIELDS.forEach(function (f)      { if (CI[f.key]  == null) toAdd.push(f.header); });
+  POC_AUTH_FIELDS.forEach(function (f) { if (ACI[f.key] == null) toAdd.push(f.header); });
   if (toAdd.length) {
     sh.getRange(1, lastCol + 1, 1, toAdd.length).setValues([toAdd]);
     sh.setFrozenRows(1);
@@ -335,9 +409,465 @@ function nbfcEntityGroup_(nbfcId) {
   return group;
 }
 
-/** Read POC Directory + Followups → { pocs:[…], followups:{ pocId:[…] } }. */
-function getPOCData() {
+/* ═══════════════════════════════════════════════════════════════════════════
+   LOGIN & ACCESS MANAGEMENT
+   ───────────────────────────────────────────────────────────────────────────
+   Every rule below is enforced HERE, on the server. Nothing in Index.html is
+   trusted: the browser can call any google.script.run endpoint directly and can
+   be edited at will, so a check that lives in the client is decoration. The
+   contract is therefore:
+     · the password hash never leaves this file
+     · every data endpoint requires a session token and re-derives the caller's
+       permissions from the sheet on each call
+     · rows outside the caller's scope are removed BEFORE the response is built,
+       so restricted data is never delivered and then hidden
+   The POC Directory sheet is the only source of users, roles, states and
+   escalation contacts — adding, changing or deactivating a person there takes
+   effect on their next request with no code change.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var AUTH_PEPPER_KEY  = 'NBFC_AUTH_PEPPER';
+var AUTH_ROUNDS      = 1000;   // iterated SHA-256; ~0.3s in Apps Script
+var SESSION_TTL_SEC  = 1800;   // 30-minute sliding inactivity window
+var AUTH_MAX_ATTEMPTS = 6;     // per email, per lockout window
+var AUTH_LOCKOUT_SEC  = 900;   // 15-minute lockout after repeated failures
+
+/** Server-only secret mixed into every hash, so sheet contents alone are not
+    enough to mount an offline attack. Generated once, stored in Script
+    Properties (never in the sheet, never in the repo). */
+function authPepper_() {
+  var props = PropertiesService.getScriptProperties();
+  var p = props.getProperty(AUTH_PEPPER_KEY);
+  if (!p) { p = Utilities.getUuid() + Utilities.getUuid(); props.setProperty(AUTH_PEPPER_KEY, p); }
+  return p;
+}
+
+function bytesToHex_(bytes) {
+  var s = '';
+  for (var i = 0; i < bytes.length; i++) s += ((bytes[i] & 0xFF) + 0x100).toString(16).slice(1);
+  return s;
+}
+
+/** Salted, peppered, iterated SHA-256. The iteration count is what makes a
+    leaked sheet expensive to attack; the per-user salt stops one cracked
+    password revealing every identical one. */
+function hashPassword_(password, salt) {
+  var bytes = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    String(salt) + '|' + String(password) + '|' + authPepper_(),
+    Utilities.Charset.UTF_8);
+  for (var i = 1; i < AUTH_ROUNDS; i++) {
+    bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes);
+  }
+  return bytesToHex_(bytes);
+}
+
+/** Comparison whose duration does not depend on where the first difference is,
+    so a caller cannot learn the hash byte-by-byte from response timing. */
+function safeEqual_(a, b) {
+  a = String(a || ''); b = String(b || '');
+  if (a.length !== b.length) return false;
+  var diff = 0;
+  for (var i = 0; i < a.length; i++) diff |= (a.charCodeAt(i) ^ b.charCodeAt(i));
+  return diff === 0;
+}
+
+function newSalt_() { return Utilities.getUuid().replace(/-/g, ''); }
+
+/* ── Role model ────────────────────────────────────────────────────────────
+   This rollout ships two configured tiers, Admin and Operations. Anything the
+   sheet does not recognise — blank, "-", a role added later — falls to
+   'readonly' rather than being granted Operations by default: an unrecognised
+   role must never widen access. */
+var ROLE_PERMISSIONS = {
+  admin: {
+    label:'Admin', viewAllStates:true, viewAllTeams:true,
+    editDocs:true, managePOC:true, configure:true, manageUsers:true, exportData:true,
+    routes:'*'
+  },
+  operations: {
+    label:'Operations', viewAllStates:false, viewAllTeams:false,
+    editDocs:true, managePOC:true, configure:false, manageUsers:false, exportData:true,
+    routes:['dashboard','sellers','buyers','matrix','poc','profile']
+  },
+  readonly: {
+    label:'Read Only', viewAllStates:false, viewAllTeams:false,
+    editDocs:false, managePOC:false, configure:false, manageUsers:false, exportData:false,
+    routes:['dashboard','sellers','buyers','matrix','poc','profile']
+  }
+};
+
+function roleKey_(role) {
+  var r = String(role == null ? '' : role).trim().toLowerCase();
+  if (!r || r === '-') return 'readonly';
+  if (r === 'admin' || r === 'administrator' || r === 'super admin') return 'admin';
+  if (r === 'operations' || r === 'ops' || r === 'operation' ||
+      r === 'poc' || r === 'sub admin' || r === 'subadmin') return 'operations';
+  return 'readonly';                       // unknown role → least privilege
+}
+
+/** "Yes"/"TRUE"/"1"/"Active" all mean active; blank or anything else does not.
+    Blank must read as inactive — the spec requires No/blank to be denied. */
+function isActiveFlag_(v) {
+  var s = String(v == null ? '' : v).trim().toLowerCase();
+  return s === 'yes' || s === 'y' || s === 'true' || s === '1' || s === 'active';
+}
+
+/** Split a States cell into normalised names. Accepts comma, semicolon, slash,
+    pipe or newline separators so the sheet author is not constrained. */
+function splitStates_(v) {
+  return String(v == null ? '' : v).split(/[,;/|\n]+/)
+    .map(function (s) { return s.trim().toLowerCase(); })
+    .filter(function (s) { return s && s !== '-'; });
+}
+
+/** Load one directory row by email, including credential columns.
+    Server-side only — the return value must never be handed to the client. */
+function findDirectoryUser_(email) {
+  var key = String(email || '').trim().toLowerCase();
+  if (!key) return null;
+  var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
+  var sh = ss.getSheetByName(PLATFORM_POC_TAB);
+  if (!sh) return null;
+  var vals = sh.getDataRange().getValues();
+  if (vals.length < 2) return null;
+
+  var CI  = pocColIndex_(vals[0]);
+  var ACI = pocAuthColIndex_(vals[0]);
+  if (CI.email == null) return null;
+
+  for (var r = 1; r < vals.length; r++) {
+    if (String(vals[r][CI.email] || '').trim().toLowerCase() !== key) continue;
+    function f(i)  { return i == null ? '' : String(vals[r][i] == null ? '' : vals[r][i]).trim(); }
+    return {
+      rowIndex:    r + 1,
+      email:       f(CI.email),
+      name:        f(CI.name),
+      designation: f(CI.designation),
+      role:        f(CI.role),
+      team:        f(CI.team),
+      states:      f(CI.states),
+      reportsTo:   f(CI.reportsTo),
+      rank:        f(CI.rank),
+      escL1:       f(CI.escL1),
+      escL2:       f(CI.escL2),
+      activeRaw:   f(CI.active),
+      pwHash:      f(ACI.pwHash),
+      pwSalt:      f(ACI.pwSalt),
+      lastLogin:   f(ACI.lastLogin)
+    };
+  }
+  return null;
+}
+
+/** The client-facing shape of a signed-in user. Credentials are absent by
+    construction, and the permission block is derived here so the browser never
+    decides its own rights. */
+function publicProfile_(u) {
+  var rk = roleKey_(u.role);
+  return {
+    email:       u.email,
+    name:        u.name || u.email,
+    designation: u.designation,
+    role:        u.role || '-',
+    roleKey:     rk,
+    roleLabel:   ROLE_PERMISSIONS[rk].label,
+    team:        u.team,
+    states:      splitStates_(u.states),
+    statesRaw:   u.states,
+    reportsTo:   u.reportsTo,
+    rank:        u.rank,
+    escL1:       u.escL1,
+    escL2:       u.escL2,
+    active:      isActiveFlag_(u.activeRaw),
+    lastLogin:   u.lastLogin,
+    perms:       ROLE_PERMISSIONS[rk]
+  };
+}
+
+/* ── Brute-force throttle ─────────────────────────────────────────────────── */
+function attemptKey_(email) { return 'authfail_' + String(email || '').trim().toLowerCase(); }
+function bumpFailures_(email) {
+  var c = CacheService.getScriptCache(), k = attemptKey_(email);
+  var n = parseInt(c.get(k) || '0', 10) + 1;
+  c.put(k, String(n), AUTH_LOCKOUT_SEC);
+  return n;
+}
+function isLockedOut_(email) {
+  return parseInt(CacheService.getScriptCache().get(attemptKey_(email)) || '0', 10) >= AUTH_MAX_ATTEMPTS;
+}
+function clearFailures_(email) { CacheService.getScriptCache().remove(attemptKey_(email)); }
+
+/* ── Sessions ─────────────────────────────────────────────────────────────── */
+function newSession_(profile) {
+  var token = Utilities.getUuid() + Utilities.getUuid();
+  CacheService.getScriptCache().put('sess_' + token, JSON.stringify({ email: profile.email }), SESSION_TTL_SEC);
+  return token;
+}
+
+/** Resolve a token to a live profile. Re-reads the directory every call, so a
+    deactivation, role change or state reassignment takes effect immediately
+    rather than lasting until the session expires. Touching the cache entry
+    gives the sliding inactivity expiry the spec asks for. */
+function validateSession_(token) {
+  if (!token) return null;
+  var c = CacheService.getScriptCache(), k = 'sess_' + String(token);
+  var raw = c.get(k);
+  if (!raw) return null;
+  var email;
+  try { email = JSON.parse(raw).email; } catch (e) { return null; }
+  var u = findDirectoryUser_(email);
+  if (!u || !isActiveFlag_(u.activeRaw)) { c.remove(k); return null; }   // revoked mid-session
+  c.put(k, raw, SESSION_TTL_SEC);
+  return publicProfile_(u);
+}
+
+/** Throws on an invalid session so no endpoint can forget to check. */
+function requireSession_(token) {
+  var p = validateSession_(token);
+  if (!p) throw new Error('AUTH_REQUIRED');
+  return p;
+}
+
+/**
+ * Called from the login screen. Returns { ok, token, profile } or a reason.
+ * Failure messages are deliberately identical for "no such user", "wrong
+ * password" and "no password set" so the response cannot be used to enumerate
+ * who exists in the directory.
+ */
+function authenticate(email, password) {
   try {
+    var key = String(email || '').trim().toLowerCase();
+    if (!key || !password) return { ok:false, error:'Enter your email and password.' };
+    if (isLockedOut_(key)) {
+      return { ok:false, error:'Too many failed attempts. Try again in 15 minutes.' };
+    }
+    var u = findDirectoryUser_(key);
+    var GENERIC = 'Email or password is incorrect.';
+
+    if (!u)                       { bumpFailures_(key); return { ok:false, error:GENERIC }; }
+    if (!isActiveFlag_(u.activeRaw)) {
+      /* Named explicitly: an active-status denial is not a credential hint, and
+         the person needs to know to contact their admin rather than retry. */
+      return { ok:false, error:'This account is not active. Contact your administrator.' };
+    }
+    if (!u.pwHash || !u.pwSalt)   { bumpFailures_(key); return { ok:false, error:GENERIC }; }
+    if (!safeEqual_(hashPassword_(password, u.pwSalt), u.pwHash)) {
+      bumpFailures_(key); return { ok:false, error:GENERIC };
+    }
+
+    clearFailures_(key);
+    var profile = publicProfile_(u);
+    stampLastLogin_(u);
+    profile.lastLogin = u.lastLogin;          // show the PREVIOUS login, not this one
+    return { ok:true, token:newSession_(profile), profile:scrubClientPayload_(profile) };
+  } catch (e) {
+    return { ok:false, error:'Sign-in failed: ' + String(e && e.message || e) };
+  }
+}
+
+function stampLastLogin_(u) {
+  try {
+    var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
+    var sh = ss.getSheetByName(PLATFORM_POC_TAB);
+    if (!sh) return;
+    var ACI = pocAuthColIndex_(sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0]);
+    if (ACI.lastLogin == null) return;
+    sh.getRange(u.rowIndex, ACI.lastLogin + 1).setValue(new Date());
+  } catch (e) { /* a login must not fail because the stamp could not be written */ }
+}
+
+function logout(token) {
+  if (token) CacheService.getScriptCache().remove('sess_' + String(token));
+  return { ok:true };
+}
+
+/** Re-read the caller's own profile (used on resume and by My Profile). */
+function getMyProfile(token) {
+  try { return { ok:true, profile:scrubClientPayload_(requireSession_(token)) }; }
+  catch (e) { return { ok:false, error:String(e && e.message || e) }; }
+}
+
+/** A user changing their own password. Requires the current one. */
+function changeMyPassword(token, currentPassword, newPassword) {
+  try {
+    var me = requireSession_(token);
+    var u  = findDirectoryUser_(me.email);
+    if (!u) return { ok:false, error:'Account not found.' };
+    if (!u.pwHash || !safeEqual_(hashPassword_(currentPassword, u.pwSalt), u.pwHash)) {
+      return { ok:false, error:'Current password is incorrect.' };
+    }
+    var err = passwordPolicyError_(newPassword);
+    if (err) return { ok:false, error:err };
+    writeCredential_(u.rowIndex, newPassword);
+    return { ok:true };
+  } catch (e) { return { ok:false, error:String(e && e.message || e) }; }
+}
+
+function passwordPolicyError_(pw) {
+  pw = String(pw || '');
+  if (pw.length < 8) return 'Password must be at least 8 characters.';
+  if (!/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw)) return 'Password must contain a letter and a number.';
+  return '';
+}
+
+/** Write a fresh salt+hash for one directory row. The plaintext is used here
+    and discarded; it is never stored, logged or returned. */
+function writeCredential_(rowIndex, plaintext) {
+  var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
+  var sh = ss.getSheetByName(PLATFORM_POC_TAB);
+  ensurePocColumns_(sh);
+  var ACI  = pocAuthColIndex_(sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0]);
+  var salt = newSalt_();
+  sh.getRange(rowIndex, ACI.pwSalt + 1).setValue(salt);
+  sh.getRange(rowIndex, ACI.pwHash + 1).setValue(hashPassword_(plaintext, salt));
+}
+
+/**
+ * Admin-only password provisioning, callable from the app.
+ * Run setUserPasswordFromEditor() below instead when bootstrapping the very
+ * first admin, since no one can sign in yet at that point.
+ */
+function adminSetUserPassword(token, targetEmail, newPassword) {
+  try {
+    var me = requireSession_(token);
+    if (!me.perms.manageUsers) return { ok:false, error:'You do not have permission to manage users.' };
+    var err = passwordPolicyError_(newPassword);
+    if (err) return { ok:false, error:err };
+    var u = findDirectoryUser_(targetEmail);
+    if (!u) return { ok:false, error:'No directory row for ' + targetEmail };
+    writeCredential_(u.rowIndex, newPassword);
+    return { ok:true };
+  } catch (e) { return { ok:false, error:String(e && e.message || e) }; }
+}
+
+/* ── One-time provisioning ────────────────────────────────────────────────────
+   Run these from the Apps Script editor (Run ▸ function). They are deliberately
+   not exposed to the web app: the first one creates the tab that the login
+   system reads, and the second sets the first password, at which point no one
+   can be signed in yet to authorise it.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Creates the POC Directory tab with the full canonical schema if it is
+ * missing, or brings an existing tab up to date by appending only the columns
+ * it lacks. Never reorders, rewrites or deletes anything already there, and
+ * never touches Sellers / Buyers / DocStatus / NBFC Requirements.
+ */
+function setupPOCDirectory() {
+  var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
+  var sh = ss.getSheetByName(PLATFORM_POC_TAB);
+  var created = false;
+
+  if (!sh) {
+    sh = ss.insertSheet(PLATFORM_POC_TAB);
+    sh.getRange(1, 1, 1, POC_HEADERS.length).setValues([POC_HEADERS]);
+    created = true;
+  }
+  ensurePocColumns_(sh);
+
+  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  sh.setFrozenRows(1);
+  sh.getRange(1, 1, 1, headers.length)
+    .setFontWeight('bold').setBackground('#EEF2F7').setVerticalAlignment('middle');
+  sh.setRowHeight(1, 34);
+
+  /* Credential columns are operational plumbing, not something to read or edit
+     by hand — collapse them out of the way and mark them clearly. */
+  var ACI = pocAuthColIndex_(headers);
+  ['pwHash','pwSalt'].forEach(function (k) {
+    if (ACI[k] == null) return;
+    var c = ACI[k] + 1;
+    sh.getRange(1, c).setNote('Managed by the app. Never type a password here — '
+      + 'use adminSetUserPassword() or Change Password in the app.');
+    sh.setColumnWidth(c, 60);
+  });
+
+  Logger.log((created ? 'Created' : 'Updated') + ' "' + PLATFORM_POC_TAB + '" — '
+    + headers.length + ' columns.');
+  Logger.log('Columns: ' + headers.join(' | '));
+  Logger.log('Next: add one row per user (POC Name, Official Email, Role, Team, '
+    + 'States, Reports To, Rank, Esc L1, Esc L2, Active=Yes), then run '
+    + 'setUserPasswordFromEditor() to set the first password.');
+  return { ok:true, created:created, columns:headers };
+}
+
+/**
+ * Bootstrap / reset one user's password from the editor.
+ * Put the address and password in the two constants, run once, then CLEAR THEM
+ * and save — an editor-visible plaintext password is exactly what the hashing
+ * above exists to avoid, and this file is committed to git.
+ */
+function setUserPasswordFromEditor() {
+  var EMAIL    = '';   // e.g. 'ajay.vunyale@recykal.com'
+  var PASSWORD = '';   // set, run, then clear before saving
+
+  if (!EMAIL || !PASSWORD) {
+    throw new Error('Set EMAIL and PASSWORD inside setUserPasswordFromEditor(), run it, then clear them again.');
+  }
+  var err = passwordPolicyError_(PASSWORD);
+  if (err) throw new Error(err);
+  var u = findDirectoryUser_(EMAIL);
+  if (!u) throw new Error('No row in "' + PLATFORM_POC_TAB + '" with Official Email = ' + EMAIL);
+  writeCredential_(u.rowIndex, PASSWORD);
+  Logger.log('Password set for ' + EMAIL + ' (row ' + u.rowIndex + '). Now clear the constants above.');
+}
+
+/** Lists who can sign in and what they will see. Read-only diagnostic. */
+function auditAccess() {
+  var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
+  var sh = ss.getSheetByName(PLATFORM_POC_TAB);
+  if (!sh) { Logger.log('No "' + PLATFORM_POC_TAB + '" tab — run setupPOCDirectory() first.'); return; }
+  var vals = sh.getDataRange().getValues();
+  if (vals.length < 2) { Logger.log('Directory is empty.'); return; }
+  var CI = pocColIndex_(vals[0]), ACI = pocAuthColIndex_(vals[0]);
+  Logger.log('email | role → tier | active | password set | states');
+  for (var r = 1; r < vals.length; r++) {
+    function f(i) { return i == null ? '' : String(vals[r][i] == null ? '' : vals[r][i]).trim(); }
+    var em = f(CI.email); if (!em) continue;
+    var rk = roleKey_(f(CI.role));
+    Logger.log([em, f(CI.role) || '(blank)' + ' → ' + rk, isActiveFlag_(f(CI.active)) ? 'ACTIVE' : 'denied',
+      f(ACI.pwHash) ? 'yes' : 'NO', ROLE_PERMISSIONS[rk].viewAllStates ? 'ALL' : (f(CI.states) || '(none)')
+    ].join(' | '));
+  }
+}
+
+/* ── Scoping ──────────────────────────────────────────────────────────────── */
+
+/**
+ * Removes rows the caller is not entitled to see. Applied before the response
+ * is assembled, so restricted records are never sent to the browser at all.
+ * Admin sees everything; anyone else is limited to their assigned States, and
+ * a user with no states assigned sees nothing rather than everything.
+ */
+function applyScope_(me, rows) {
+  if (me.perms.viewAllStates) return rows;
+  var allowed = me.states || [];
+  if (!allowed.length) return [];                       // fail closed
+  var out = rows.filter(function (r) {
+    return allowed.indexOf(String(r.state || '').trim().toLowerCase()) >= 0;
+  });
+  /* Team narrowing is applied only where the row actually carries a team
+     marker. The Sellers/Buyers tabs currently leave the Type column blank on
+     every row, so this is a no-op until that column is populated — filtering on
+     an empty column would silently hide the entire book. */
+  if (!me.perms.viewAllTeams && me.team) {
+    var team = String(me.team).trim().toLowerCase();
+    var typed = out.filter(function (r) { return String(r.businessType || '').trim(); });
+    if (typed.length) {
+      out = out.filter(function (r) {
+        var bt = String(r.businessType || '').trim().toLowerCase();
+        return !bt || bt === team || team.indexOf(bt) >= 0 || bt.indexOf(team) >= 0;
+      });
+    }
+  }
+  return out;
+}
+
+/** Read POC Directory + Followups → { pocs:[…], followups:{ pocId:[…] } }. */
+function getPOCData(token) {
+  try {
+    var me = requireSession_(token);
     var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
     var pocs = [], followups = {};
 
@@ -382,7 +912,18 @@ function getPOCData() {
             createdBy:     gv(v[r], 'createdBy'),
             createdOn:     gv(v[r], 'createdOn'),
             modifiedBy:    gv(v[r], 'modifiedBy'),
-            modifiedOn:    gv(v[r], 'modifiedOn')
+            modifiedOn:    gv(v[r], 'modifiedOn'),
+            /* Access attributes. Directory data, not credentials — the hash and
+               salt columns are absent from POC_FIELDS and so cannot be read by
+               gv() at all. Escalation addresses are served live from here so the
+               app never carries a hardcoded escalation contact. */
+            team:          gv(v[r], 'team'),
+            states:        gv(v[r], 'states'),
+            reportsTo:     gv(v[r], 'reportsTo'),
+            rank:          gv(v[r], 'rank'),
+            escL1:         gv(v[r], 'escL1'),
+            escL2:         gv(v[r], 'escL2'),
+            active:        /^(yes|y|true|1|active)$/i.test(gv(v[r], 'active'))
           });
         }
       }
@@ -405,9 +946,17 @@ function getPOCData() {
         }
       }
     }
-    return { ok: true, pocs: pocs, followups: followups, generatedAt: new Date().toISOString() };
+    /* scrubClientPayload_ is the backstop: even if a credential-shaped column is
+       ever added to POC_FIELDS by mistake, it cannot reach the browser. */
+    return { ok: true, pocs: scrubClientPayload_(pocs), followups: followups,
+             generatedAt: new Date().toISOString() };
   } catch (e) {
-    return { ok: false, error: String(e && e.message || e), pocs: [], followups: {} };
+    var msg = String(e && e.message || e);
+    if (msg === 'AUTH_REQUIRED') {
+      return { ok:false, authRequired:true, error:'Your session has expired. Please sign in again.',
+               pocs:[], followups:{} };
+    }
+    return { ok: false, error: msg, pocs: [], followups: {} };
   }
 }
 
@@ -417,7 +966,12 @@ function getPOCData() {
     insert and preserved on every later update; Last Modified By/On are refreshed on
     each write. Entity mapping is validated (a seller NBFC only accepts a seller POC,
     a buyer NBFC only a buyer POC). A script lock serialises concurrent writes. */
-function savePOC(poc) {
+function savePOC(poc, token) {
+  var me;
+  try {
+    me = requireSession_(token);
+    if (!me.perms.managePOC) return { ok:false, error:'Your role cannot edit POC records.' };
+  } catch (e) { return { ok:false, authRequired:true, error:'Your session has expired. Please sign in again.' }; }
   var lock = LockService.getScriptLock();
   try { lock.waitLock(20000); } catch (e) { return { ok: false, error: 'POC Directory is busy, please retry.' }; }
   try {
@@ -490,8 +1044,10 @@ function savePOC(poc) {
 }
 
 /** Append one interaction to the Followups tab. */
-function savePOCFollowup(fu) {
+function savePOCFollowup(fu, token) {
   try {
+    var me = requireSession_(token);
+    if (!me.perms.managePOC) return { ok:false, error:'Your role cannot log follow-ups.' };
     fu = fu || {};
     if (!fu.pocId) return { ok: false, error: 'pocId is required' };
     var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
@@ -544,8 +1100,10 @@ function getNbfcConfig() {
 }
 
 /** Upsert one NBFC's requirement row. payload = { id, req:[…], vintageYrs }. */
-function saveNbfcConfig(payload) {
+function saveNbfcConfig(payload, token) {
   try {
+    var me = requireSession_(token);
+    if (!me.perms.configure) return { ok:false, error:'Only an Admin can change NBFC requirements.' };
     payload = payload || {};
     var id = String(payload.id || '').trim();
     if (!id) return { ok: false, error: 'NBFC id is required' };
