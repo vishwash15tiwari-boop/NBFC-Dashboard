@@ -20,15 +20,33 @@ var CFG = {
   METABASE_URL    : 'https://meta.recykal.com',
   METABASE_USER   : 'vishwash.tiwari@recykal.com',
   METABASE_PASS   : 'YOUR_PASSWORD_HERE',   // ← replace with your password
-  SHEET_ID        : '1d57KGl00-pGWVjYKouyMu8jt0Y4UMEc2HaHWtMWPjeM',
+  SHEET_ID        : '1k5-2k__JnwEgGWJ8s5xRuKbnTvqam76k-TeBIDiN7os',
   SYNC_EVERY_MINS : 1,
+
+  /* One entry per Metabase card. `gstinKey` / `nameKey` are FIELD_MAP keys used
+     to locate those two columns in the query output, so a renamed Metabase
+     column is handled by extending FIELD_MAP rather than editing logic here. */
   QUERIES: [
-    { id: 5712, tab: 'Sellers' },
-    { id: 5711, tab: 'Buyers'  },
+    { id: 5712, tab: 'Sellers', gstinKey: 'sellergstin', nameKey: 'sellerbusinessname' },
+    { id: 5711, tab: 'Buyers',  gstinKey: 'buyergstin',  nameKey: 'buyerbusinessname'  },
   ],
+
+  /* Only Open Marketplace records are synced. ONBOARDING_STATUS is disabled
+     (empty string) so vertical is the sole filter; set it back to 'Completed'
+     to also require a finished onboarding. */
   FILTER: {
     VERTICAL         : 'Open Marketplace',
-    ONBOARDING_STATUS: 'Completed',
+    ONBOARDING_STATUS: '',
+  },
+
+  /* Header aliases used to locate the three columns this sync touches in the
+     destination tab. Nothing is written outside these columns. */
+  SHEET_COLS: {
+    no:    ['No.', 'No', 'Sr No', 'S No', 'Serial No', 'Serial', 'SNo', '#'],
+    gstin: ['GSTIN', 'Seller GSTIN', 'Buyer GSTIN', 'GST Number', 'GST No', 'GST',
+            'Seller GST Number', 'Buyer GST Number'],
+    name:  ['Seller Business Name', 'Buyer Business Name', 'Seller Name', 'Buyer Name',
+            'Entity Name', 'Business Name', 'Company Name', 'Name'],
   },
 };
 
@@ -155,40 +173,215 @@ var FIELD_MAP = {
 // MAIN ENTRY POINT
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Sync Open Marketplace Sellers and Buyers from Metabase into the sheet.
+ *
+ * Append-only and idempotent. For each tab the sync reads the existing GSTINs,
+ * appends only the records that are not already present, and renumbers the
+ * "No." column. Existing rows are never rewritten, and the only columns ever
+ * written are No. / GSTIN / Name — every other column (documents, vintage,
+ * eligibility, remarks, formulas, formatting) is left untouched.
+ *
+ * A script lock serialises runs so an overlapping trigger cannot append the
+ * same GSTIN twice.
+ */
 function syncMetabaseToSheet() {
   if (!CFG.METABASE_PASS || CFG.METABASE_PASS === 'YOUR_PASSWORD_HERE') {
     throw new Error('Set CFG.METABASE_PASS to your Metabase password and save the script.');
   }
 
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    Logger.log('⏭ Another sync is already running — skipped (no duplicates created).');
+    return;
+  }
+
+  var t0 = Date.now();
+  try {
+    var token = getSessionToken_();
+    var ss    = SpreadsheetApp.openById(CFG.SHEET_ID);
+    var total = { added: 0, existing: 0, blank: 0 };
+
+    CFG.QUERIES.forEach(function (q) {
+      Logger.log('━━━ Query ' + q.id + ' → "' + q.tab + '" ━━━');
+      try {
+        var raw = fetchCardData_(token, q.id);
+        Logger.log('Fetched: ' + raw.rows.length + ' rows, ' + raw.cols.length + ' cols');
+        Logger.log('Metabase columns: ' + raw.cols.join(' | '));
+
+        var filtered = applyFilter_(raw);
+        Logger.log('After Open Marketplace filter: ' + filtered.rows.length + ' rows');
+        if (filtered.rows.length === 0) {
+          Logger.log('⚠ Zero rows after filter — run debugColumns() and check CFG.FILTER');
+        }
+
+        var r = appendNewEntities_(ss, q, filtered);
+        total.added    += r.added;
+        total.existing += r.existing;
+        total.blank    += r.blank;
+      } catch (e) {
+        // One failing card must not stop the other from syncing.
+        Logger.log('✗ "' + q.tab + '" failed: ' + (e && e.message || e));
+      }
+    });
+
+    Logger.log('══ Sync complete in ' + (Math.round((Date.now() - t0) / 100) / 10) + 's — ' +
+               total.added + ' added, ' + total.existing + ' already present, ' +
+               total.blank + ' skipped (no GSTIN) ══');
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   APPEND-ONLY WRITER
+   ───────────────────────────────────────────────────────────────────────────*/
+
+/** Index of the first column in `cols` matching any candidate name, else -1. */
+function mbFindIdx_(cols, candidates) {
+  for (var i = 0; i < cols.length; i++) {
+    var n = norm_(cols[i]);
+    for (var j = 0; j < candidates.length; j++) if (n === norm_(candidates[j])) return i;
+  }
+  return -1;
+}
+
+/** GSTIN comparison key — trimmed and upper-cased, matching the rest of the app. */
+function mbGstinKey_(v) { return String(v == null ? '' : v).trim().toUpperCase(); }
+
+/**
+ * Append the Open Marketplace records whose GSTIN is not already in the tab,
+ * then renumber "No.". Returns { added, existing, blank }.
+ */
+function appendNewEntities_(ss, q, result) {
+  var out = { added: 0, existing: 0, blank: 0 };
+
+  // ── Locate GSTIN + Name in the Metabase output ───────────────────────────
+  var gIdx = mbFindIdx_(result.cols, FIELD_MAP[q.gstinKey] || []);
+  var nIdx = mbFindIdx_(result.cols, FIELD_MAP[q.nameKey]  || []);
+  if (gIdx < 0) { Logger.log('✗ No GSTIN column in query output — nothing appended.'); return out; }
+  if (nIdx < 0) Logger.log('⚠ No name column in query output — names will be blank.');
+  Logger.log('  Using Metabase cols → GSTIN: "' + result.cols[gIdx] + '"' +
+             (nIdx >= 0 ? ', Name: "' + result.cols[nIdx] + '"' : ''));
+
+  // ── Target tab, created with headers only if it does not exist ───────────
+  var sh = ss.getSheetByName(q.tab);
+  if (!sh) {
+    sh = ss.insertSheet(q.tab);
+    sh.getRange(1, 1, 1, 3).setValues([['No.', 'GSTIN',
+      q.tab === 'Buyers' ? 'Buyer Business Name' : 'Seller Business Name']]);
+    sh.setFrozenRows(1);
+    Logger.log('  Created tab "' + q.tab + '" with No. / GSTIN / Name headers.');
+  }
+
+  var lastRow = sh.getLastRow();
+  var lastCol = Math.max(1, sh.getLastColumn());
+  var headers = lastRow >= 1 ? sh.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+
+  var cNo    = mbFindIdx_(headers, CFG.SHEET_COLS.no);
+  var cGstin = mbFindIdx_(headers, CFG.SHEET_COLS.gstin);
+  var cName  = mbFindIdx_(headers, CFG.SHEET_COLS.name);
+  if (cGstin < 0) {
+    Logger.log('✗ "' + q.tab + '" has no GSTIN column in row 1 — nothing appended. ' +
+               'Headers seen: ' + headers.join(' | '));
+    return out;
+  }
+  if (cName < 0) Logger.log('⚠ "' + q.tab + '" has no name column — only GSTIN will be written.');
+  if (cNo   < 0) Logger.log('⚠ "' + q.tab + '" has no "No." column — numbering skipped.');
+
+  // ── Existing GSTINs: one read of the key column only ─────────────────────
+  var existing = {};
+  var dataRows = Math.max(0, lastRow - 1);
+  var gstinCol = dataRows > 0 ? sh.getRange(2, cGstin + 1, dataRows, 1).getValues() : [];
+  for (var r = 0; r < gstinCol.length; r++) {
+    var k = mbGstinKey_(gstinCol[r][0]);
+    if (k) existing[k] = true;
+  }
+  Logger.log('  Existing rows: ' + dataRows + ' (' + Object.keys(existing).length + ' unique GSTINs)');
+
+  // ── Collect the genuinely new records (deduped within the batch too) ─────
+  var seen = {}, newRows = [];
+  result.rows.forEach(function (row) {
+    var key = mbGstinKey_(row[gIdx]);
+    if (!key)          { out.blank++;    return; }
+    if (existing[key]) { out.existing++; return; }   // already in the sheet → skip
+    if (seen[key])     { out.existing++; return; }   // duplicate inside this fetch
+    seen[key] = true;
+    newRows.push({
+      gstin: String(row[gIdx]).trim(),
+      name:  nIdx >= 0 ? String(row[nIdx] == null ? '' : row[nIdx]).trim() : ''
+    });
+  });
+
+  // ── Append, writing ONLY the GSTIN and Name columns ──────────────────────
+  if (newRows.length) {
+    var startRow = lastRow + 1;
+    var needed   = startRow + newRows.length - 1;
+    if (needed > sh.getMaxRows()) sh.insertRowsAfter(sh.getMaxRows(), needed - sh.getMaxRows());
+
+    sh.getRange(startRow, cGstin + 1, newRows.length, 1)
+      .setValues(newRows.map(function (x) { return [x.gstin]; }));
+    if (cName >= 0) {
+      sh.getRange(startRow, cName + 1, newRows.length, 1)
+        .setValues(newRows.map(function (x) { return [x.name]; }));
+    }
+    out.added = newRows.length;
+    Logger.log('  ✓ Appended ' + newRows.length + ' new record(s) at row ' + startRow);
+  } else {
+    Logger.log('  ✓ Nothing new — sheet already current');
+  }
+
+  if (cNo >= 0) renumberNoColumn_(sh, cNo, cGstin);
+  Logger.log('  Summary: +' + out.added + ' added, ' + out.existing +
+             ' already present, ' + out.blank + ' without GSTIN');
+  return out;
+}
+
+/**
+ * Renumber the "No." column 1..N over every row that has a GSTIN.
+ * Written only when the current numbering is already wrong, so a no-op sync
+ * performs no write at all.
+ */
+function renumberNoColumn_(sh, cNo, cGstin) {
+  var dataRows = sh.getLastRow() - 1;
+  if (dataRows < 1) return;
+
+  var gstins  = sh.getRange(2, cGstin + 1, dataRows, 1).getValues();
+  var current = sh.getRange(2, cNo    + 1, dataRows, 1).getValues();
+
+  var next = 1, desired = [], changed = false;
+  for (var i = 0; i < dataRows; i++) {
+    var want = mbGstinKey_(gstins[i][0]) ? next++ : '';     // blank rows stay unnumbered
+    desired.push([want]);
+    if (String(current[i][0] == null ? '' : current[i][0]) !== String(want)) changed = true;
+  }
+  if (!changed) { Logger.log('  Numbering already correct — no write'); return; }
+
+  sh.getRange(2, cNo + 1, dataRows, 1).setValues(desired);
+  Logger.log('  ✓ Renumbered "No." for ' + (next - 1) + ' record(s)');
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   LEGACY FULL-REFRESH (retained, not scheduled)
+   ───────────────────────────────────────────────────────────────────────────
+   The previous behaviour: clear rows 2..lastRow across the full header width and
+   rewrite every column, including documents and vintage. It is destructive to
+   anything maintained in the sheet by hand, which is why the scheduled sync no
+   longer uses it. Kept only so the mapping/vintage helpers remain reachable for
+   a deliberate, manual rebuild of a tab.
+   ───────────────────────────────────────────────────────────────────────────*/
+function legacyFullRefreshSync_() {
   var token = getSessionToken_();
   var ss    = SpreadsheetApp.openById(CFG.SHEET_ID);
-
   CFG.QUERIES.forEach(function (q) {
-    Logger.log('━━━ Query ' + q.id + ' → "' + q.tab + '" ━━━');
-
-    var raw = fetchCardData_(token, q.id);
-    Logger.log('Fetched: ' + raw.rows.length + ' rows, ' + raw.cols.length + ' cols');
-    Logger.log('Metabase columns: ' + raw.cols.join(' | '));
-
-    // Build GSTIN → earliest-date map from ALL rows (all verticals) BEFORE
-    // applying the vertical filter. Vendors onboarded in another vertical first
-    // get credit for their full Recykal tenure, not just their Open Marketplace date.
+    var raw          = fetchCardData_(token, q.id);
     var gstinDateMap = buildEarliestDateMap_(raw);
-
-    var filtered = applyFilter_(raw);
-    Logger.log('After filter: ' + filtered.rows.length + ' rows');
-
-    if (filtered.rows.length === 0) {
-      Logger.log('⚠ Zero rows after filter — check CFG.FILTER values match column names above');
-    }
-
+    var filtered     = applyFilter_(raw);
     writeToSheet_(ss, q.tab, filtered, gstinDateMap);
     postProcessVintage_(ss, q.tab, filtered.rows.length, gstinDateMap);
     formatSheet_(ss, q.tab, filtered.rows.length);
-    Logger.log('✓ "' + q.tab + '" done');
   });
-
-  Logger.log('══ Sync complete ══');
+  Logger.log('══ Legacy full refresh complete ══');
 }
 
 
@@ -379,16 +572,17 @@ function applyFilter_(result) {
   var oIdx = findIdx(['Onboarding Status', 'OnboardingStatus', 'Onboarding_Status',
                       'onboarding_status', 'Status', 'Seller Status']);
 
-  Logger.log('  Filter — Vertical col idx: ' + vIdx + ', Onboarding col idx: ' + oIdx);
-  if (vIdx < 0)  Logger.log('  ⚠ Vertical column not found — run debugColumns() to see exact names');
-  if (oIdx < 0)  Logger.log('  ⚠ Onboarding Status column not found — run debugColumns() to see exact names');
+  var wV = String(CFG.FILTER.VERTICAL || '').toLowerCase().trim();
+  var wO = String(CFG.FILTER.ONBOARDING_STATUS || '').toLowerCase().trim();
 
-  var wV = CFG.FILTER.VERTICAL.toLowerCase().trim();
-  var wO = CFG.FILTER.ONBOARDING_STATUS.toLowerCase().trim();
+  Logger.log('  Filter — Vertical col idx: ' + vIdx + (wO ? ', Onboarding col idx: ' + oIdx : ', Onboarding filter: off'));
+  if (wV && vIdx < 0) Logger.log('  ⚠ Vertical column not found — run debugColumns() to see exact names');
+  if (wO && oIdx < 0) Logger.log('  ⚠ Onboarding Status column not found — run debugColumns() to see exact names');
 
   var filtered = result.rows.filter(function (row) {
-    var vOk = (vIdx < 0) || String(row[vIdx] == null ? '' : row[vIdx]).toLowerCase().trim() === wV;
-    var oOk = (oIdx < 0) || String(row[oIdx] == null ? '' : row[oIdx]).toLowerCase().trim() === wO;
+    // An empty CFG value disables that filter entirely.
+    var vOk = !wV || vIdx < 0 || String(row[vIdx] == null ? '' : row[vIdx]).toLowerCase().trim() === wV;
+    var oOk = !wO || oIdx < 0 || String(row[oIdx] == null ? '' : row[oIdx]).toLowerCase().trim() === wO;
     return vOk && oOk;
   });
 
