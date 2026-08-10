@@ -159,13 +159,57 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none}
   display:grid;place-items:center;font-weight:600;font-size:12.5px}
 .sb-user .nm{font-size:12.5px;font-weight:600;line-height:1.2}
 .sb-user .rl{font-size:11px;color:var(--ink-3)}
-/* ─── Entity Toggle (Seller / Buyer) in sidebar ─── */
-.sb-entity-toggle{display:flex;gap:4px;padding:10px 12px;border-bottom:1px solid var(--line);flex-shrink:0}
-.sbet{flex:1;padding:7px 8px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;
-  color:var(--ink-3);border:1px solid var(--line);background:var(--fill);transition:.14s;letter-spacing:.01em}
-.sbet:hover{background:var(--surface-2);color:var(--ink)}
-.sbet.on{background:rgba(var(--brand-rgb),.10);border-color:rgba(var(--brand-rgb),.22);color:var(--brand)}
-.sbet.buyer.on{background:rgba(29,199,151,.12);border-color:rgba(29,199,151,.30);color:var(--brand-mint)}
+/* ─────────────── GLOBAL FILTER BAR ───────────────
+   Sticky, application-wide control layer: Entity Type → NBFC → POC, with a
+   removable-chip summary. Designed so more filters (status, region, date…) can
+   be dropped in without touching the layout. */
+.gfbar{position:sticky;top:var(--topbar-h);z-index:19;
+  background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);padding:9px 26px;display:none;flex-wrap:wrap;gap:10px;align-items:center}
+.gfbar.on{display:flex}
+.gf-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.gf-seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--radius-sm);overflow:hidden}
+.gf-seg button{padding:7px 15px;font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--surface);transition:.14s}
+.gf-seg button:hover{background:var(--fill)}
+.gf-seg button.on{background:var(--brand);color:#fff}
+.gf-seg button.on.buyer{background:var(--brand-mint)}
+.gf-combo{position:relative}
+.gf-control{display:inline-flex;align-items:center;gap:8px;min-width:180px;padding:6px 10px;border:1px solid var(--line);
+  border-radius:var(--radius-sm);background:var(--surface);font-size:13px;color:var(--ink);transition:.14s;text-align:left}
+.gf-control:hover{border-color:var(--ink-4)}
+.gf-control.active{border-color:var(--brand);box-shadow:0 0 0 3px rgba(var(--brand-rgb),.10)}
+.gf-control:disabled{opacity:.5;cursor:not-allowed}
+.gf-ctl-main{flex:1;min-width:0}
+.gf-ctl-l{display:block;font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);line-height:1}
+.gf-ctl-v{display:block;font-weight:500;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px}
+.gf-caret{width:14px;height:14px;color:var(--ink-3);flex-shrink:0}
+.gf-clr{width:16px;height:16px;border-radius:50%;display:grid;place-items:center;color:var(--ink-3);flex-shrink:0}
+.gf-clr:hover{background:var(--fill);color:var(--ink)}
+.gf-panel{position:absolute;top:calc(100% + 5px);left:0;z-index:40;min-width:270px;max-width:340px;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:8px;animation:fade .14s var(--ease)}
+.gf-search{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--fill);font-size:13px;margin-bottom:6px}
+.gf-search:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(var(--brand-rgb),.12)}
+.gf-opts{max-height:288px;overflow-y:auto}
+.gf-opt{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px}
+.gf-opt:hover,.gf-opt.active{background:var(--fill)}
+.gf-opt.sel{background:rgba(var(--brand-rgb),.08)}
+.gf-opt-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.gf-opt-main{flex:1;min-width:0}
+.gf-opt-nm{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gf-opt-sub{display:block;font-size:11px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gf-opt-pri{font-size:9px;font-weight:700;letter-spacing:.04em;color:var(--brand);background:rgba(var(--brand-rgb),.12);
+  padding:2px 6px;border-radius:20px;flex-shrink:0}
+.gf-empty{padding:16px;text-align:center;color:var(--ink-3);font-size:12.5px}
+.gf-chips{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-left:auto}
+.gf-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:20px;font-size:12px;font-weight:500;
+  background:var(--fill);border:1px solid var(--line);color:var(--ink-2)}
+.gf-chip.ctx{background:rgba(var(--brand-rgb),.08);border-color:rgba(var(--brand-rgb),.20);color:var(--brand)}
+.gf-chip.ctx.buyer{background:rgba(29,199,151,.10);border-color:rgba(29,199,151,.28);color:var(--brand-mint)}
+.gf-chip-x{cursor:pointer;width:15px;height:15px;border-radius:50%;display:grid;place-items:center;color:var(--ink-3)}
+.gf-chip-x:hover{background:var(--surface-2);color:var(--ink)}
+.gf-clearall{font-size:12px;font-weight:600;color:var(--brand);padding:5px 4px}
+.gf-clearall:hover{text-decoration:underline}
+@media (max-width:720px){ .gf-chips{margin-left:0;width:100%} }
 
 .main{margin-left:var(--sidebar-w)}
 .topbar{position:sticky;top:0;z-index:20;height:var(--topbar-h);display:flex;align-items:center;
@@ -638,10 +682,6 @@ textarea.poc-in{resize:vertical;min-height:60px}
       <div class="mk">R</div>
       <div><b>NBFC Tracker</b><div class="mut">Open Marketplace</div></div>
     </div>
-    <div class="sb-entity-toggle">
-      <button class="sbet seller on" id="sbet-seller" onclick="setEntityFilter('seller')">Sellers</button>
-      <button class="sbet buyer"     id="sbet-buyer"  onclick="setEntityFilter('buyer')">Buyers</button>
-    </div>
     <nav class="sb-nav" id="sbNav"></nav>
     <div class="sb-foot">
       <div class="sb-user">
@@ -666,6 +706,7 @@ textarea.poc-in{resize:vertical;min-height:60px}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </header>
+    <div class="gfbar" id="gfbar"></div>
     <div class="content" id="content"></div>
   </div>
 </div>
@@ -977,8 +1018,176 @@ function eligibleActiveNbfcs(e){
 }
 /* The register route for the active entity — 'sellers' or 'buyers'. */
 function activeRegisterRoute(){ return _entityFilter === 'seller' ? 'sellers' : 'buyers'; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   GLOBAL FILTER BAR  ·  Entity Type → NBFC → POC (cascading), applied app-wide.
+   ────────────────────────────────────────────────────────────────────────────
+   _entityFilter (already the primary axis) + GFILTER.{nbfc,poc} form the whole
+   filter state. Views read the derived helpers below, never GFILTER directly, so
+   adding a future filter (status, region, date…) means: extend GFILTER, refine
+   the derived helpers, add one control in renderFilterBar — no view rewrites.
+   All filtering is in-memory over already-loaded data: no extra API calls, only
+   the current view re-renders. */
+var GFILTER = { nbfc:'', poc:'' };     // '' = no narrowing (All)
+
+/* The selected NBFC/POC, but only if still valid for the active entity group. */
+function gSelectedNbfc(){ var n=NBFC_BY_ID[GFILTER.nbfc]; return (n && n.entityGroup===_entityFilter) ? n : null; }
+function gSelectedPoc(){ var p=(typeof pocById==='function')?pocById(GFILTER.poc):null; return (p && pocInActiveGroup(p)) ? p : null; }
+
+/* NBFCs in scope: the one selected, else every NBFC of the active group. */
+function filteredNbfcs(){ var n=gSelectedNbfc(); return n ? [n] : activeNbfcs(); }
+
+/* A POC pins its NBFC and, when it is linked to a specific seller/buyer, narrows
+   the entity set to that entity. A POC with no linked entity narrows nothing at
+   the row level (it only focuses the NBFC/POC context) — so KPIs stay honest. */
+function narrowByPoc(list){
+  var p=gSelectedPoc(); if(!p) return list;
+  var lk=(p.linkedSeller||p.linkedBuyer||'').trim().toLowerCase();
+  if(!lk) return list;
+  return list.filter(function(e){ return String(e.name||'').trim().toLowerCase()===lk; });
+}
+/* Entities in scope: active-group entities, narrowed by a selected POC's link. */
+function filteredEntities(){ return narrowByPoc(activeEntities()); }
+/* Eligibility limited to the in-scope NBFC(s). */
+function filteredEligibleNbfcs(e){ return filteredNbfcs().filter(function(n){ return evalNbfc(e,n).eligible; }); }
+/* POCs that populate the POC dropdown: active group, refined by the chosen NBFC. */
+function gPocOptions(){
+  return POCS.filter(function(p){
+    if(!pocInActiveGroup(p)) return false;
+    if(GFILTER.nbfc && p.nbfc!==GFILTER.nbfc) return false;
+    return true;
+  }).slice().sort(function(a,b){ return (b.primary?1:0)-(a.primary?1:0) || String(a.name).localeCompare(String(b.name)); });
+}
+
+/* ── Setters (enforce the Entity → NBFC → POC hierarchy) ── */
+function gSetEntity(e){ if(e===_entityFilter){ closeCombo(); return; } setEntityFilter(e); }   // setEntityFilter resets NBFC+POC
+function gSetNbfc(id){
+  GFILTER.nbfc = id||'';
+  var p = (typeof pocById==='function') ? pocById(GFILTER.poc) : null;   // drop a POC that isn't under this NBFC
+  if(GFILTER.nbfc && p && p.nbfc!==GFILTER.nbfc) GFILTER.poc='';
+  closeCombo(); render();
+}
+function gSetPoc(id){
+  GFILTER.poc = id||'';
+  var p = (typeof pocById==='function') ? pocById(id) : null;           // a POC implies its NBFC
+  if(p) GFILTER.nbfc = p.nbfc;
+  closeCombo(); render();
+}
+function gClearNbfc(){ GFILTER.nbfc=''; GFILTER.poc=''; closeCombo(); render(); }   // clearing NBFC also clears the POC it scoped
+function gClearPoc(){ GFILTER.poc=''; closeCombo(); render(); }
+function gClearAll(){ GFILTER.nbfc=''; GFILTER.poc=''; closeCombo(); render(); }
+
+/* ── Searchable combobox (shared by NBFC + POC; future filters reuse it) ── */
+var _openCombo=null, _comboItems=[], _comboActive=-1;
+function gfCaret(){ return '<svg class="gf-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>'; }
+function gfX(){ return '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M18 6 6 18M6 6l12 12"/></svg>'; }
+function toggleCombo(kind){
+  if(_openCombo===kind){ closeCombo(); return; }
+  closeCombo();
+  var panel=$('gfpanel-'+kind), ctl=$('gfctl-'+kind);
+  if(!panel) return;
+  _openCombo=kind; _comboActive=-1;
+  panel.style.display='block';
+  if(ctl) ctl.setAttribute('aria-expanded','true');
+  comboFilter(kind);
+  var s=$('gfsearch-'+kind); if(s){ s.value=''; s.focus(); }
+}
+function closeCombo(){
+  if(!_openCombo) return;
+  var panel=$('gfpanel-'+_openCombo), ctl=$('gfctl-'+_openCombo);
+  if(panel) panel.style.display='none';
+  if(ctl) ctl.setAttribute('aria-expanded','false');
+  _openCombo=null;
+}
+function comboFilter(kind){
+  var q=(($('gfsearch-'+kind)||{}).value||'').toLowerCase().trim();
+  var box=$('gfopts-'+kind); if(!box) return;
+  var items;
+  if(kind==='nbfc'){
+    items=activeNbfcs().filter(function(n){ return !q || n.name.toLowerCase().indexOf(q)>=0; })
+      .map(function(n){ return {id:n.id,dot:n.nc,nm:n.name,sub:n.req.length+' documents required',sel:GFILTER.nbfc===n.id}; });
+  } else {
+    items=gPocOptions().filter(function(p){
+      if(!q) return true;
+      var hay=(p.name+' '+(p.designation||'')+' '+(p.role||'')+' '+(p.department||'')+' '+(NBFC_BY_ID[p.nbfc]?NBFC_BY_ID[p.nbfc].name:'')).toLowerCase();
+      return hay.indexOf(q)>=0;
+    }).map(function(p){ var n=NBFC_BY_ID[p.nbfc];
+      return {id:p.id,dot:(n?n.nc:'#8D8F82'),nm:p.name,sub:(p.designation||p.role||'—')+' — '+(n?n.name:'—'),sel:GFILTER.poc===p.id,primary:p.primary}; });
+  }
+  _comboItems=items; _comboActive=-1;
+  if(!items.length){ box.innerHTML='<div class="gf-empty">No matches</div>'; return; }
+  box.innerHTML=items.map(function(it,i){
+    return '<div class="gf-opt'+(it.sel?' sel':'')+'" role="option" data-i="'+i+'" onclick="comboPick(\''+kind+'\','+i+')" onmousemove="comboSetActive('+i+')">'+
+      '<span class="gf-opt-dot" style="background:'+it.dot+'"></span>'+
+      '<span class="gf-opt-main"><span class="gf-opt-nm">'+esc(it.nm)+'</span><span class="gf-opt-sub">'+esc(it.sub)+'</span></span>'+
+      (it.primary?'<span class="gf-opt-pri">PRIMARY</span>':'')+
+    '</div>';
+  }).join('');
+}
+function comboSetActive(i){
+  _comboActive=i;
+  var box=$('gfopts-'+_openCombo); if(!box) return;
+  Array.prototype.forEach.call(box.querySelectorAll('.gf-opt'),function(el){ el.classList.toggle('active', +el.getAttribute('data-i')===i); });
+  var act=box.querySelector('.gf-opt.active'); if(act && act.scrollIntoView) act.scrollIntoView({block:'nearest'});
+}
+function comboKey(e,kind){
+  if(e.key==='ArrowDown'){ e.preventDefault(); comboSetActive(Math.min(_comboItems.length-1,_comboActive+1)); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); comboSetActive(Math.max(0,_comboActive-1)); }
+  else if(e.key==='Enter'){ e.preventDefault(); if(_comboActive>=0) comboPick(kind,_comboActive); else if(_comboItems.length===1) comboPick(kind,0); }
+  else if(e.key==='Escape'){ e.preventDefault(); closeCombo(); var c=$('gfctl-'+kind); if(c) c.focus(); }
+}
+function comboPick(kind,i){ var it=_comboItems[i]; if(!it) return; if(kind==='nbfc') gSetNbfc(it.id); else gSetPoc(it.id); }
+
+/* Build the bar to reflect current state. Rebuilt on every render(), so any open
+   panel is discarded — reset the open pointer here. */
+function renderFilterBar(){
+  var bar=$('gfbar'); if(!bar) return;
+  _openCombo=null;
+  bar.classList.add('on');
+  var isBuyer=_entityFilter==='buyer';
+  var seg='<span class="gf-lbl">View</span>'+
+    '<div class="gf-seg" role="group" aria-label="Entity type">'+
+      '<button class="'+(!isBuyer?'on':'')+'" onclick="gSetEntity(\'seller\')">Seller</button>'+
+      '<button class="'+(isBuyer?'on buyer':'')+'" onclick="gSetEntity(\'buyer\')">Buyer</button>'+
+    '</div>';
+
+  var selN=gSelectedNbfc();
+  var nbfcCtl='<div class="gf-combo" id="gfc-nbfc">'+
+    '<button class="gf-control'+(selN?' active':'')+'" id="gfctl-nbfc" role="combobox" aria-haspopup="listbox" aria-expanded="false" onclick="toggleCombo(\'nbfc\')">'+
+      '<span class="gf-ctl-main"><span class="gf-ctl-l">NBFC</span><span class="gf-ctl-v">'+(selN?esc(selN.name):'All NBFCs')+'</span></span>'+
+      (selN?'<span class="gf-clr" title="Clear NBFC" onclick="event.stopPropagation();gClearNbfc()">'+gfX()+'</span>':gfCaret())+
+    '</button>'+
+    '<div class="gf-panel" id="gfpanel-nbfc" role="listbox" style="display:none">'+
+      '<input class="gf-search" id="gfsearch-nbfc" placeholder="Search NBFC…" oninput="comboFilter(\'nbfc\')" onkeydown="comboKey(event,\'nbfc\')" autocomplete="off">'+
+      '<div class="gf-opts" id="gfopts-nbfc"></div>'+
+    '</div>'+
+  '</div>';
+
+  var selP=gSelectedPoc();
+  var pocEmpty=gPocOptions().length===0;
+  var pocCtl='<div class="gf-combo" id="gfc-poc">'+
+    '<button class="gf-control'+(selP?' active':'')+'" id="gfctl-poc"'+(pocEmpty?' disabled':'')+' role="combobox" aria-haspopup="listbox" aria-expanded="false" onclick="toggleCombo(\'poc\')">'+
+      '<span class="gf-ctl-main"><span class="gf-ctl-l">POC</span><span class="gf-ctl-v">'+(selP?esc(selP.name):(pocEmpty?'No POCs':'All POCs'))+'</span></span>'+
+      (selP?'<span class="gf-clr" title="Clear POC" onclick="event.stopPropagation();gClearPoc()">'+gfX()+'</span>':gfCaret())+
+    '</button>'+
+    '<div class="gf-panel" id="gfpanel-poc" role="listbox" style="display:none">'+
+      '<input class="gf-search" id="gfsearch-poc" placeholder="Search POC by name, role, NBFC…" oninput="comboFilter(\'poc\')" onkeydown="comboKey(event,\'poc\')" autocomplete="off">'+
+      '<div class="gf-opts" id="gfopts-poc"></div>'+
+    '</div>'+
+  '</div>';
+
+  var chips='<span class="gf-chip ctx'+(isBuyer?' buyer':'')+'">'+(isBuyer?'Buyer':'Seller')+'</span>';
+  if(selN) chips+='<span class="gf-chip">'+esc(selN.name)+'<span class="gf-chip-x" title="Remove" onclick="gClearNbfc()">'+gfX()+'</span></span>';
+  if(selP) chips+='<span class="gf-chip">'+esc(selP.name)+'<span class="gf-chip-x" title="Remove" onclick="gClearPoc()">'+gfX()+'</span></span>';
+  var clearAll=(selN||selP)?'<button class="gf-clearall" onclick="gClearAll()">Clear all</button>':'';
+
+  bar.innerHTML=seg+nbfcCtl+pocCtl+'<div class="gf-chips">'+chips+clearAll+'</div>';
+}
+
 function setEntityFilter(e) {
   _entityFilter = e;
+  GFILTER.nbfc = ''; GFILTER.poc = '';   // Entity Type change resets the downstream filters
+  closeCombo();
   /* If the settings NBFC mapping panel is on a hidden NBFC, reset to first visible. */
   var mn = NBFC_BY_ID[state.mapNbfc];
   if (mn && mn.entityGroup !== e) {
@@ -1038,10 +1247,7 @@ var ICONS = {
 function go(route){ state.route=route; render(); window.scrollTo(0,0); }
 
 function render(){
-  /* Sync entity-toggle pill state on every render. */
-  var st=$('sbet-seller'), bt=$('sbet-buyer');
-  if(st) st.classList.toggle('on', _entityFilter==='seller');
-  if(bt) bt.classList.toggle('on', _entityFilter==='buyer');
+  renderFilterBar();       // sticky global filter bar (Entity → NBFC → POC) reflects current state
   renderNav();
   var c=$('content'), r=state.route;
   if(r==='dashboard'){ $('tbTitle').textContent='Dashboard'; c.innerHTML=viewDashboard(); wireDashboard(); }
@@ -1082,15 +1288,15 @@ function hexRgb(h){ h=h.replace('#',''); return [parseInt(h.substr(0,2),16),pars
    count, pipeline row, attention item and NBFC bar is derived from activeEntities()
    and activeNbfcs(), so no cross-entity data ever appears. */
 function viewDashboard(){
-  var pool   = activeEntities();
-  var anb    = activeNbfcs();
+  var pool   = filteredEntities();     // active entity, narrowed by a selected POC
+  var anb    = filteredNbfcs();        // the selected NBFC, else all active-group NBFCs
   var isS    = _entityFilter==='seller';
   var noun   = isS?'seller':'buyer';
   var nounC  = isS?'Sellers':'Buyers';
   var accent = isS?'var(--brand)':'var(--brand-mint)';
   var accent2= isS?'var(--brand-purple)':'var(--brand-green)';
 
-  var firstCheck = pool.filter(function(e){ return eligibleActiveNbfcs(e).length>0; });
+  var firstCheck = pool.filter(function(e){ return filteredEligibleNbfcs(e).length>0; });
   var pendingAll = pool.filter(function(e){ return docCounts(e).pending>0; }).length;
 
   function pipeCell(n, total, color, click){
@@ -1127,10 +1333,10 @@ function viewDashboard(){
     '</div>';
   }).join('') || '<div style="padding:24px;text-align:center;color:var(--ink-3)">No '+noun+' NBFCs configured.</div>';
 
-  // Level-2 attention queue: active-entity records 1-2 documents from an active-group NBFC
+  // Level-2 attention queue: in-scope records 1-2 documents from an in-scope NBFC
   var near=[];
   pool.forEach(function(e){
-    if(eligibleActiveNbfcs(e).length>0) return;
+    if(filteredEligibleNbfcs(e).length>0) return;
     var best=999,bestN=null;
     anb.forEach(function(n){ var m=evalNbfc(e,n); if(m.missing.length<best){best=m.missing.length;bestN=n;} });
     if(bestN && best>=1&&best<=2) near.push({e:e,n:bestN,miss:best,missing:evalNbfc(e,bestN).missing});
@@ -1214,10 +1420,11 @@ function viewRegister(type){
 }
 function regRows(type){
   var q=(type==='seller'?state.sellerQ:state.buyerQ).toLowerCase().trim();
-  var list=ENTITIES.filter(function(e){return e.type===type;});
+  /* filteredEntities() already applies the global entity + POC narrowing. */
+  var list=filteredEntities().filter(function(e){return e.type===type;});
   list=list.filter(function(e){
-    if(state.sellerFilter==='eligible'&&eligibleActiveNbfcs(e).length===0) return false;
-    if(state.sellerFilter==='blocked'&&eligibleActiveNbfcs(e).length>0) return false;
+    if(state.sellerFilter==='eligible'&&filteredEligibleNbfcs(e).length===0) return false;
+    if(state.sellerFilter==='blocked'&&filteredEligibleNbfcs(e).length>0) return false;
     if(state.sellerFilter==='pending'&&docCounts(e).pending===0) return false;
     if(q){ var hay=(e.name+' '+e.gst+' '+e.city+' '+e.state+' '+e.region).toLowerCase(); if(hay.indexOf(q)===-1) return false; }
     return true;
@@ -1225,12 +1432,12 @@ function regRows(type){
   $('regCount').textContent=list.length+' '+type+'s';
   $('regBody').innerHTML = list.map(function(e){
     var c=completion(e);
-    var eligs=activeNbfcs().map(function(n){ var m=evalNbfc(e,n); return m.eligible
+    var eligs=filteredNbfcs().map(function(n){ var m=evalNbfc(e,n); return m.eligible
       ? '<div class="ec" style="background:'+n.nc+'" title="'+esc(n.name)+': eligible">'+initials(n.name)[0]+'</div>'
       : '<div class="ec blocked" title="'+esc(n.name)+': '+m.missing.length+' missing">'+initials(n.name)[0]+(m.missing.length?'<span class="n">'+m.missing.length+'</span>':'')+'</div>';
     }).join('');
     var cnt=docCounts(e);
-    var eligN = eligibleActiveNbfcs(e).length;
+    var eligN = filteredEligibleNbfcs(e).length;
     var pill = eligN>0 ? '<span class="status-pill sp-ok"><span class="d"></span>'+eligN+' NBFC'+(eligN>1?'s':'')+'</span>'
       : cnt.none===CATALOG.length ? '<span class="mut">—</span>'
       : '<span class="status-pill sp-warn"><span class="d"></span>In progress</span>';
@@ -1331,7 +1538,9 @@ function viewNbfc(n){
   var nbfcET   = n.entityGroup || 'seller';
   var typeSing = nbfcET === 'seller' ? 'seller' : 'buyer';
   var typeCapP = nbfcET === 'seller' ? 'Sellers' : 'Buyers';
-  var pool     = ENTITIES.filter(function(e){ return e.type === nbfcET; });
+  /* This page's own NBFC population, narrowed by a globally-selected POC's linked
+     entity (if any) so the global filter reaches detail pages too. */
+  var pool     = narrowByPoc(ENTITIES.filter(function(e){ return e.type === nbfcET; }));
   var total    = pool.length;
 
   /* ── Eligibility ──────────────────────────────────────────────── */
@@ -1467,7 +1676,7 @@ function wireNbfc(n){ animateKpis('nbfc:'+n.id); }
 function viewMatrix(){
   var docs=CATALOG;
   var head='<thead><tr><th>Vendor</th>'+docs.map(function(d){return '<th title="'+esc(d.name)+'">'+esc(shortDoc(d.name))+'</th>';}).join('')+'</tr></thead>';
-  var body='<tbody>'+activeEntities().slice(0,120).map(function(e){
+  var body='<tbody>'+filteredEntities().slice(0,120).map(function(e){
     return '<tr><th onclick="openDetail(\''+e.id+'\')" title="'+esc(e.name)+'">'+esc(e.name)+'</th>'+
       docs.map(function(d){ var s=e.docs[d.id];
         var cls=s==='received'?'ok':s==='pending'?'warn':s==='na'?'na':'none';
@@ -1570,9 +1779,11 @@ function openDetail(id){
     if(s==='received'){ c.ok++; cnt.received++; } else if(s==='pending') cnt.pending++;
     else if(s==='na') cnt.na++; else cnt.none++; });
   c.pct = reqIds.length ? Math.round(c.ok/reqIds.length*100) : 0;
-  var eligs=eligibleActiveNbfcs(e);
+  var eligs=filteredEligibleNbfcs(e);
 
-  var esCards=anb.map(function(n){ var m=evalNbfc(e,n);
+  /* Eligibility cards honour the global NBFC filter; the checklist selector below
+     stays on all active-group NBFCs so document editing is never filter-blocked. */
+  var esCards=filteredNbfcs().map(function(n){ var m=evalNbfc(e,n);
     var recN = n.req.filter(function(id){ return e.docs[id]==='received'; }).length;
     var pct  = n.req.length ? Math.round(recN/n.req.length*100) : 100;
     var pend = m.missing.length + (m.vintageOk?0:1);
@@ -1895,8 +2106,11 @@ function pocInActiveGroup(p){
 }
 function pocRows(){
   var q=(state.pocQ||'').toLowerCase().trim();
+  var gN=gSelectedNbfc(), gP=gSelectedPoc();
   var list=POCS.filter(function(p){
     if(!pocInActiveGroup(p)) return false;                       // strict seller/buyer separation
+    if(gN && p.nbfc!==gN.id) return false;                       // global NBFC filter
+    if(gP && p.id!==gP.id) return false;                         // global POC filter
     if(state.pocNbfc!=='all' && p.nbfc!==state.pocNbfc) return false;
     if(state.pocStatus!=='all' && p.status!=='Active') return false;
     if(q){ var hay=(p.name+' '+p.designation+' '+p.department+' '+p.role+' '+p.org+' '+p.email+' '+p.mobile+' '+
@@ -2136,7 +2350,9 @@ function refreshPOCs(){
     .withSuccessHandler(function(data){
       if(data && data.ok && data.pocs){
         POCS = data.pocs; FOLLOWUPS = data.followups || {};
-        if($('app') && $('app').style.display!=='none' && (state.route==='poc' || state.route.indexOf('nbfc:')===0)) render();
+        /* Re-render whatever view is up: the global filter bar's POC dropdown and
+           any POC-dependent widget must reflect freshly-synced contacts. */
+        if($('app') && $('app').style.display!=='none') render();
       }
     })
     .withFailureHandler(function(){ /* keep the embedded baseline */ })
@@ -2188,7 +2404,13 @@ document.addEventListener('DOMContentLoaded',function(){
       go(activeRegisterRoute()); setTimeout(function(){var q=$('regQ'); if(q){q.value=v;q.focus();}},50);
     }
   });
-  document.addEventListener('keydown',function(ev){ if(ev.key==='Escape') closeDrawer(); });
+  document.addEventListener('keydown',function(ev){ if(ev.key==='Escape'){ closeDrawer(); closeCombo(); } });
+  /* Close an open global-filter dropdown when clicking outside it. */
+  document.addEventListener('click',function(ev){
+    if(!_openCombo) return;
+    var combo=$('gfc-'+_openCombo);
+    if(combo && !combo.contains(ev.target)) closeCombo();
+  });
 });
 
 </script>
