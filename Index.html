@@ -638,6 +638,14 @@ table.matrix{border-collapse:separate;border-spacing:0;min-width:100%}
 .tag-sec{font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
   color:var(--ink-3);background:var(--fill);border-radius:4px;padding:1px 6px}
 .poc-inactive{opacity:.55}
+/* Follow-up timing cells — urgency first, exact date beneath it. The relative
+   line is what gets acted on; the absolute date is for confirming. */
+.fu-cell{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+.fu-abs{font-size:10.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.lc-rel{font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.lc-rel.stale{color:var(--warn)}
+.poc-nm-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.poc-fn-sub{font-size:11.5px;color:var(--ink-3);margin-top:1px}
 /* POC strip on the NBFC page */
 .poc-strip .ps-row{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line-2)}
 .poc-strip .ps-row:last-child{border-bottom:none}
@@ -1235,7 +1243,7 @@ function setEntityFilter(e) {
 /* ── 7. App state / router ─────────────────────────────────────────────── */
 var state = { route:'dashboard', role:'Operations', user:'Ops User', email:'ops@recykal.com',
   sellerQ:'', sellerFilter:'all', buyerQ:'', theme:'light', setPanel:'catalog', mapNbfc:'billmart',
-  pocQ:'', pocNbfc:'all', pocStatus:'active',
+  pocQ:'', pocNbfc:'all', pocStatus:'active', pocDue:'all',
   docNbfc:'', _docEnt:null,     // which NBFC's matrix drives the seller detail checklist
   nbfcEntityType:'seller',      // controls the Eligible / Needs-documents split on NBFC pages
   cdExpanded:false };           // whether the Common Documents card is fully expanded
@@ -2161,6 +2169,44 @@ function pocQuickBtns(p){
   h+=qbtn('Copy contact details', PIC.copy, "pocCopy('"+p.id+"')");
   return '<span class="qbtns">'+h+'</span>';
 }
+/* ── Follow-up timing ──────────────────────────────────────────────────────
+   Whole days between today and an ISO yyyy-mm-dd from the sheet; negative means
+   the date has passed. Both sides are pinned to midnight so a follow-up due
+   today never reads as overdue because of the clock. */
+function daysFromToday(iso){
+  if(!iso) return null;
+  var t=new Date(iso); if(isNaN(t.getTime())) return null;
+  var d0=new Date(); d0.setHours(0,0,0,0); t.setHours(0,0,0,0);
+  return Math.round((t-d0)/864e5);
+}
+/* A contact needs chasing when its follow-up has passed or lands within 3 days. */
+var FU_SOON = 3;
+function pocNeedsFollowup(p){
+  var d=daysFromToday(p.nextFollowup);
+  return d!==null && d<=FU_SOON;
+}
+function fuCell(iso){
+  var d=daysFromToday(iso);
+  if(d===null) return '<span class="mut">Not scheduled</span>';
+  var cls = d<0 ? 'sp-bad' : (d<=FU_SOON ? 'sp-warn' : 'sp-ok');
+  var txt = d<0 ? Math.abs(d)+'d overdue' : d===0 ? 'Today' : d===1 ? 'Tomorrow' : 'In '+d+' days';
+  return '<div class="fu-cell"><span class="status-pill '+cls+'"><span class="d"></span>'+esc(txt)+'</span>'+
+         '<span class="fu-abs">'+esc(fmtDate(iso))+'</span></div>';
+}
+function lastCell(iso){
+  var d=daysFromToday(iso);
+  if(d===null) return '<span class="mut">Never</span>';
+  var ago=Math.abs(d);
+  var txt = ago===0?'Today':ago===1?'Yesterday':(ago<30?ago+' days ago':Math.round(ago/30)+' mo ago');
+  return '<div class="fu-cell"><span class="lc-rel'+(ago>30?' stale':'')+'">'+esc(txt)+'</span>'+
+         '<span class="fu-abs">'+esc(fmtDate(iso))+'</span></div>';
+}
+/* Relationship owner earns a column only when the sheet actually carries it —
+   the same rule the KPI cards follow. Judged over the whole active group rather
+   than the filtered subset so the header never desyncs from the body mid-search. */
+function pocHasRelOwner(){
+  return POCS.some(function(p){ return pocInActiveGroup(p) && String(p.relOwner||'').trim(); });
+}
 function nbfcChip(id){ var n=NBFC_BY_ID[id]; if(!n) return ''; return '<span class="poc-chip" style="background:'+n.nc+'"><span class="pd"></span>'+esc(n.name)+'</span>'; }
 function pocStatusPill(p){ return p.status==='Active'
   ? '<span class="status-pill sp-ok"><span class="d"></span>Active</span>'
@@ -2170,17 +2216,24 @@ function pocStatusPill(p){ return p.status==='Active'
 function viewPocDirectory(){
   var chips='<button class="chip'+(state.pocNbfc==='all'?' on':'')+'" data-nb="all">All NBFCs</button>'+
     activeNbfcs().map(function(n){ return '<button class="chip'+(state.pocNbfc===n.id?' on':'')+'" data-nb="'+n.id+'">'+esc(n.name)+'</button>'; }).join('');
+  /* Counted over the active group, not the filtered rows, so the number tells
+     you how much is outstanding overall rather than how much survived a search. */
+  var dueCount=POCS.filter(function(p){
+    return pocInActiveGroup(p) && p.status==='Active' && pocNeedsFollowup(p); }).length;
   return '<div class="card">'+
     '<div class="toolbar">'+
       '<div class="search-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>'+
         '<input id="pocQ" type="search" placeholder="Search name, department, role, email…" value="'+esc(state.pocQ)+'"></div>'+
       chips+
+      '<button class="chip'+(state.pocDue==='due'?' on':'')+'" id="pocDueToggle">Needs follow-up'+(dueCount?' ('+dueCount+')':'')+'</button>'+
       '<button class="chip'+(state.pocStatus==='all'?' on':'')+'" id="pocStatusToggle">'+(state.pocStatus==='all'?'Active + Inactive':'Active only')+'</button>'+
       '<span class="tbl-count" id="pocCount"></span>'+
       '<button class="btn btn-sm btn-primary" onclick="openPocForm(null,\''+(state.pocNbfc!=='all'?state.pocNbfc:'')+'\')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="vertical-align:-2px;margin-right:3px"><path d="M12 5v14M5 12h14"/></svg>Add POC</button>'+
     '</div>'+
     '<div class="tbl-wrap"><table class="tbl"><thead><tr>'+
-      '<th>Contact</th><th>NBFC</th><th>Entity</th><th>Role</th><th>Department</th><th>Reach</th><th>Priority</th><th>Status</th><th>Next follow-up</th>'+
+      '<th>Contact</th><th>NBFC</th><th>Function</th>'+
+      (pocHasRelOwner()?'<th>Relationship owner</th>':'')+
+      '<th>Last interaction</th><th>Next follow-up</th><th>Reach</th>'+
     '</tr></thead><tbody id="pocBody"></tbody></table></div>'+
   '</div>';
 }
@@ -2201,28 +2254,49 @@ function pocRows(){
     if(gP && p.id!==gP.id) return false;                         // global POC filter
     if(state.pocNbfc!=='all' && p.nbfc!==state.pocNbfc) return false;
     if(state.pocStatus!=='all' && p.status!=='Active') return false;
+    if(state.pocDue==='due' && !pocNeedsFollowup(p)) return false;
     if(q){ var hay=(p.name+' '+p.designation+' '+p.department+' '+p.role+' '+p.org+' '+p.email+' '+p.mobile+' '+
       (p.entityType||'')+' '+(p.relOwner||'')+' '+(p.linkedSeller||'')+' '+(p.linkedBuyer||'')+' '+
       (NBFC_BY_ID[p.nbfc]?NBFC_BY_ID[p.nbfc].name:'')).toLowerCase(); if(hay.indexOf(q)===-1) return false; }
     return true;
   });
-  // primary first, then name
-  list.sort(function(a,b){ return (b.primary-a.primary) || a.name.localeCompare(b.name); });
+  /* Overdue first, then soonest due, then primary, then name — the order the
+     work actually needs doing in. Contacts with no follow-up scheduled sort last
+     rather than jumping the queue as if they were due today. */
+  list.sort(function(a,b){
+    var da=daysFromToday(a.nextFollowup), db=daysFromToday(b.nextFollowup);
+    if(da===null) da=Infinity;
+    if(db===null) db=Infinity;
+    return (da-db) || (b.primary-a.primary) || a.name.localeCompare(b.name);
+  });
   var cnt=$('pocCount'); if(cnt) cnt.textContent=list.length+' contact'+(list.length===1?'':'s');
   var body=$('pocBody'); if(!body) return;
+  var showOwner=pocHasRelOwner();
   body.innerHTML = list.map(function(p){
+    /* Role and Department carry the same word on most records ("Credit"/"Credit",
+       "Operations"/"Operations"). Show the department only where it adds
+       something the role has not already said. */
+    var dept = String(p.department||'').trim();
+    var role = String(p.role||'').trim();
+    var deptSub = (dept && dept.toLowerCase()!==role.toLowerCase())
+      ? '<div class="poc-fn-sub">'+esc(dept)+'</div>' : '';
     return '<tr class="'+(p.status!=='Active'?'poc-inactive':'')+'" onclick="openPoc(\''+p.id+'\')">'+
-      '<td><div class="cell-name">'+esc(p.name)+'<div class="cell-sub">'+esc(p.designation||'—')+'</div></div></td>'+
+      '<td><div class="cell-name">'+
+          '<div class="poc-nm-row">'+esc(p.name)+
+            (p.primary?'<span class="tag-pri">Primary</span>':'')+
+            (p.status!=='Active'?'<span class="tag-sec">Inactive</span>':'')+
+          '</div>'+
+          '<div class="cell-sub">'+esc(p.designation||'—')+'</div></div></td>'+
       '<td>'+nbfcChip(p.nbfc)+'</td>'+
-      '<td>'+(p.entityType?esc(p.entityType):'<span class="mut">—</span>')+'</td>'+
-      '<td>'+esc(p.role||'—')+'</td>'+
-      '<td>'+esc(p.department||'—')+'</td>'+
+      '<td>'+esc(role||'—')+deptSub+'</td>'+
+      (showOwner?'<td>'+(p.relOwner?esc(p.relOwner):'<span class="mut">—</span>')+'</td>':'')+
+      '<td>'+lastCell(p.lastContact)+'</td>'+
+      '<td>'+fuCell(p.nextFollowup)+'</td>'+
       '<td>'+pocQuickBtns(p)+'</td>'+
-      '<td>'+(p.primary?'<span class="tag-pri">Primary</span>':'<span class="tag-sec">Secondary</span>')+'</td>'+
-      '<td>'+pocStatusPill(p)+'</td>'+
-      '<td class="tnum">'+(p.nextFollowup?esc(fmtDate(p.nextFollowup)):'<span class="mut">—</span>')+'</td>'+
     '</tr>';
-  }).join('') || '<tr><td colspan="9" style="padding:28px;text-align:center;color:var(--ink-3)">No contacts match these filters.</td></tr>';
+  }).join('') || '<tr><td colspan="'+(showOwner?7:6)+'" style="padding:28px;text-align:center;color:var(--ink-3)">'+
+      (state.pocDue==='due' ? 'No contact is due for follow-up in the next '+FU_SOON+' days.'
+                            : 'No contacts match these filters.')+'</td></tr>';
 }
 function wirePocDirectory(){
   pocRows();
@@ -2231,6 +2305,7 @@ function wirePocDirectory(){
     b.onclick=function(){ state.pocNbfc=b.getAttribute('data-nb'); render(); };
   });
   var st=$('pocStatusToggle'); if(st) st.onclick=function(){ state.pocStatus=(state.pocStatus==='all'?'active':'all'); render(); };
+  var du=$('pocDueToggle');    if(du) du.onclick=function(){ state.pocDue=(state.pocDue==='due'?'all':'due'); render(); };
 }
 
 /* ── POC detail drawer ─────────────────────────────────────────────────── */
