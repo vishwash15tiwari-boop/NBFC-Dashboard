@@ -947,6 +947,108 @@ function setUserPasswordFromEditor() {
 }
 
 /** Lists who can sign in and what they will see. Read-only diagnostic. */
+/* ── Internal Recykal staff roster ───────────────────────────────────────────
+   The people who sign in to the tracker, as POC Directory rows (one sheet, per
+   the directory design above). Role strings are the ones roleKey_ understands:
+     'Super Admin' → admin      full access
+     'Sub Admin'   → operations vertical-scoped, no configure/manageUsers
+     'POC'         → operations vertical-scoped
+   Team carries the business vertical. A blank Team leaves an Operations user
+   unscoped by team, so it must be filled in before that person sees rows.
+   No passwords are set here — each user self-serves through the
+   "set up password" flow, which emails them a one-time code. */
+var INTERNAL_USER_SEED = [
+  { email:'vishwash.tiwari@recykal.com',      name:'Vishwash Tiwari',      role:'Super Admin', team:'' },
+  { email:'uday.thota@recykal.com',           name:'Uday Thota',           role:'Sub Admin',   team:'Plastic' },
+  { email:'arijit.dutta@recykal.com',         name:'Arijit Dutta',         role:'POC',         team:'Metal' },
+  { email:'ayush.goyal@recykal.com',          name:'Ayush Goyal',          role:'POC',         team:'Metal' },
+  { email:'joydeep.das@recykal.com',          name:'Joydeep Das',          role:'POC',         team:'Plastic' },
+  { email:'ashish.rai@recykal.com',           name:'Ashish Rai',           role:'POC',         team:'Plastic' },
+  { email:'asraful.hasan@recykal.com',        name:'Ashraf Hasan',         role:'POC',         team:'Plastic' },
+  { email:'ashwinkumar.r@recykal.com',        name:'Ashwin Kumar R',       role:'POC',         team:'Plastic' },
+  { email:'atharva.patil@recykal.com',        name:'Atharva Patil',        role:'POC',         team:'Plastic' },
+  { email:'praveenraj.p@recykal.com',         name:'Praveen Raj P',        role:'POC',         team:'Plastic' },
+  { email:'jithender.chitakodur@recykal.com', name:'Jithender Chitakodur', role:'POC',         team:'' },
+  { email:'bokkala.kalyan@recykal.com',       name:'Kalyan Bokkala',       role:'POC',         team:'' },
+  { email:'koteswara.kuruguntla@recykal.com', name:'Koteswara Kuruguntla', role:'POC',         team:'' },
+  { email:'naresh.kumar@recykal.com',         name:'Naresh Kumar',         role:'POC',         team:'' },
+  { email:'naveen.goud@recykal.com',          name:'Naveen Goud Ediga',    role:'POC',         team:'' }
+];
+
+/**
+ * Creates or updates the internal staff rows in the POC Directory. Run once
+ * from the Apps Script editor.
+ *
+ * Idempotent and non-destructive: rows are matched on Official Email, and only
+ * the access columns are written (Name, Role, Team, Active + identity fields on
+ * insert). Credentials are never touched, so re-running cannot lock anyone out,
+ * and any other column an admin has filled in by hand is left alone.
+ */
+function seedInternalUsers() {
+  var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
+  var sh = ss.getSheetByName(PLATFORM_POC_TAB);
+  if (!sh) {
+    sh = ss.insertSheet(PLATFORM_POC_TAB);
+    sh.getRange(1, 1, 1, POC_HEADERS.length).setValues([POC_HEADERS]);
+    sh.setFrozenRows(1);
+  }
+  var CI   = ensurePocColumns_(sh);        // guarantees Role / Team / Active exist
+  var vals = sh.getDataRange().getValues();
+  var now  = new Date();
+
+  // Existing rows by lowercased email, so a re-run updates instead of duplicating.
+  var byEmail = {};
+  if (CI.email != null) {
+    for (var r = 1; r < vals.length; r++) {
+      var em = String(vals[r][CI.email] || '').trim().toLowerCase();
+      if (em) byEmail[em] = r + 1;
+    }
+  }
+
+  var created = 0, updated = 0;
+  INTERNAL_USER_SEED.forEach(function (u) {
+    var key    = u.email.toLowerCase();
+    var rowNum = byEmail[key];
+
+    if (rowNum) {
+      // Update only the access-control columns; leave everything else as-is.
+      if (CI.name   != null) sh.getRange(rowNum, CI.name   + 1).setValue(u.name);
+      if (CI.role   != null) sh.getRange(rowNum, CI.role   + 1).setValue(u.role);
+      if (CI.team   != null) sh.getRange(rowNum, CI.team   + 1).setValue(u.team);
+      if (CI.active != null) sh.getRange(rowNum, CI.active + 1).setValue('Yes');
+      updated++;
+    } else {
+      var width = Math.max(sh.getLastColumn(), POC_HEADERS.length);
+      var row   = new Array(width).fill('');
+      function put(k, v) { if (CI[k] != null) row[CI[k]] = v; }
+      put('id',          'P-INT-' + key.split('@')[0].replace(/[^a-z0-9]+/gi, '').toUpperCase().slice(0, 12));
+      put('email',       u.email);
+      put('name',        u.name);
+      put('role',        u.role);
+      put('team',        u.team);
+      put('active',      'Yes');
+      put('org',         'Recykal');
+      put('designation', u.role);
+      put('channel',     'Email');
+      put('status',      'Active');
+      put('remarks',     'Internal Recykal user — dashboard access.');
+      put('createdBy',   'system:seedInternalUsers');
+      put('createdOn',   now);
+      put('modifiedBy',  'system:seedInternalUsers');
+      put('modifiedOn',  now);
+      sh.appendRow(row);
+      created++;
+    }
+  });
+
+  var noTeam = INTERNAL_USER_SEED.filter(function (u) { return !u.team && u.role !== 'Super Admin'; })
+                                 .map(function (u) { return u.email; });
+  Logger.log('seedInternalUsers: ' + created + ' created, ' + updated + ' updated.');
+  if (noTeam.length) Logger.log('No Team set (fill the Team column before they can see rows): ' + noTeam.join(', '));
+  Logger.log('Passwords are not set here — each user runs "set up password" to receive a one-time code.');
+  return { ok: true, created: created, updated: updated, missingTeam: noTeam };
+}
+
 function auditAccess() {
   var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
   var sh = ss.getSheetByName(PLATFORM_POC_TAB);
