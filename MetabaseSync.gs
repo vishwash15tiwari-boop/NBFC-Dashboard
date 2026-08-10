@@ -170,6 +170,11 @@ function syncMetabaseToSheet() {
     Logger.log('Fetched: ' + raw.rows.length + ' rows, ' + raw.cols.length + ' cols');
     Logger.log('Metabase columns: ' + raw.cols.join(' | '));
 
+    // Build GSTIN → earliest-date map from ALL rows (all verticals) BEFORE
+    // applying the vertical filter. Vendors onboarded in another vertical first
+    // get credit for their full Recykal tenure, not just their Open Marketplace date.
+    var gstinDateMap = buildEarliestDateMap_(raw);
+
     var filtered = applyFilter_(raw);
     Logger.log('After filter: ' + filtered.rows.length + ' rows');
 
@@ -177,7 +182,7 @@ function syncMetabaseToSheet() {
       Logger.log('⚠ Zero rows after filter — check CFG.FILTER values match column names above');
     }
 
-    writeToSheet_(ss, q.tab, filtered);
+    writeToSheet_(ss, q.tab, filtered, gstinDateMap);
     formatSheet_(ss, q.tab, filtered.rows.length);
     Logger.log('✓ "' + q.tab + '" done');
   });
@@ -417,30 +422,30 @@ function transformDocValue_(v) {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// VINTAGE CALCULATOR
-// Derives "XY YM" vintage string from an onboarding / registration date so that
-// Column H ("Vintage with Recykal") always reflects the duration from the
-// vendor's platform join date to today, recalculated on every sync.
-// Accepts JS Date objects, ISO strings ("2023-01-15T…"), and Excel date serials.
-// Returns "XY YM" (e.g., "0Y 6M", "2Y 3M") — format recognised by the
-// frontend's vintageYears() parser for NBFC eligibility checks.
+// VINTAGE CALCULATION
+// parseDate_(v)             — any date representation → JS Date or null
+// calcVintage_(dateVal)     — date → "XY YM" string (e.g., "2Y 3M", "0Y 6M")
+// buildEarliestDateMap_(r)  — GSTIN → earliest Date across ALL verticals
 // ─────────────────────────────────────────────────────────────────────────────
 
-function calcVintage_(dateVal) {
-  if (dateVal == null) return '';
-  var d;
-  if (dateVal instanceof Date) {
-    d = dateVal;
-  } else {
-    var s = String(dateVal).trim();
-    if (!s) return '';
-    d = new Date(s);
-    if (isNaN(d.getTime())) {           // try Excel serial (> 1 000 avoids false positives)
-      var n = parseFloat(s);
-      if (!isNaN(n) && n > 1000) d = new Date(Date.UTC(1899, 11, 30) + n * 864e5);
-    }
-    if (isNaN(d.getTime())) return '';
+function parseDate_(dateVal) {
+  if (dateVal == null) return null;
+  if (dateVal instanceof Date) return isNaN(dateVal.getTime()) ? null : dateVal;
+  var s = String(dateVal).trim();
+  if (!s) return null;
+  var d = new Date(s);
+  if (!isNaN(d.getTime())) return d;
+  var n = parseFloat(s);
+  if (!isNaN(n) && n > 1000) {                     // Excel date serial
+    d = new Date(Date.UTC(1899, 11, 30) + n * 864e5);
+    return isNaN(d.getTime()) ? null : d;
   }
+  return null;
+}
+
+function calcVintage_(dateVal) {
+  var d = parseDate_(dateVal);
+  if (!d) return '';
   var now = new Date();
   if (d > now) return '';
   var yrs = now.getFullYear() - d.getFullYear();
@@ -450,12 +455,61 @@ function calcVintage_(dateVal) {
   return yrs + 'Y ' + mos + 'M';
 }
 
+/** Walk ALL rows from a Metabase result (before vertical filtering) and build
+ *  a map of GSTIN → earliest onboarding date. Vendors who joined Recykal in
+ *  another vertical before Open Marketplace get credit for their full tenure. */
+function buildEarliestDateMap_(result) {
+  var map = {};
+  if (!result || !result.rows || result.rows.length === 0) return map;
+
+  var CL = {};
+  result.cols.forEach(function(n, i) { CL[norm_(n)] = i; });
+
+  // Resolve GSTIN column
+  var gstinIdx = -1;
+  var gstinCandidates = (FIELD_MAP['sellergstin'] || []).concat(FIELD_MAP['buyergstin'] || []).concat(['GSTIN', 'GST']);
+  for (var gi = 0; gi < gstinCandidates.length && gstinIdx < 0; gi++) {
+    var gk = norm_(gstinCandidates[gi]);
+    if (gk in CL) gstinIdx = CL[gk];
+  }
+  if (gstinIdx < 0) {
+    Logger.log('  ⚠ buildEarliestDateMap_: GSTIN column not found — vintage will fall back to row-level date');
+    return map;
+  }
+
+  // Resolve onboarding / registration date column
+  var dateIdx = -1;
+  var dateAliases = FIELD_MAP['dateofregistration'] || [];
+  for (var di = 0; di < dateAliases.length && dateIdx < 0; di++) {
+    var dk = norm_(dateAliases[di]);
+    if (dk in CL) dateIdx = CL[dk];
+  }
+  if (dateIdx < 0) {
+    Logger.log('  ⚠ buildEarliestDateMap_: Onboarding date column not found — vintage will fall back to row-level date');
+    return map;
+  }
+
+  Logger.log('  buildEarliestDateMap_: GSTIN=[' + gstinIdx + '] "' + result.cols[gstinIdx] + '"  date=[' + dateIdx + '] "' + result.cols[dateIdx] + '"');
+
+  // Track minimum date per GSTIN across all rows (all verticals)
+  result.rows.forEach(function(row) {
+    var gstin = String(row[gstinIdx] == null ? '' : row[gstinIdx]).trim().toUpperCase();
+    if (!gstin) return;
+    var d = parseDate_(row[dateIdx]);
+    if (!d) return;
+    if (!map[gstin] || d < map[gstin]) map[gstin] = d;
+  });
+
+  Logger.log('  buildEarliestDateMap_: ' + Object.keys(map).length + ' GSTINs indexed across all verticals');
+  return map;
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SHEET WRITER
 // ─────────────────────────────────────────────────────────────────────────────
 
-function writeToSheet_(ss, tabName, result) {
+function writeToSheet_(ss, tabName, result, gstinDateMap) {
   var sh = ss.getSheetByName(tabName);
   if (!sh) throw new Error('Tab "' + tabName + '" not found in spreadsheet ' + CFG.SHEET_ID);
 
@@ -582,19 +636,26 @@ function writeToSheet_(ss, tabName, result) {
     );
   }
 
-  // ── Resolve onboarding-date column for live vintage calculation ────────────
-  // Walks FIELD_MAP['dateofregistration'] aliases (which include Metabase's
-  // "Effective_Date_Of_Registration" as first candidate) against colLookup to
-  // find the 0-based index of the date column in the Metabase result set.
+  // ── Resolve GSTIN and onboarding-date source columns ─────────────────────
+  // gstinSrcIdx    — joins each filtered row to gstinDateMap for cross-vertical
+  //                  earliest-date lookup (built from ALL rows in syncMetabaseToSheet).
+  // onboardDateSrcIdx — per-row fallback when the GSTIN map has no entry.
+  var gstinSrcIdx = -1;
+  var _gstinCandidates = (FIELD_MAP['sellergstin'] || []).concat(FIELD_MAP['buyergstin'] || []).concat(['GSTIN', 'GST']);
+  for (var _gi = 0; _gi < _gstinCandidates.length && gstinSrcIdx < 0; _gi++) {
+    var _gn = norm_(_gstinCandidates[_gi]);
+    if (_gn in colLookup) gstinSrcIdx = colLookup[_gn];
+  }
   var onboardDateSrcIdx = -1;
   var _dateAliases = FIELD_MAP['dateofregistration'] || [];
   for (var _da = 0; _da < _dateAliases.length && onboardDateSrcIdx < 0; _da++) {
     var _an = norm_(_dateAliases[_da]);
     if (_an in colLookup) onboardDateSrcIdx = colLookup[_an];
   }
+  Logger.log('  GSTIN col: ' + (gstinSrcIdx >= 0 ? '[' + gstinSrcIdx + '] "' + result.cols[gstinSrcIdx] + '"' : '⚠ not found'));
   Logger.log('  Onboarding-date col: ' + (onboardDateSrcIdx >= 0
     ? '[' + onboardDateSrcIdx + '] "' + result.cols[onboardDateSrcIdx] + '"'
-    : '⚠ not found — "Vintage with Recykal" will use Metabase value as-is'));
+    : '⚠ not found — vintage will fall back to Metabase value'));
 
   // ── Build output rows ──────────────────────────────────────────────────────
   var outRows = result.rows.map(function (srcRow, rowIdx) {
@@ -612,12 +673,23 @@ function writeToSheet_(ss, tabName, result) {
       if (isDoc) return transformDocValue_(v);
       // "Region" — always derived from the State value via North/South/NA logic
       if (hNorm === 'region') return deriveRegion_(v);
-      // "Vintage with Recykal" — calculate from onboarding date so it stays
-      // current with today's date on every sync; fall through to Metabase value
-      // only when the date column was not found in this query's result set.
-      if (hNorm === 'vintagewithrecykal' && onboardDateSrcIdx >= 0) {
-        var calc = calcVintage_(srcRow[onboardDateSrcIdx]);
-        if (calc) return calc;
+      // "Vintage with Recykal" — priority order:
+      //   1. Earliest date across ALL verticals (from gstinDateMap, keyed by GSTIN)
+      //      — captures vendors who joined Recykal in a different vertical first
+      //   2. Date from this specific filtered row (per-row fallback)
+      //   3. Fall through to Metabase's own value
+      if (hNorm === 'vintagewithrecykal') {
+        if (gstinSrcIdx >= 0 && gstinDateMap) {
+          var _g = String(srcRow[gstinSrcIdx] == null ? '' : srcRow[gstinSrcIdx]).trim().toUpperCase();
+          if (_g && gstinDateMap[_g]) {
+            var _vc = calcVintage_(gstinDateMap[_g]);
+            if (_vc) return _vc;
+          }
+        }
+        if (onboardDateSrcIdx >= 0) {
+          var _vf = calcVintage_(srcRow[onboardDateSrcIdx]);
+          if (_vf) return _vf;
+        }
       }
       return v == null ? '' : v;
     });
