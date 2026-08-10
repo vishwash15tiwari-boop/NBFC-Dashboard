@@ -42,12 +42,25 @@ var CFG = {
   /* Header aliases used to locate the three columns this sync touches in the
      destination tab. Nothing is written outside these columns. */
   SHEET_COLS: {
-    no:    ['No.', 'No', 'Sr No', 'S No', 'Serial No', 'Serial', 'SNo', '#'],
-    gstin: ['GSTIN', 'Seller GSTIN', 'Buyer GSTIN', 'GST Number', 'GST No', 'GST',
-            'Seller GST Number', 'Buyer GST Number'],
+    no:    ['No.', 'No', 'S. No.', 'S No', 'Sr No', 'Sr. No.', 'Serial No', 'Serial',
+            'SNo', '#', 'Sl No', 'Sl. No.'],
+    gstin: ['GSTIN', 'Seller GSTIN', 'Buyer GSTIN', 'GSTIN No', 'GSTIN Number',
+            'GST Number', 'GST No', 'Seller GST Number', 'Buyer GST Number',
+            'Seller GSTIN Number', 'Buyer GSTIN Number', 'GST'],
     name:  ['Seller Business Name', 'Buyer Business Name', 'Seller Name', 'Buyer Name',
-            'Entity Name', 'Business Name', 'Company Name', 'Name'],
+            'Entity Name', 'Business Name', 'Company Name', 'Legal Name', 'Trade Name',
+            'Vendor Name', 'Party Name', 'Name'],
   },
+
+  /* Last-resort column positions (1-based) used only when a header cannot be
+     resolved by name. Matches the confirmed layout: A = No., B = GSTIN,
+     C = Seller/Buyer Name. A fallback is refused if the header already at that
+     position clearly belongs to something else, so data is never overwritten. */
+  FALLBACK_COLS: { no: 1, gstin: 2, name: 3 },
+
+  /* Row 1 is normally the header. If a tab has a title/banner row instead, the
+     first this many rows are scanned for the row that holds a GSTIN header. */
+  HEADER_SCAN_ROWS: 8,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -239,11 +252,94 @@ function syncMetabaseToSheet() {
 
 /** Index of the first column in `cols` matching any candidate name, else -1. */
 function mbFindIdx_(cols, candidates) {
-  for (var i = 0; i < cols.length; i++) {
-    var n = norm_(cols[i]);
-    for (var j = 0; j < candidates.length; j++) if (n === norm_(candidates[j])) return i;
+  // Alias priority, not column order: an exact "GSTIN" wins over a stray "GST".
+  for (var j = 0; j < candidates.length; j++) {
+    var want = norm_(candidates[j]);
+    if (!want) continue;
+    for (var i = 0; i < cols.length; i++) if (norm_(cols[i]) === want) return i;
   }
   return -1;
+}
+
+/** A1-style letter for a 0-based column index, for readable logs. */
+function mbColLetter_(idx) {
+  var s = '', n = idx + 1;
+  while (n > 0) { var r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+  return s;
+}
+
+/* Fuzzy matchers. Each returns a column index or -1, and each carries explicit
+   exclusions so a document column can never be mistaken for an identity column
+   ("GST Certificate"/"GSTR 3B" are not GSTIN; "POC Name" is not the entity name). */
+var MB_FUZZY = {
+  gstin: function (n) {
+    if (n.indexOf('gst') === -1) return false;
+    if (/certificate|return|gstr|3b|filing|status|doc/.test(n)) return false;
+    return n === 'gst' || n === 'gstin' || /gstin|gstno|gstnumber/.test(n);
+  },
+  name: function (n) {
+    if (n.indexOf('name') === -1) return false;
+    if (/poc|contact|person|bank|director|owner|partner|promoter|user|login|father|authorised|authorized/.test(n)) return false;
+    return true;
+  },
+  no: function (n) {
+    return n === 'no' || n === 'no.' || n === 'sno' || n === 'srno' || n === 'slno' ||
+           n === 'serial' || n === 'serialno' || n === '#';
+  }
+};
+
+/* Headers that must never be overwritten by a positional fallback. */
+function mbHeaderLooksReserved_(header) {
+  var n = norm_(header);
+  if (!n) return false;                       // blank header is safe to claim
+  return /gst|document|doc|bank|vintage|eligib|remark|status|state|region|vertical|type|date|pan|aadhar|aadhaar|itr|cibil|sanction|msme|moa|aoa|coi|shareholding|ledger|kyc|constitution|audit|debt|electricity|rental|deed|email|mobile|phone/.test(n);
+}
+
+/**
+ * Resolve one logical column in a sheet header row.
+ * Order: exact alias → guarded fuzzy → configured position (only if the header
+ * sitting there is blank or not obviously something else).
+ * @return {{idx:number, how:string}} idx is 0-based, or -1 when unresolved.
+ */
+function mbResolveSheetCol_(headers, key, tabName) {
+  var idx = mbFindIdx_(headers, CFG.SHEET_COLS[key] || []);
+  if (idx >= 0) return { idx: idx, how: 'header "' + headers[idx] + '"' };
+
+  var fuzzy = MB_FUZZY[key];
+  if (fuzzy) {
+    for (var i = 0; i < headers.length; i++) {
+      if (fuzzy(norm_(headers[i]))) return { idx: i, how: 'fuzzy header "' + headers[i] + '"' };
+    }
+  }
+
+  var pos = (CFG.FALLBACK_COLS || {})[key];
+  if (pos) {
+    var p = pos - 1;
+    var at = headers.length > p ? headers[p] : '';
+    if (!mbHeaderLooksReserved_(at)) {
+      return { idx: p, how: 'position ' + mbColLetter_(p) + (at ? ' (header "' + at + '")' : ' (blank header)') };
+    }
+    Logger.log('  ⚠ "' + tabName + '": refused ' + key + ' fallback to column ' +
+               mbColLetter_(p) + ' — it holds "' + at + '"');
+  }
+  return { idx: -1, how: 'unresolved' };
+}
+
+/**
+ * Locate the header row. Normally 1; scans further only when row 1 has no
+ * GSTIN-like header (a tab with a title/banner row above the real headers).
+ * @return {number} 1-based row number.
+ */
+function mbFindHeaderRow_(sh) {
+  var scan = Math.min(CFG.HEADER_SCAN_ROWS || 1, Math.max(1, sh.getLastRow()));
+  var cols = Math.max(1, sh.getLastColumn());
+  if (scan < 1) return 1;
+  var block = sh.getRange(1, 1, scan, cols).getValues();
+  for (var r = 0; r < block.length; r++) {
+    if (mbFindIdx_(block[r], CFG.SHEET_COLS.gstin) >= 0) return r + 1;
+    for (var c = 0; c < block[r].length; c++) if (MB_FUZZY.gstin(norm_(block[r][c]))) return r + 1;
+  }
+  return 1;
 }
 
 /** GSTIN comparison key — trimmed and upper-cased, matching the rest of the app. */
@@ -256,13 +352,26 @@ function mbGstinKey_(v) { return String(v == null ? '' : v).trim().toUpperCase()
 function appendNewEntities_(ss, q, result) {
   var out = { added: 0, existing: 0, blank: 0 };
 
-  // ── Locate GSTIN + Name in the Metabase output ───────────────────────────
+  // ── Locate GSTIN + Name in the Metabase output (alias, then guarded fuzzy) ──
   var gIdx = mbFindIdx_(result.cols, FIELD_MAP[q.gstinKey] || []);
-  var nIdx = mbFindIdx_(result.cols, FIELD_MAP[q.nameKey]  || []);
-  if (gIdx < 0) { Logger.log('✗ No GSTIN column in query output — nothing appended.'); return out; }
-  if (nIdx < 0) Logger.log('⚠ No name column in query output — names will be blank.');
-  Logger.log('  Using Metabase cols → GSTIN: "' + result.cols[gIdx] + '"' +
+  if (gIdx < 0) for (var gi = 0; gi < result.cols.length; gi++) {
+    if (MB_FUZZY.gstin(norm_(result.cols[gi]))) { gIdx = gi; break; }
+  }
+  var nIdx = mbFindIdx_(result.cols, FIELD_MAP[q.nameKey] || []);
+  if (nIdx < 0) for (var ni = 0; ni < result.cols.length; ni++) {
+    if (MB_FUZZY.name(norm_(result.cols[ni]))) { nIdx = ni; break; }
+  }
+
+  if (gIdx < 0) {
+    Logger.log('✗ No GSTIN column in query output — nothing appended. Columns: ' + result.cols.join(' | '));
+    return out;
+  }
+  Logger.log('  Metabase → GSTIN: "' + result.cols[gIdx] + '"' +
              (nIdx >= 0 ? ', Name: "' + result.cols[nIdx] + '"' : ''));
+  if (nIdx < 0) {
+    Logger.log('  ⚠ No name column found in query output — names will be blank. Columns: ' +
+               result.cols.join(' | ') + '  → add the correct header to FIELD_MAP.' + q.nameKey);
+  }
 
   // ── Target tab, created with headers only if it does not exist ───────────
   var sh = ss.getSheetByName(q.tab);
@@ -274,30 +383,40 @@ function appendNewEntities_(ss, q, result) {
     Logger.log('  Created tab "' + q.tab + '" with No. / GSTIN / Name headers.');
   }
 
-  var lastRow = sh.getLastRow();
-  var lastCol = Math.max(1, sh.getLastColumn());
-  var headers = lastRow >= 1 ? sh.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+  var headerRow = mbFindHeaderRow_(sh);
+  var lastRow   = sh.getLastRow();
+  var lastCol   = Math.max(1, sh.getLastColumn());
+  var headers   = sh.getRange(headerRow, 1, 1, lastCol).getValues()[0];
+  Logger.log('  Header row ' + headerRow + ': ' + headers.join(' | '));
 
-  var cNo    = mbFindIdx_(headers, CFG.SHEET_COLS.no);
-  var cGstin = mbFindIdx_(headers, CFG.SHEET_COLS.gstin);
-  var cName  = mbFindIdx_(headers, CFG.SHEET_COLS.name);
+  var rNo    = mbResolveSheetCol_(headers, 'no',    q.tab);
+  var rGstin = mbResolveSheetCol_(headers, 'gstin', q.tab);
+  var rName  = mbResolveSheetCol_(headers, 'name',  q.tab);
+  var cNo = rNo.idx, cGstin = rGstin.idx, cName = rName.idx;
+
   if (cGstin < 0) {
-    Logger.log('✗ "' + q.tab + '" has no GSTIN column in row 1 — nothing appended. ' +
-               'Headers seen: ' + headers.join(' | '));
+    Logger.log('✗ "' + q.tab + '": GSTIN column unresolved — nothing appended. Headers: ' + headers.join(' | '));
     return out;
   }
-  if (cName < 0) Logger.log('⚠ "' + q.tab + '" has no name column — only GSTIN will be written.');
-  if (cNo   < 0) Logger.log('⚠ "' + q.tab + '" has no "No." column — numbering skipped.');
+  Logger.log('  Sheet → GSTIN: ' + mbColLetter_(cGstin) + ' via ' + rGstin.how);
+  Logger.log('  Sheet → Name : ' + (cName >= 0 ? mbColLetter_(cName) + ' via ' + rName.how : 'UNRESOLVED — names will not be written'));
+  Logger.log('  Sheet → No.  : ' + (cNo   >= 0 ? mbColLetter_(cNo)   + ' via ' + rNo.how   : 'UNRESOLVED — numbering skipped'));
 
   // ── Existing GSTINs: one read of the key column only ─────────────────────
+  var firstDataRow = headerRow + 1;
   var existing = {};
-  var dataRows = Math.max(0, lastRow - 1);
-  var gstinCol = dataRows > 0 ? sh.getRange(2, cGstin + 1, dataRows, 1).getValues() : [];
+  var dataRows = Math.max(0, lastRow - headerRow);
+  var gstinCol = dataRows > 0 ? sh.getRange(firstDataRow, cGstin + 1, dataRows, 1).getValues() : [];
   for (var r = 0; r < gstinCol.length; r++) {
     var k = mbGstinKey_(gstinCol[r][0]);
     if (k) existing[k] = true;
   }
-  Logger.log('  Existing rows: ' + dataRows + ' (' + Object.keys(existing).length + ' unique GSTINs)');
+  var uniqueExisting = Object.keys(existing).length;
+  Logger.log('  Existing rows: ' + dataRows + ' (' + uniqueExisting + ' unique GSTINs)');
+  if (dataRows > uniqueExisting) {
+    Logger.log('  ⚠ ' + (dataRows - uniqueExisting) + ' duplicate/blank row(s) already in "' + q.tab +
+               '" — run removeDuplicateGstins("' + q.tab + '") to clean up.');
+  }
 
   // ── Collect the genuinely new records (deduped within the batch too) ─────
   var seen = {}, newRows = [];
@@ -331,7 +450,8 @@ function appendNewEntities_(ss, q, result) {
     Logger.log('  ✓ Nothing new — sheet already current');
   }
 
-  if (cNo >= 0) renumberNoColumn_(sh, cNo, cGstin);
+  // Numbering runs even when nothing was appended, so gaps get repaired.
+  if (cNo >= 0) renumberNoColumn_(sh, cNo, cGstin, headerRow);
   Logger.log('  Summary: +' + out.added + ' added, ' + out.existing +
              ' already present, ' + out.blank + ' without GSTIN');
   return out;
@@ -342,12 +462,14 @@ function appendNewEntities_(ss, q, result) {
  * Written only when the current numbering is already wrong, so a no-op sync
  * performs no write at all.
  */
-function renumberNoColumn_(sh, cNo, cGstin) {
-  var dataRows = sh.getLastRow() - 1;
+function renumberNoColumn_(sh, cNo, cGstin, headerRow) {
+  headerRow = headerRow || 1;
+  var firstDataRow = headerRow + 1;
+  var dataRows = sh.getLastRow() - headerRow;
   if (dataRows < 1) return;
 
-  var gstins  = sh.getRange(2, cGstin + 1, dataRows, 1).getValues();
-  var current = sh.getRange(2, cNo    + 1, dataRows, 1).getValues();
+  var gstins  = sh.getRange(firstDataRow, cGstin + 1, dataRows, 1).getValues();
+  var current = sh.getRange(firstDataRow, cNo    + 1, dataRows, 1).getValues();
 
   var next = 1, desired = [], changed = false;
   for (var i = 0; i < dataRows; i++) {
@@ -357,8 +479,178 @@ function renumberNoColumn_(sh, cNo, cGstin) {
   }
   if (!changed) { Logger.log('  Numbering already correct — no write'); return; }
 
-  sh.getRange(2, cNo + 1, dataRows, 1).setValues(desired);
-  Logger.log('  ✓ Renumbered "No." for ' + (next - 1) + ' record(s)');
+  sh.getRange(firstDataRow, cNo + 1, dataRows, 1).setValues(desired);
+  Logger.log('  ✓ Renumbered "No." 1–' + (next - 1));
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DIAGNOSTICS + DUPLICATE REPAIR
+   ───────────────────────────────────────────────────────────────────────────*/
+
+/**
+ * Run this first when anything looks wrong. Prints, for both tabs, the detected
+ * header row with column letters and exactly which column each lookup resolved
+ * to — plus the columns each Metabase card returns. Reads only; writes nothing.
+ */
+function debugSheetColumns() {
+  var ss = SpreadsheetApp.openById(CFG.SHEET_ID);
+  Logger.log('════ SHEET: ' + ss.getName() + ' ════');
+
+  CFG.QUERIES.forEach(function (q) {
+    var sh = ss.getSheetByName(q.tab);
+    Logger.log('\n──── Tab "' + q.tab + '" ────');
+    if (!sh) { Logger.log('  ✗ tab not found'); return; }
+
+    var headerRow = mbFindHeaderRow_(sh);
+    var lastCol   = Math.max(1, sh.getLastColumn());
+    var headers   = sh.getRange(headerRow, 1, 1, lastCol).getValues()[0];
+    Logger.log('  Rows: ' + sh.getLastRow() + '  Cols: ' + lastCol + '  Header row: ' + headerRow);
+    headers.forEach(function (h, i) {
+      if (String(h).trim() !== '') Logger.log('    ' + mbColLetter_(i) + ': "' + h + '"');
+    });
+
+    ['no', 'gstin', 'name'].forEach(function (k) {
+      var r = mbResolveSheetCol_(headers, k, q.tab);
+      Logger.log('  → ' + k + ': ' + (r.idx >= 0 ? mbColLetter_(r.idx) + ' via ' + r.how : 'UNRESOLVED'));
+    });
+
+    var rG = mbResolveSheetCol_(headers, 'gstin', q.tab);
+    if (rG.idx >= 0 && sh.getLastRow() > headerRow) {
+      var vals = sh.getRange(headerRow + 1, rG.idx + 1, sh.getLastRow() - headerRow, 1).getValues();
+      var seen = {}, dups = 0, blanks = 0;
+      vals.forEach(function (row) {
+        var k = mbGstinKey_(row[0]);
+        if (!k) { blanks++; return; }
+        if (seen[k]) dups++; else seen[k] = true;
+      });
+      Logger.log('  GSTINs: ' + Object.keys(seen).length + ' unique, ' + dups + ' duplicate row(s), ' + blanks + ' blank');
+      if (dups) Logger.log('  → run removeDuplicateGstins("' + q.tab + '") to clean up');
+    }
+  });
+
+  var token = getSessionToken_();
+  CFG.QUERIES.forEach(function (q) {
+    Logger.log('\n──── Metabase card ' + q.id + ' (' + q.tab + ') ────');
+    try {
+      var raw = fetchCardData_(token, q.id);
+      Logger.log('  ' + raw.rows.length + ' rows, columns:');
+      raw.cols.forEach(function (c) { Logger.log('    "' + c + '"'); });
+      var g = mbFindIdx_(raw.cols, FIELD_MAP[q.gstinKey] || []);
+      var n = mbFindIdx_(raw.cols, FIELD_MAP[q.nameKey]  || []);
+      Logger.log('  → GSTIN: ' + (g >= 0 ? '"' + raw.cols[g] + '"' : 'UNRESOLVED'));
+      Logger.log('  → Name : ' + (n >= 0 ? '"' + raw.cols[n] + '"' : 'UNRESOLVED'));
+      Logger.log('  After Open Marketplace filter: ' + applyFilter_(raw).rows.length + ' rows');
+    } catch (e) { Logger.log('  ✗ ' + (e && e.message || e)); }
+  });
+  Logger.log('\n════ end ════');
+}
+
+/** Report duplicate GSTIN rows without changing anything. */
+function previewDuplicateGstins(tabName) { return mbDedupe_(tabName, true); }
+
+/**
+ * Remove duplicate GSTIN rows, keeping the FIRST occurrence of each — the
+ * original row that carries the document, vintage and eligibility data. Later
+ * copies (the ones a bad sync appended) are deleted bottom-up so row indices
+ * stay valid. Call previewDuplicateGstins() first to see what would go.
+ * @param {string=} tabName  omit to process every configured tab.
+ */
+function removeDuplicateGstins(tabName) { return mbDedupe_(tabName, false); }
+
+function mbDedupe_(tabName, dryRun) {
+  var ss = SpreadsheetApp.openById(CFG.SHEET_ID);
+  var tabs = tabName ? [tabName] : CFG.QUERIES.map(function (q) { return q.tab; });
+  var report = [];
+
+  tabs.forEach(function (tab) {
+    var sh = ss.getSheetByName(tab);
+    if (!sh) { Logger.log('✗ Tab "' + tab + '" not found'); return; }
+
+    var headerRow = mbFindHeaderRow_(sh);
+    var lastRow   = sh.getLastRow();
+    if (lastRow <= headerRow) { Logger.log('"' + tab + '": no data rows'); return; }
+
+    var headers = sh.getRange(headerRow, 1, 1, Math.max(1, sh.getLastColumn())).getValues()[0];
+    var rG = mbResolveSheetCol_(headers, 'gstin', tab);
+    if (rG.idx < 0) { Logger.log('✗ "' + tab + '": GSTIN column unresolved — skipped'); return; }
+
+    var firstDataRow = headerRow + 1;
+    var n = lastRow - headerRow;
+    var vals = sh.getRange(firstDataRow, rG.idx + 1, n, 1).getValues();
+
+    var seen = {}, dupRows = [];
+    for (var i = 0; i < n; i++) {
+      var k = mbGstinKey_(vals[i][0]);
+      if (!k) continue;                       // never touch blank-key rows
+      if (seen[k]) dupRows.push(firstDataRow + i); else seen[k] = true;
+    }
+
+    Logger.log('"' + tab + '": ' + Object.keys(seen).length + ' unique GSTINs, ' +
+               dupRows.length + ' duplicate row(s)' + (dryRun ? ' (preview only)' : ''));
+    if (dupRows.length && dupRows.length <= 60) Logger.log('  Rows: ' + dupRows.join(', '));
+
+    if (!dryRun && dupRows.length) {
+      // Bottom-up so earlier indices remain valid as rows are removed.
+      for (var d = dupRows.length - 1; d >= 0; d--) sh.deleteRow(dupRows[d]);
+      Logger.log('  ✓ Deleted ' + dupRows.length + ' duplicate row(s), kept the first of each');
+
+      var rNo = mbResolveSheetCol_(headers, 'no', tab);
+      if (rNo.idx >= 0) renumberNoColumn_(sh, rNo.idx, rG.idx, headerRow);
+    }
+    report.push({ tab: tab, unique: Object.keys(seen).length, duplicates: dupRows.length, removed: dryRun ? 0 : dupRows.length });
+  });
+  return report;
+}
+
+/** Fill in any blank Name cells for rows already in the sheet, matched by GSTIN.
+    Only blank cells are written — an existing name is never overwritten. */
+function backfillNames(tabName) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) { Logger.log('Busy — try again.'); return; }
+  try {
+    var token = getSessionToken_();
+    var ss    = SpreadsheetApp.openById(CFG.SHEET_ID);
+    var qs    = CFG.QUERIES.filter(function (q) { return !tabName || q.tab === tabName; });
+
+    qs.forEach(function (q) {
+      var sh = ss.getSheetByName(q.tab);
+      if (!sh) { Logger.log('✗ "' + q.tab + '" not found'); return; }
+
+      var raw  = applyFilter_(fetchCardData_(token, q.id));
+      var gIdx = mbFindIdx_(raw.cols, FIELD_MAP[q.gstinKey] || []);
+      var nIdx = mbFindIdx_(raw.cols, FIELD_MAP[q.nameKey]  || []);
+      if (nIdx < 0) for (var i = 0; i < raw.cols.length; i++) if (MB_FUZZY.name(norm_(raw.cols[i]))) { nIdx = i; break; }
+      if (gIdx < 0 || nIdx < 0) { Logger.log('✗ "' + q.tab + '": GSTIN/Name not found in card output'); return; }
+
+      var byGstin = {};
+      raw.rows.forEach(function (row) {
+        var k = mbGstinKey_(row[gIdx]);
+        if (k && !byGstin[k]) byGstin[k] = String(row[nIdx] == null ? '' : row[nIdx]).trim();
+      });
+
+      var headerRow = mbFindHeaderRow_(sh);
+      var headers   = sh.getRange(headerRow, 1, 1, Math.max(1, sh.getLastColumn())).getValues()[0];
+      var rG = mbResolveSheetCol_(headers, 'gstin', q.tab);
+      var rN = mbResolveSheetCol_(headers, 'name',  q.tab);
+      if (rG.idx < 0 || rN.idx < 0) { Logger.log('✗ "' + q.tab + '": GSTIN/Name column unresolved'); return; }
+
+      var n = sh.getLastRow() - headerRow;
+      if (n < 1) return;
+      var gCol = sh.getRange(headerRow + 1, rG.idx + 1, n, 1).getValues();
+      var nCol = sh.getRange(headerRow + 1, rN.idx + 1, n, 1).getValues();
+
+      var filled = 0, changed = false;
+      for (var r = 0; r < n; r++) {
+        if (String(nCol[r][0] == null ? '' : nCol[r][0]).trim() !== '') continue;   // keep existing
+        var nm = byGstin[mbGstinKey_(gCol[r][0])];
+        if (nm) { nCol[r][0] = nm; filled++; changed = true; }
+      }
+      if (changed) sh.getRange(headerRow + 1, rN.idx + 1, n, 1).setValues(nCol);
+      Logger.log('"' + q.tab + '": filled ' + filled + ' blank name(s) in column ' + mbColLetter_(rN.idx));
+    });
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
