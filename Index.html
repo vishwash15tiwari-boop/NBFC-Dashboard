@@ -634,11 +634,26 @@ table.matrix{border-collapse:separate;border-spacing:0;min-width:100%}
 .doc-note::placeholder{color:var(--ink-3)}
 .doc-note:focus{outline:none;border-color:var(--brand)}
 
+/* Below 820px the sidebar slides off-canvas. It previously did so with no
+   control to bring it back: every nav item stayed in the DOM but unreachable,
+   so a phone user landed on the dashboard and could never leave it. The toggle
+   below is the way back in. */
+.nav-toggle{display:none}
 @media(max-width:820px){
   :root{--sidebar-w:0px}
-  .sidebar{transform:translateX(-100%)}
+  .sidebar{transform:translateX(-100%);width:min(280px,84vw);
+    transition:transform .26s var(--ease)}
+  .sidebar.open{transform:none;box-shadow:var(--shadow-lg)}
   .main{margin-left:0}
   .tb-search{display:none}
+  .tb-sync{display:none}
+  .nav-toggle{display:grid}
+  .topbar{padding:0 14px;gap:10px}
+  .content{padding:18px 14px 64px}
+  .gfbar{padding:9px 14px}
+  .nav-scrim{position:fixed;inset:0;background:rgba(10,11,8,.4);backdrop-filter:blur(3px);
+    z-index:29;opacity:0;pointer-events:none;transition:opacity .22s}
+  .nav-scrim.on{opacity:1;pointer-events:auto}
 }
 
 /* ═══════════════ POC DIRECTORY (additive module) ═══════════════ */
@@ -723,7 +738,7 @@ textarea.poc-in{resize:vertical;min-height:60px}
 
 <!-- ═══════════════ APP ═══════════════ -->
 <div id="app">
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sb-brand">
       <div class="mk">R</div>
       <div><b>NBFC Tracker</b><div class="mut">Open Marketplace</div></div>
@@ -742,6 +757,10 @@ textarea.poc-in{resize:vertical;min-height:60px}
 
   <div class="main">
     <header class="topbar">
+      <button class="icon-btn nav-toggle" id="navToggle" onclick="toggleNav()"
+              aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
       <div class="tb-title" id="tbTitle">Dashboard</div>
       <div class="tb-search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -757,6 +776,7 @@ textarea.poc-in{resize:vertical;min-height:60px}
   </div>
 </div>
 
+<div class="nav-scrim" id="navScrim" onclick="toggleNav(false)"></div>
 <div class="scrim" id="scrim" onclick="closeDrawer()"></div>
 <aside class="drawer" id="drawer"></aside>
 
@@ -1290,7 +1310,18 @@ var ICONS = {
   contact:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>'
 };
 
-function go(route){ state.route=route; render(); window.scrollTo(0,0); }
+/* Off-canvas navigation (≤820px). Desktop is unaffected: the sidebar is always
+   in flow there and .open is inert. */
+function toggleNav(force){
+  var sb=$('sidebar'), sc=$('navScrim'), bt=$('navToggle');
+  if(!sb) return;
+  var open = (force==null) ? !sb.classList.contains('open') : !!force;
+  sb.classList.toggle('open', open);
+  if(sc) sc.classList.toggle('on', open);
+  if(bt){ bt.setAttribute('aria-expanded', open?'true':'false');
+          bt.setAttribute('aria-label', open?'Close navigation':'Open navigation'); }
+}
+function go(route){ state.route=route; toggleNav(false); render(); window.scrollTo(0,0); }
 
 function render(){
   renderFilterBar();       // sticky global filter bar (Entity → NBFC → POC) reflects current state
@@ -2598,7 +2629,7 @@ document.addEventListener('DOMContentLoaded',function(){
       go(activeRegisterRoute()); setTimeout(function(){var q=$('regQ'); if(q){q.value=v;q.focus();}},50);
     }
   });
-  document.addEventListener('keydown',function(ev){ if(ev.key==='Escape'){ closeDrawer(); closeCombo(); } });
+  document.addEventListener('keydown',function(ev){ if(ev.key==='Escape'){ closeDrawer(); closeCombo(); toggleNav(false); } });
   /* Close an open global-filter dropdown when clicking outside it. */
   document.addEventListener('click',function(ev){
     if(!_openCombo) return;
