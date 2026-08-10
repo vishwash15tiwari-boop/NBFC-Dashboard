@@ -716,6 +716,94 @@ function debugSheetColumns() {
   Logger.log('\n════ end ════');
 }
 
+/**
+ * Dry run of the Open Marketplace + Onboarded Status rules. Writes NOTHING, so
+ * it is safe against production at any time.
+ *
+ * debugSheetColumns() already reports how many rows survive the filter, but a
+ * count alone cannot answer the question that actually matters — "is it really
+ * excluding the records I expect, and on what grounds?". This names the excluded
+ * vendors and the rule and cell value that rejected each one, so the filter can
+ * be checked against Metabase row by row instead of taken on trust.
+ *
+ * Run before syncMetabaseToSheet() whenever the rules or the query change.
+ */
+function previewFilter() {
+  var token = getSessionToken_();
+  Logger.log('════ FILTER PREVIEW — nothing will be written ════');
+  Object.keys(CFG.FILTER).forEach(function (k) {
+    var r = CFG.FILTER[k];
+    Logger.log('  Rule "' + (r && r.label || k) + '" → '
+      + (r && r.values && r.values.length ? r.values.join(' / ') : '(off)'));
+  });
+  Logger.log('  STRICT_FILTER: ' + (CFG.STRICT_FILTER ? 'on' : 'off'));
+
+  CFG.QUERIES.forEach(function (q) {
+    Logger.log('');
+    Logger.log('──── card ' + q.id + ' → "' + q.tab + '" ────');
+    try {
+      var raw = fetchCardData_(token, q.id);
+      var res = applyFilter_(raw);
+
+      if (res.filterError) {
+        Logger.log('  ✗ WOULD ABORT this tab — ' + res.filterError);
+        return;
+      }
+
+      var excluded = raw.rows.length - res.rows.length;
+      Logger.log('  Fetched       : ' + raw.rows.length);
+      Logger.log('  WOULD SYNC    : ' + res.rows.length);
+      Logger.log('  WOULD EXCLUDE : ' + excluded);
+      if (!excluded) return;
+
+      /* Resolve each active rule's column again so a per-row reason can be
+         attributed. applyFilter_ aggregates its rejections by value; this needs
+         them per record, which is the point of the preview. */
+      var gIdx  = mbFindIdx_(raw.cols, FIELD_MAP[q.gstinKey] || []);
+      var nIdx  = mbFindIdx_(raw.cols, FIELD_MAP[q.nameKey]  || []);
+      if (nIdx < 0) nIdx = mbGuessNameCol_(raw.cols, raw.rows, gIdx);
+
+      var rules = [];
+      Object.keys(CFG.FILTER).forEach(function (k) {
+        var r = CFG.FILTER[k];
+        if (!r || !r.values || !r.values.length) return;
+        var idx = -1;
+        (r.aliases || []).forEach(function (a) {
+          if (idx >= 0) return;
+          for (var i = 0; i < raw.cols.length; i++) if (norm_(raw.cols[i]) === norm_(a)) { idx = i; return; }
+        });
+        if (idx < 0) return;
+        var acc = {};
+        r.values.forEach(function (v) { acc[norm_(v)] = true; });
+        rules.push({ idx: idx, acc: acc, label: r.label || k });
+      });
+
+      var CAP = 20, shown = 0;
+      Logger.log('  Excluded records:');
+      for (var i = 0; i < raw.rows.length && shown < CAP; i++) {
+        var row = raw.rows[i], why = null;
+        for (var j = 0; j < rules.length; j++) {
+          if (!rules[j].acc[norm_(row[rules[j].idx])]) {
+            var seen = String(row[rules[j].idx] == null ? '' : row[rules[j].idx]).trim() || '(blank)';
+            why = rules[j].label + ' = "' + seen + '"';
+            break;
+          }
+        }
+        if (!why) continue;
+        Logger.log('    ✗ ' + (nIdx >= 0 ? String(row[nIdx]) : '(row ' + (i + 1) + ')')
+          + (gIdx >= 0 ? '  [' + row[gIdx] + ']' : '') + '  — ' + why);
+        shown++;
+      }
+      if (excluded > shown) Logger.log('    … and ' + (excluded - shown) + ' more');
+    } catch (e) {
+      Logger.log('  ✗ ' + (e && e.message || e));
+    }
+  });
+
+  Logger.log('');
+  Logger.log('════ nothing was written — run syncMetabaseToSheet() to apply ════');
+}
+
 /** Report duplicate GSTIN rows without changing anything. */
 function previewDuplicateGstins(tabName) { return mbDedupe_(tabName, true); }
 
