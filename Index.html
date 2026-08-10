@@ -301,6 +301,18 @@ tr.tot-row td.tail-cell{text-align:left}
   .cmd-ov{padding:48px 12px 48px}
   .btn-cmd .cmd-ks{display:none}
 }
+
+/* ── Entity toggle bar ── */
+.entity-bar{background:var(--surface);border-bottom:1px solid var(--line);padding:10px 24px;display:flex;align-items:center;gap:14px;position:sticky;top:60px;z-index:99}
+.entity-pills{display:flex;gap:3px;background:var(--s3);border:1px solid var(--line);border-radius:10px;padding:3px}
+.entity-pill{padding:5px 18px;border-radius:7px;font-size:13px;font-weight:600;color:var(--muted);border:0;background:none;transition:all .15s;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.entity-pill.active{background:var(--surface);color:var(--ink);box-shadow:var(--sh-sm)}
+.entity-pill[data-entity="seller"].active{color:var(--blue)}
+.entity-pill[data-entity="buyer"].active{color:var(--good)}
+.entity-badge{font-size:10.5px;padding:1px 7px;border-radius:20px;font-weight:700;background:var(--track);color:var(--muted)}
+.entity-pill.active[data-entity="seller"] .entity-badge{background:var(--blue-dim);color:var(--blue)}
+.entity-pill.active[data-entity="buyer"] .entity-badge{background:rgba(5,150,105,.1);color:var(--good-ink)}
+.entity-nbfc-list{font-size:12px;color:var(--muted);margin-left:4px}
 </style>
 </head>
 <body>
@@ -333,6 +345,19 @@ tr.tot-row td.tail-cell{text-align:left}
     Refresh
   </button>
 </nav>
+
+<!-- Entity selector: Seller / Buyer toggle -->
+<div class="entity-bar" id="entityBar" style="display:none">
+  <div class="entity-pills">
+    <button class="entity-pill active" data-entity="seller" id="epill-seller" onclick="setEntity('seller')">
+      Seller <span class="entity-badge" id="ebadge-seller">—</span>
+    </button>
+    <button class="entity-pill" data-entity="buyer" id="epill-buyer" onclick="setEntity('buyer')">
+      Buyer <span class="entity-badge" id="ebadge-buyer">—</span>
+    </button>
+  </div>
+  <span class="entity-nbfc-list" id="entityNbfcList"></span>
+</div>
 
 <div class="wrap">
   <!-- Header -->
@@ -431,7 +456,9 @@ tr.tot-row td.tail-cell{text-align:left}
 
 <script>
 /* ── State ── */
-var _d = null;
+var _d = null;            // raw data from backend
+var _dv = null;           // current filtered view
+var _entityFilter = 'seller';
 var elStatus  = document.getElementById('status');
 var elContent = document.getElementById('content');
 var elRefresh = document.getElementById('refresh');
@@ -462,6 +489,67 @@ function ringSvg(pct, size, dark) {
     '<circle cx="'+h+'" cy="'+h+'" r="'+r.toFixed(1)+'" fill="none" stroke="'+fill+'" stroke-width="'+sw.toFixed(1)+
     '" stroke-linecap="round" stroke-dasharray="'+c.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+
     '" transform="rotate(-90 '+h+' '+h+')"/></svg>';
+}
+
+/* ── Entity filter ── */
+function setEntity(e) {
+  _entityFilter = e;
+  document.querySelectorAll('.entity-pill').forEach(function(p){
+    p.classList.toggle('active', p.getAttribute('data-entity') === e);
+  });
+  updateNbfcLabel();
+  if (_d) renderAll();
+}
+
+function updateNbfcLabel() {
+  if (!_d || !_d.nbfcEntityMap) return;
+  var nbfcs = _d.nbfcEntityMap[_entityFilter] || [];
+  document.getElementById('entityNbfcList').textContent =
+    nbfcs.length ? '→ ' + nbfcs.join(' · ') : '';
+}
+
+// Returns a derived data object scoped to the active entity filter.
+// Recomputes docs[] and totals from the filtered sellers so every
+// view (overview, matrix, cards, modals) sees consistent numbers.
+function activeView() {
+  if (!_d) return null;
+  var map = _d.nbfcEntityMap || {};
+  var hasMapping = (map.seller && map.seller.length > 0) || (map.buyer && map.buyer.length > 0);
+  var sellers = hasMapping
+    ? _d.sellers.filter(function(s){ return s.entityGroup === _entityFilter; })
+    : _d.sellers;
+  var N = _d.numDocs;
+  var docs = _d.docLabels.map(function(l){ return {label:l,recv:0,na:0,appl:0,pend:0,pct:0}; });
+  var tRecv = 0, tNa = 0;
+  sellers.forEach(function(s){
+    tRecv += s.recv; tNa += s.na;
+    for (var j = 0; j < N; j++) {
+      var c = s.cells.charAt(j);
+      if (c==='Y') docs[j].recv++;
+      else if (c==='N') docs[j].na++;
+    }
+  });
+  var S = sellers.length;
+  docs.forEach(function(x){
+    x.appl = S - x.na;
+    x.pend = x.appl - x.recv;
+    x.pct  = x.appl ? Math.round(x.recv / x.appl * 100) : 0;
+  });
+  var tAppl = N * S - tNa;
+  return {
+    sourceName:    _d.sourceName,
+    generatedAt:   _d.generatedAt,
+    numDocs:       N,
+    docLabels:     _d.docLabels,
+    nbfcEntityMap: _d.nbfcEntityMap,
+    sellers:       sellers,
+    docs:          docs,
+    totals: {
+      sellers: S, recv: tRecv, na: tNa, appl: tAppl,
+      pend: tAppl - tRecv,
+      pct:  tAppl ? Math.round(tRecv / tAppl * 1000) / 10 : 0
+    }
+  };
 }
 
 /* ── Tabs ── */
@@ -582,8 +670,8 @@ function groupedList(groups, mode) {
 
 /* ── Open card modal ── */
 function openCard(type) {
-  if (!_d) return;
-  var d = _d, title, count, numSub, sub, body;
+  if (!_dv && !_d) return;
+  var d = _dv || _d, title, count, numSub, sub, body;
   switch (type) {
     case 'sellers': {
       var p = d.sellers.filter(function(s){ return s.type.toLowerCase().indexOf('plastic')>-1; }).sort(function(a,b){ return b.pct-a.pct; });
@@ -673,7 +761,7 @@ function renderCmdItems(q) {
 }
 
 function openCmd() {
-  buildCmdDefs(_d);
+  buildCmdDefs(_dv || _d);
   renderCmdItems('');
   document.getElementById('cmdInput').value = '';
   document.getElementById('cmdPal').classList.add('open');
@@ -707,7 +795,7 @@ document.addEventListener('keydown', function(e){
   if (e.key==='Escape') { closeModal(); closeCmd(); }
 });
 
-/* ── Main render ── */
+/* ── Main render (called once on data load) ── */
 function render(d) {
   if (!d || d.error) {
     elStatus.className='status-bar err';
@@ -715,10 +803,30 @@ function render(d) {
     elRefresh.disabled=false; return;
   }
   _d = d;
-  var docs=d.docLabels, N=docs.length, t=d.totals;
 
   document.getElementById('src').innerHTML =
-    'Source: <b>'+esc(d.sourceName)+'</b> &nbsp;·&nbsp; '+N+' documents tracked &nbsp;·&nbsp; Updated '+esc(d.generatedAt);
+    'Source: <b>'+esc(d.sourceName)+'</b> &nbsp;·&nbsp; '+d.numDocs+' documents tracked &nbsp;·&nbsp; Updated '+esc(d.generatedAt);
+
+  /* Populate entity badge counts and reveal the toggle bar */
+  var sCount = d.sellers.filter(function(s){ return s.entityGroup==='seller'; }).length;
+  var bCount = d.sellers.filter(function(s){ return s.entityGroup==='buyer'; }).length;
+  document.getElementById('ebadge-seller').textContent = sCount;
+  document.getElementById('ebadge-buyer').textContent  = bCount;
+  document.getElementById('entityBar').style.display   = '';
+  updateNbfcLabel();
+
+  elStatus.style.display='none';
+  elContent.style.display='block';
+  elRefresh.disabled=false;
+
+  renderAll();
+}
+
+/* ── renderAll: re-runs whenever entity filter changes ── */
+function renderAll() {
+  if (!_d) return;
+  _dv = activeView();
+  var d = _dv, docs = d.docLabels, N = docs.length, t = d.totals;
 
   /* Overview cards */
   renderOvCards(d);
@@ -798,10 +906,7 @@ function render(d) {
       '<div class="dp">'+x.pct+'%<small> of '+x.appl+'</small></div></div>';
   }).join('');
 
-  document.getElementById('foot').textContent = 'Read-only — your sheet is never modified. Missing counts only applicable documents. Generated '+d.generatedAt+'.';
-  elStatus.style.display='none';
-  elContent.style.display='block';
-  elRefresh.disabled=false;
+  document.getElementById('foot').textContent = 'Read-only — your sheet is never modified. Missing counts only applicable documents. Generated '+_d.generatedAt+'.';
 }
 
 /* ── Load ── */

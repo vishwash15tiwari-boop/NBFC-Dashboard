@@ -44,6 +44,18 @@ const NA_VALUES       = ['NA', 'N/A'];
 // Number of seller rows the dashboard mirrors (future-proof buffer).
 const DASH_ROWS = 200;
 
+// ── NBFC → Entity mapping (single source of truth) ────────────────
+// Assign each NBFC to 'seller' or 'buyer'. Names are matched
+// case-insensitively. Add future NBFCs here; no frontend code changes needed.
+const NBFC_ENTITY_MAP = {
+  seller: ['Billmart', 'Capital XB', 'Karncy'],
+  buyer:  ['Stride One', 'Creddable'],
+};
+
+// Column header in the master sheet that identifies which NBFC each row
+// belongs to. Set to '' if no such column exists (rows stay unclassified).
+const NBFC_HEADER = 'NBFC';
+
 // ── small helpers ────────────────────────────────────────────
 
 function book_() {
@@ -119,6 +131,7 @@ function locateSource_(ss) {
         nameCol: nameIdx + 1,
         entityCol: (find(ENTITY_HEADER) + 1) || 0,
         regionCol: (find(REGION_HEADER) + 1) || 0,
+        nbfcCol:   NBFC_HEADER ? (find(NBFC_HEADER) + 1) || 0 : 0,
         docStart: docStart,
         docEnd: docEnd,
         numDocs: docEnd - docStart + 1,
@@ -393,6 +406,7 @@ function computeDashboard_() {
     generatedAt: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd-MMM-yyyy HH:mm'),
     numDocs: N,
     docLabels: src.docLabels,
+    nbfcEntityMap: NBFC_ENTITY_MAP,
     sellers: [],
     docs: src.docLabels.map(l => ({ label: l, recv: 0, na: 0, appl: 0, pend: 0, pct: 0 })),
     totals: { sellers: 0, recv: 0, na: 0, appl: 0, pend: 0, pct: 0 },
@@ -403,7 +417,20 @@ function computeDashboard_() {
   const entities = src.entityCol
     ? sh.getRange(src.dataStart, src.entityCol, numRows, 1).getValues()
     : null;
+  const nbfcVals = src.nbfcCol
+    ? sh.getRange(src.dataStart, src.nbfcCol, numRows, 1).getValues()
+    : null;
   const block = sh.getRange(src.dataStart, src.docStart, numRows, N).getValues();
+
+  // Build lookup sets for NBFC → entity classification (case-insensitive).
+  const _nbfcSellerSet = new Set(NBFC_ENTITY_MAP.seller.map(n => n.toLowerCase()));
+  const _nbfcBuyerSet  = new Set(NBFC_ENTITY_MAP.buyer.map(n => n.toLowerCase()));
+  const classifyNbfc = name => {
+    const n = String(name || '').trim().toLowerCase();
+    if (_nbfcSellerSet.has(n)) return 'seller';
+    if (_nbfcBuyerSet.has(n))  return 'buyer';
+    return '';
+  };
 
   let tRecv = 0, tNa = 0;
 
@@ -421,9 +448,12 @@ function computeDashboard_() {
     }
     const appl = N - na;
     const pend = appl - recv;
+    const nbfcRaw = nbfcVals ? String(nbfcVals[i][0] || '').trim() : '';
     base.sellers.push({
       name: name,
       type: entities ? String(entities[i][0] || '').trim() : '',
+      nbfc: nbfcRaw,
+      entityGroup: classifyNbfc(nbfcRaw),
       recv: recv, na: na, appl: appl, pend: pend,
       pct: appl ? Math.round((recv / appl) * 100) : 0,
       cells: cells.join(''),           // e.g. "YXYXNY..." aligned to docLabels
