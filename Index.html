@@ -204,6 +204,28 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none}
 /* Metric with no column in the master sheet — muted dash, never a number. */
 .kpi .k-nodata{color:var(--ink-3);opacity:.42;font-weight:400}
 
+/* ── Common Documents card ─────────────────────────────────────── */
+.cd-summary{display:flex;flex-wrap:wrap;gap:7px;padding:12px 20px;border-bottom:1px solid var(--line-2)}
+.cd-cat-label{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--ink-3);padding:14px 20px 6px}
+.cd-doc-row{display:flex;align-items:center;gap:10px;padding:8px 20px;
+  border-bottom:1px solid var(--line-2);transition:background .12s}
+.cd-doc-row:last-child{border-bottom:none}
+.cd-doc-row:hover{background:var(--fill)}
+.cd-doc-name{flex:0 0 200px;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cd-bar-wrap{flex:1;min-width:60px}
+.cd-bar-bg{height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.cd-bar-recv{height:100%;background:var(--ok);border-radius:3px;transition:width .3s}
+.cd-doc-counts{display:flex;gap:5px;flex-shrink:0;width:126px;justify-content:flex-end}
+.cd-cnt{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;
+  min-width:28px;text-align:center;line-height:18px}
+.cd-cnt-ok{background:var(--ok-tint);color:var(--ok)}
+.cd-cnt-warn{background:var(--warn-tint);color:var(--warn)}
+.cd-cnt-na{background:var(--na-tint);color:var(--na)}
+.cd-legend-row{display:flex;gap:10px;padding:7px 20px;border-bottom:1px solid var(--line-2);
+  justify-content:flex-end;align-items:center}
+.cd-leg{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px}
+/* ── Needs-Documents rows ─────────────────────────────────────── */
 /* Needs-documents rows — one per entity not yet eligible for the selected NBFC.
    Every document chip comes from that NBFC's requirement matrix. */
 .nd-row{display:flex;gap:12px;align-items:flex-start;padding:12px 18px;
@@ -465,11 +487,14 @@ table.matrix{border-collapse:separate;border-spacing:0;min-width:100%}
 .dr-x{margin-left:auto;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--ink-3);flex-shrink:0}
 .dr-x:hover{background:var(--fill);color:var(--ink)}
 .dr-body{flex:1;overflow-y:auto;padding:20px 22px}
-.dr-ring-row{display:flex;align-items:center;gap:18px;padding:16px;border:1px solid var(--line);
-  border-radius:var(--radius);background:var(--surface);margin-bottom:18px}
-.ring{width:74px;height:74px;flex-shrink:0}
-.dr-ring-row .rr-txt b{font-size:22px;font-weight:600;letter-spacing:-.02em}
-.dr-ring-row .rr-txt span{display:block;font-size:12px;color:var(--ink-3);margin-top:1px}
+/* Completion widget — replaces old ring-row */
+.dr-compl{padding:14px 16px;border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--surface);margin-bottom:18px}
+.dc-stat{display:flex;align-items:baseline;gap:6px;margin-bottom:10px}
+.dc-num{font-size:32px;font-weight:700;letter-spacing:-.04em;line-height:1}
+.dc-of{font-size:20px;font-weight:400;color:var(--ink-3);letter-spacing:-.01em}
+.dc-lbl{font-size:12px;color:var(--ink-3);font-weight:500;margin-left:2px}
+.dc-pills{display:flex;gap:6px;flex-wrap:wrap}
 .dr-sec-h{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);
   margin:20px 0 10px}
 .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line-2);border:1px solid var(--line-2);
@@ -484,12 +509,24 @@ table.matrix{border-collapse:separate;border-spacing:0;min-width:100%}
 .vd-group{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
   color:var(--ink-3);margin:15px 0 7px}
 .vd-group.first{margin-top:6px}
-.elig-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px;margin-bottom:6px}
-.es-card{border:1px solid var(--line);border-radius:var(--radius-sm);padding:11px 10px;text-align:center;position:relative}
-.es-card.eligible{border-color:rgba(var(--ok-rgb),.4);background:var(--ok-tint)}
-.es-card .es-nm{font-size:11.5px;font-weight:600}
-.es-card .es-st{font-size:10.5px;margin-top:4px;font-weight:600}
-.es-card.eligible .es-st{color:var(--ok)}.es-card.blocked .es-st{color:var(--ink-3)}
+/* NBFC eligibility list — replaces old badge grid */
+.es2-list{display:flex;flex-direction:column;gap:4px;margin-bottom:6px}
+.es2-row{display:flex;align-items:center;gap:10px;padding:9px 11px;
+  border-radius:var(--radius-sm);cursor:pointer;transition:background .13s;
+  border:1px solid var(--line)}
+.es2-row:hover{background:var(--fill);border-color:var(--ink-2)}
+.es2-ava{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;
+  font-size:10px;font-weight:700;flex-shrink:0;color:#fff}
+.es2-info{flex:1;min-width:0}
+.es2-name{font-size:12.5px;font-weight:600;display:block;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.es2-track{display:block;height:3px;border-radius:2px;background:var(--surface-2);
+  margin-top:5px;overflow:hidden}
+.es2-fill{display:block;height:100%;border-radius:2px;transition:width .3s}
+.es2-badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;
+  flex-shrink:0;white-space:nowrap}
+.es2-badge-ok{background:rgba(var(--ok-rgb),.12);color:var(--ok)}
+.es2-badge-miss{background:var(--surface-2);color:var(--ink-3)}
 .doc-item{display:flex;flex-direction:column;gap:8px;padding:11px 0;border-bottom:1px solid var(--line-2)}
 .doc-item:last-child{border-bottom:none}
 .doc-item .di-row{display:flex;align-items:center;gap:11px}
@@ -907,7 +944,8 @@ var state = { route:'dashboard', role:'Operations', user:'Ops User', email:'ops@
   sellerQ:'', sellerFilter:'all', buyerQ:'', theme:'light', setPanel:'catalog', mapNbfc:'billmart',
   pocQ:'', pocNbfc:'all', pocStatus:'active',
   docNbfc:'', _docEnt:null,     // which NBFC's matrix drives the seller detail checklist
-  nbfcEntityType:'seller' };    // controls the Eligible / Needs-documents split on NBFC pages
+  nbfcEntityType:'seller',      // controls the Eligible / Needs-documents split on NBFC pages
+  cdExpanded:false };           // whether the Common Documents card is fully expanded
 
 var NAV = [
   {id:'dashboard', label:'Dashboard', icon:'grid'},
@@ -1152,6 +1190,75 @@ function wireRegister(type){
   });
 }
 
+/* ── Common Documents card: all CATALOG docs, aggregated over pool ──────────
+   Completely separate from the NBFC-specific requirement matrix (n.req).
+   pool = ENTITIES already filtered to the selected entity type.            */
+function buildCommonDocCard(pool, typeSing) {
+  var N = pool.length;
+  var totalR=0, totalP=0, totalNa=0, totalX=0;
+
+  var docStats = CATALOG.map(function(d){
+    var r=0,p=0,na=0,x=0;
+    pool.forEach(function(e){
+      var s=e.docs[d.id];
+      if(s==='received') r++; else if(s==='pending') p++; else if(s==='na') na++; else x++;
+    });
+    totalR+=r; totalP+=p; totalNa+=na; totalX+=x;
+    return {d:d,r:r,p:p,na:na,x:x};
+  });
+
+  var summaryH =
+    '<div class="cd-summary">'+
+      '<span class="status-pill"><span class="d" style="background:var(--ink-3)"></span>'+CATALOG.length+' document types</span>'+
+      '<span class="status-pill"><span class="d" style="background:var(--ink-3)"></span>'+N+' '+typeSing+'s</span>'+
+      '<span class="status-pill sp-ok"><span class="d"></span>'+totalR+' received</span>'+
+      (totalP?'<span class="status-pill sp-warn"><span class="d"></span>'+totalP+' pending</span>':'')+
+      (totalNa?'<span class="status-pill sp-na"><span class="d"></span>'+totalNa+' N/A</span>':'')+
+      (totalX?'<span class="status-pill" style="color:var(--ink-3);border-color:var(--line)"><span class="d" style="background:var(--ink-3)"></span>'+totalX+' not on record</span>':'')+
+    '</div>';
+
+  var cardH =
+    '<div class="card" style="margin-bottom:18px">'+
+      '<div class="card-h"><h3>Common Documents</h3>'+
+      '<span class="sub">All '+CATALOG.length+' types · '+N+' '+typeSing+'s · not filtered by NBFC</span>'+
+      '<div class="right"><button class="btn btn-sm" onclick="state.cdExpanded='+(!state.cdExpanded)+';render()">'+(state.cdExpanded?'Collapse':'Expand all')+'</button></div>'+
+      '</div>'+summaryH;
+
+  if(!state.cdExpanded){ return cardH+'</div>'; }
+
+  /* Expanded view: per-category doc rows */
+  var cats={}, catOrder=[];
+  docStats.forEach(function(ds){
+    if(!cats[ds.d.cat]){ cats[ds.d.cat]=[]; catOrder.push(ds.d.cat); }
+    cats[ds.d.cat].push(ds);
+  });
+
+  var legendH =
+    '<div class="cd-legend-row">'+
+      '<span class="cd-leg cd-cnt-ok">Received</span>'+
+      '<span class="cd-leg cd-cnt-warn">Pending</span>'+
+      '<span class="cd-leg cd-cnt-na">N/A</span>'+
+    '</div>';
+
+  var bodyH = catOrder.map(function(cat){
+    var rows = cats[cat].map(function(ds){
+      var pct = N ? Math.round(ds.r/N*100) : 0;
+      return '<div class="cd-doc-row">'+
+        '<div class="cd-doc-name" title="'+esc(ds.d.name)+'">'+esc(ds.d.name)+'</div>'+
+        '<div class="cd-bar-wrap"><div class="cd-bar-bg"><div class="cd-bar-recv" style="width:'+pct+'%"></div></div></div>'+
+        '<div class="cd-doc-counts">'+
+          '<span class="cd-cnt cd-cnt-ok">'+ds.r+'</span>'+
+          '<span class="cd-cnt cd-cnt-warn">'+(ds.p||'—')+'</span>'+
+          '<span class="cd-cnt cd-cnt-na">'+(ds.na||'—')+'</span>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+    return '<div class="cd-cat-label">'+esc(cat)+'</div>'+rows;
+  }).join('');
+
+  return cardH+legendH+bodyH+'</div>';
+}
+
 /* ═══════════════ NBFC DASHBOARD PAGE ═══════════════ */
 function viewNbfc(n){
   var sellers = ENTITIES.filter(function(e){ return e.type==='seller'; });
@@ -1290,6 +1397,7 @@ function viewNbfc(n){
     pocStrip(n)+
     docCard+
     typeToggle+
+    buildCommonDocCard(pool, typeSing)+
     '<div class="split-cols">'+
       '<div class="card"><div class="card-h"><h3>Eligible</h3><span class="sub">'+ready.length+' '+typeSing+'s</span></div>'+readyH+'</div>'+
       '<div class="card"><div class="card-h"><h3>Needs documents</h3>'+
@@ -1407,7 +1515,19 @@ function openDetail(id){
   var eligs=eligibleNbfcs(e);
 
   var esCards=NBFCS.map(function(n){ var m=evalNbfc(e,n);
-    return '<div class="es-card '+(m.eligible?'eligible':'blocked')+'"><div class="es-nm">'+esc(n.name)+'</div><div class="es-st">'+(m.eligible?'Eligible':(m.missing.length+(m.vintageOk?'':'+v')+' missing'))+'</div></div>';
+    var recN = n.req.filter(function(id){ return e.docs[id]==='received'; }).length;
+    var pct  = n.req.length ? Math.round(recN/n.req.length*100) : 100;
+    var pend = m.missing.length + (m.vintageOk?0:1);
+    var badgeCls = m.eligible ? 'es2-badge-ok' : 'es2-badge-miss';
+    var badgeTxt = m.eligible ? '✓ Eligible' : (pend+' Pending');
+    return '<div class="es2-row" onclick="closeDrawer();go(\'nbfc:'+n.id+'\')" title="Navigate to '+esc(n.name)+'">'+
+      '<div class="es2-ava" style="background:'+n.nc+'">'+esc(initials(n.name))+'</div>'+
+      '<div class="es2-info">'+
+        '<span class="es2-name">'+esc(n.name)+'</span>'+
+        '<span class="es2-track"><span class="es2-fill" style="width:'+pct+'%;background:'+n.nc+'"></span></span>'+
+      '</div>'+
+      '<span class="es2-badge '+badgeCls+'">'+esc(badgeTxt)+'</span>'+
+    '</div>';
   }).join('');
 
   /* Vendor details — a profile card fed from the Meta-synced master sheet.
@@ -1494,11 +1614,20 @@ function openDetail(id){
       '<div style="flex:1;min-width:0"><h2>'+esc(e.name)+'</h2><div class="dh-sub"><span class="gst">'+esc(e.gst)+'</span> · '+esc(e.type)+' · '+esc(e.city||e.state)+'</div></div>'+
       '<button class="dr-x" onclick="closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>'+
     '<div class="dr-body">'+
-      '<div class="dr-ring-row">'+ring(c.pct,ncColor)+'<div class="rr-txt"><b class="tnum">'+c.ok+' of '+c.total+'</b><span>documents received · '+c.pct+'% complete</span>'+
-        '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+
-          pillMini('sp-ok',cnt.received+' received')+pillMini('sp-warn',cnt.pending+' pending')+(cnt.na?pillMini('sp-na',cnt.na+' N/A'):'')+(cnt.none?pillMini('sp-bad',cnt.none+' not on record'):'')+'</div>'+
-      '</div></div>'+
-      '<div class="dr-sec-h">NBFC eligibility</div><div class="elig-summary">'+esCards+'</div>'+
+      '<div class="dr-compl">'+
+        '<div class="dc-stat">'+
+          '<span class="dc-num tnum">'+c.ok+'</span>'+
+          '<span class="dc-of tnum"> / '+c.total+'</span>'+
+          '<span class="dc-lbl">Documents Completed</span>'+
+        '</div>'+
+        '<div class="dc-pills">'+
+          pillMini('sp-ok',cnt.received+' received')+
+          pillMini('sp-warn',cnt.pending+' pending')+
+          (cnt.na?pillMini('sp-na',cnt.na+' N/A'):'')+
+          (cnt.none?pillMini('sp-bad',cnt.none+' not on record'):'')+
+        '</div>'+
+      '</div>'+
+      '<div class="dr-sec-h">NBFC eligibility</div><div class="es2-list">'+esCards+'</div>'+
       '<div class="dr-sec-h">Vendor details</div>'+metaH+
       '<div class="dr-sec-h" style="margin-top:22px;display:flex;justify-content:space-between;align-items:center;gap:10px">'+
         '<span>Document checklist</span>'+
