@@ -240,6 +240,9 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none}
 
 /* ─────────────────────────── KPI CARDS ─────────────────────────── */
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px}
+/* Dashboard headline row — a lower floor so four cards hold one line at the
+   common 1280–1440 desktop width instead of orphaning the fourth. */
+.kpi-row-dash{grid-template-columns:repeat(auto-fit,minmax(176px,1fr))}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
   padding:18px 20px;position:relative;overflow:hidden;box-shadow:var(--shadow-sm);
   transition:border-color .2s var(--ease),box-shadow .2s var(--ease),transform .2s var(--ease)}
@@ -318,6 +321,24 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none}
 .ne-count .mut{color:var(--ink-3);font-weight:400}
 .nbfc-elig.clk{margin:0 -18px;padding:11px 18px;cursor:pointer;border-radius:0;transition:background .13s var(--ease)}
 .nbfc-elig.clk:hover{background:var(--fill)}
+/* Document collection priorities — ranks the documents that, once collected,
+   unlock the most vendors. A new lens over the existing requirement matrix and
+   document statuses; it computes nothing the eligibility engine doesn't already. */
+.dpri-row{display:flex;align-items:center;gap:13px;padding:11px 18px;border-bottom:1px solid var(--line-2)}
+.dpri-row:last-child{border-bottom:none}
+.dpri-rank{width:18px;flex-shrink:0;font-size:11.5px;font-weight:700;color:var(--ink-4);
+  font-variant-numeric:tabular-nums;text-align:right}
+.dpri-main{flex:1;min-width:0}
+.dpri-nm{font-size:13px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dpri-sub{font-size:11px;color:var(--ink-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dpri-nbfcs{display:flex;gap:4px;flex-shrink:0}
+.dpri-nd{width:8px;height:8px;border-radius:50%}
+.dpri-track{width:110px;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;flex-shrink:0}
+.dpri-track i{display:block;height:100%;border-radius:3px;background:var(--warn);transition:width .4s var(--ease-out)}
+.dpri-n{font-size:12.5px;font-weight:600;min-width:74px;text-align:right;
+  font-variant-numeric:tabular-nums;flex-shrink:0}
+.dpri-n .mut{color:var(--ink-3);font-weight:400}
+@media(max-width:900px){.dpri-track{display:none}}
 /* Command-centre — Level-1 state line + Level-2 attention header */
 .cmd-summary{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;margin:-4px 0 20px;
   font-size:13.5px;color:var(--ink-2)}
@@ -1293,32 +1314,26 @@ function viewDashboard(){
   var isS    = _entityFilter==='seller';
   var noun   = isS?'seller':'buyer';
   var nounC  = isS?'Sellers':'Buyers';
-  var accent = isS?'var(--brand)':'var(--brand-mint)';
-  var accent2= isS?'var(--brand-purple)':'var(--brand-green)';
 
   var firstCheck = pool.filter(function(e){ return filteredEligibleNbfcs(e).length>0; });
   var pendingAll = pool.filter(function(e){ return docCounts(e).pending>0; }).length;
+  var untouched  = pool.filter(function(e){ return docCounts(e).none===CATALOG.length; }).length;
 
-  function pipeCell(n, total, color, click){
-    if(n==null) return '<div class="pipe-cell mut"><div class="pc-n">—</div><div class="pc-sub">Not in master sheet</div></div>';
-    var pct = total ? Math.round(n/total*100) : 0;
-    return '<div class="pipe-cell'+(click?' click':'')+'"'+(click?' onclick="'+click+'"':'')+'>'+
-      '<div class="pc-n">'+n+'</div>'+
-      '<div class="pc-bar"><i style="width:'+pct+'%;background:'+color+'"></i></div></div>';
-  }
-  var pipeHead='<div class="pipe-row pipe-head"><div class="pipe-rl">Population</div>'+
-    '<div class="pipe-cell">Total</div><div class="pipe-cell">First Check</div>'+
-    '<div class="pipe-cell">Logged In</div><div class="pipe-cell">Credit Assigned</div></div>';
-  var popRow='<div class="pipe-row"><div class="pipe-rl"><span class="fn-dot" style="background:'+accent+'"></span>'+nounC+'</div>'+
-    pipeCell(pool.length, pool.length, accent, "kpiGo('all')")+
-    pipeCell(firstCheck.length, pool.length, accent2, "kpiGo('eligible')")+
-    pipeCell(null)+pipeCell(null)+'</div>';
-  var funnelCard='<div class="card" style="margin-bottom:18px">'+
-    '<div class="card-h"><h3>Onboarding pipeline</h3><span class="sub">Open Marketplace → credit-eligible · '+nounC+'</span>'+
-      '<div class="head-stats">'+
-        '<button class="head-stat amber" onclick="kpiGo(\'pending\')"><b>'+pendingAll+'</b> awaiting docs</button>'+
-      '</div></div>'+
-    '<div class="pipe">'+pipeHead+popRow+'</div></div>';
+  /* Headline metrics. Total and Credit-ready used to be stated three times over
+     — once in a text summary line, again in the pipeline card, again in the NBFC
+     list — so they are stated once, here, at full type scale. "Logged In" and
+     "Credit Assigned" were two of the pipeline's four columns and had no column
+     in the master sheet; kpiTracked() withholds them until they do, at which
+     point they rejoin this row on their own. */
+  var kpiCards = [
+    kpiHero('Total '+nounC,       pool.length,       'Open Marketplace · Completed',      '',                      "kpiGo('all')"),
+    kpiHero('Credit-ready',       firstCheck.length, 'Eligible for at least one NBFC',    '',                      "kpiGo('eligible')"),
+    kpiHero('Awaiting documents', pendingAll,        'Submitted, under review',           pendingAll?'amber':'',   "kpiGo('pending')"),
+    kpiHero('Not started',        untouched,         'No document recorded yet',          '',                      "kpiGo('blocked')"),
+    kpiTracked('Logged In',       null, 'Open Marketplace logins'),
+    kpiTracked('Credit Assigned', null, 'Limit sanctioned')
+  ].filter(Boolean);
+  var kpiRow = '<div class="kpi-row kpi-row-dash">'+kpiCards.join('')+'</div>';
 
   // Level-3 pipeline: per-NBFC eligible vs. still-needing-docs (active group + active entities only)
   var neRows=anb.map(function(n){
@@ -1348,21 +1363,60 @@ function viewDashboard(){
       '<div class="en">'+esc(x.e.name)+'<span class="mut"> · '+esc(x.e.type)+' · '+x.miss+' doc'+(x.miss>1?'s':'')+' from '+esc(x.n.name)+'</span></div>'+
       '<div class="miss-tags">'+x.missing.map(function(id){return '<span class="miss-tag">'+esc(CAT_BY_ID[id].name)+'</span>';}).join('')+'</div>'+
     '</div>';
-  }).join('') || '<div style="padding:24px;text-align:center;color:var(--ink-3)">No '+noun+' is within 2 documents of a new NBFC — nothing needs attention right now.</div>';
+  }).join('') || emptyRow('No '+noun+' is within 2 documents of an NBFC yet. As documents are recorded, the closest '+noun+'s surface here first.');
 
-  /* Level-1 state line — the 10-second read, derived from the same values. */
-  var summary='<div class="cmd-summary">'+
-    '<b>'+pool.length+'</b> '+noun+'s in the Open Marketplace pipeline'+
-    ' <span class="sep"></span> <b>'+firstCheck.length+'</b> ready for first check'+
-    ' <span class="sep"></span> <b>'+pendingAll+'</b> awaiting documents'+
-    (near.length?'<span class="attn-count">'+near.length+' need attention</span>':'')+
-  '</div>';
+  /* ── Collection priorities ──────────────────────────────────────────────
+     Answers "what should I chase today?" by ranking each required document by
+     how many in-scope vendors are still missing it. Every input is already
+     computed elsewhere (the requirement matrix and e.docs); this is a different
+     lens on the same numbers, not a new rule, and it stays useful at zero state
+     where per-vendor queues are still empty. */
+  var reqIdSet = {};
+  anb.forEach(function(n){ n.req.forEach(function(id){ if(CAT_BY_ID[id]) reqIdSet[id]=true; }); });
+  var priorities = Object.keys(reqIdSet).map(function(id){
+    return { id:id,
+             blocks: pool.filter(function(e){ return e.docs[id]!=='received'; }).length,
+             nbfcs:  anb.filter(function(n){ return n.req.indexOf(id)>=0; }) };
+  }).filter(function(x){ return x.blocks>0; })
+    .sort(function(a,b){ return (b.blocks-a.blocks) || (b.nbfcs.length-a.nbfcs.length); });
 
-  return summary+funnelCard+
-    '<div class="grid-2">'+
-      '<div class="card"><div class="card-h"><h3>Needs attention</h3><span class="sub">1–2 documents from a new NBFC — clear these first</span></div>'+nearRows+'</div>'+
-      '<div class="card"><div class="card-h"><h3>NBFC pipeline</h3><span class="sub">Eligible vs. still needing documents</span></div><div class="nbfc-elig-list">'+neRows+'</div></div>'+
+  var priRows = priorities.slice(0,8).map(function(x,i){
+    var d=CAT_BY_ID[x.id];
+    var pct = pool.length ? Math.round(x.blocks/pool.length*100) : 0;
+    return '<div class="dpri-row">'+
+      '<span class="dpri-rank">'+(i+1)+'</span>'+
+      '<div class="dpri-main">'+
+        '<div class="dpri-nm">'+esc(d.name)+'</div>'+
+        '<div class="dpri-sub">'+esc(d.cat)+' · required by '+x.nbfcs.map(function(n){return esc(n.name);}).join(', ')+'</div>'+
+      '</div>'+
+      '<div class="dpri-nbfcs">'+x.nbfcs.map(function(n){
+        return '<span class="dpri-nd" style="background:'+n.nc+'" title="'+esc(n.name)+'"></span>'; }).join('')+'</div>'+
+      '<div class="dpri-track"><i style="width:'+pct+'%"></i></div>'+
+      '<div class="dpri-n">'+x.blocks+' <span class="mut">/ '+pool.length+'</span></div>'+
     '</div>';
+  }).join('') || emptyRow('Every required document is on record for all '+pool.length+' '+noun+'s.');
+
+  var priCard='<div class="card"><div class="card-h"><h3>Collection priorities</h3>'+
+    '<span class="sub">Documents ranked by how many '+noun+'s are still missing them</span></div>'+priRows+'</div>';
+
+  var attnCard='<div class="card"><div class="card-h"><h3>Needs attention</h3>'+
+    '<span class="sub">1–2 documents from a new NBFC — clear these first</span>'+
+    (near.length?'<div class="head-stats"><span class="attn-count">'+near.length+'</span></div>':'')+
+    '</div>'+nearRows+'</div>';
+
+  var nbfcCard='<div class="card"><div class="card-h"><h3>NBFC pipeline</h3>'+
+    '<span class="sub">Eligible vs. still needing documents</span></div>'+
+    '<div class="nbfc-elig-list">'+neRows+'</div></div>';
+
+  /* Whatever is actionable right now leads. Once vendors are within reach of an
+     NBFC that per-vendor queue outranks the aggregate view; until then the ranked
+     document list is the only thing on this page a user can act on. Priorities
+     always take the full width — the document names and their NBFC attribution
+     do not survive a half-column. */
+  var stack = function(h){ return '<div style="margin-top:18px">'+h+'</div>'; };
+  return kpiRow + (near.length
+    ? '<div class="grid-2">'+attnCard+nbfcCard+'</div>'+stack(priCard)
+    : priCard+stack('<div class="grid-2">'+attnCard+nbfcCard+'</div>'));
 }
 /* Hero KPI card — big number, uppercase label, muted sub-line ending in an arrow.
    Clickable cards drill into the sellers register with the matching filter. */
@@ -1373,6 +1427,14 @@ function kpiHero(label,num,sub,cls,onclick){
     '<div class="k-num">'+num+'</div>'+
     '<div class="k-sub">'+esc(sub)+' <span class="arw">→</span></div>'+
   '</div>';
+}
+/* A KPI whose metric has no column in the master sheet. Declaring it costs
+   nothing and keeps it one real value away from rendering, but a number that
+   cannot be measured is never shown as a permanently empty card. Returns null
+   so call sites can .filter(Boolean) and the row sizes itself to what exists. */
+function kpiTracked(label,num,sub,cls,onclick){
+  var blank = (num==null || num==='' || num===NODATA);
+  return blank ? null : kpiHero(label,num,sub,cls,onclick);
 }
 function kpiGo(filter){ state.sellerFilter=filter; go(activeRegisterRoute()); }
 /* Purely presentational: count KPI integers up once per page (per session),
@@ -1546,19 +1608,22 @@ function viewNbfc(n){
   /* ── Eligibility ──────────────────────────────────────────────── */
   var eligPool = pool.filter(function(e){ return evalNbfc(e,n).eligible; });
 
-  /* Logged In, Credit Limit Assigned, Credit Utilisation and Transactions have
-     no column in the synced master sheet, so they render blank. Wire each to a
-     real column before giving it a number. */
-
-  /* ── 7 KPI cards (scoped to this NBFC's entity population) ──────── */
-  var kpis =
-    kpiHero('Total '+typeCapP,       pool.length,     'Open Marketplace · Completed',                    '', "kpiGo('all')") +
-    kpiHero('Eligible',              eligPool.length, eligPool.length+' of '+pool.length+' '+typeSing+'s','', "kpiGo('eligible')") +
-    kpiHero('Needs Documents',       pool.length-eligPool.length, 'Not yet eligible for '+esc(n.name),   '', "kpiGo('blocked')") +
-    kpiHero('Logged In',             NODATA,          'Not in master sheet',                             '', '') +
-    kpiHero('Credit Limit Assigned', NODATA,          'Not in master sheet',                             '', '') +
-    kpiHero('Credit Utilisation',    NODATA,          'Not in master sheet',                             '', '') +
-    kpiHero('Transactions',          NODATA,          'Not in master sheet',                             '', '');
+  /* ── KPI cards (scoped to this NBFC's entity population) ──────────
+     Logged In, Credit Limit Assigned, Credit Utilisation and Transactions have
+     no column in the synced master sheet. They stay declared below — one real
+     value away from appearing — but kpiTracked() drops them until that value
+     exists, so the row never carries cards that measure nothing. The row sizes
+     itself to whatever survives, growing back to seven automatically. */
+  var kpiCards = [
+    kpiHero  ('Total '+typeCapP, pool.length,                 'Open Marketplace · Completed',                      '', "kpiGo('all')"),
+    kpiHero  ('Eligible',        eligPool.length,             eligPool.length+' of '+pool.length+' '+typeSing+'s', '', "kpiGo('eligible')"),
+    kpiHero  ('Needs Documents', pool.length-eligPool.length, 'Not yet eligible for '+esc(n.name),                 '', "kpiGo('blocked')"),
+    kpiTracked('Logged In',             null, 'Open Marketplace logins'),
+    kpiTracked('Credit Limit Assigned', null, 'Sanctioned by '+esc(n.name)),
+    kpiTracked('Credit Utilisation',    null, 'Drawn against sanctioned limit'),
+    kpiTracked('Transactions',          null, 'Invoices financed')
+  ].filter(Boolean);
+  var kpis = kpiCards.join('');
 
   /* ── Document requirements table (across this NBFC's population) ── */
   var docRows = n.req.map(function(docId){
@@ -1658,7 +1723,9 @@ function viewNbfc(n){
       'Showing first 120 of '+blocked.length+' · use the '+typeCapP+' register for the full list</div>';
   }
 
-  return '<div class="kpi-row kpi-row-7">'+kpis+'</div>'+
+  /* Dense 7-across sizing only once enough cards exist to need it; below that the
+     base .kpi-row auto-fit gives them their full type scale. */
+  return '<div class="kpi-row'+(kpiCards.length>=5?' kpi-row-7':'')+'">'+kpis+'</div>'+
     pocStrip(n)+
     docCard+
     buildCommonDocCard(pool, typeSing)+
@@ -1805,43 +1872,64 @@ function openDetail(id){
      Credit Utilisation, and the sync/update timestamps have no column in the
      current sheet, so they stay blank until one is added. */
   var typeLabel = e.type==='seller' ? 'Seller' : 'Buyer';
-  var eligNames = eligs.length ? eligs.map(function(x){ return x.name; }).join(', ') : 'None';
   var onboard   = e.status ? e.status.charAt(0).toUpperCase()+e.status.slice(1).toLowerCase() : '';
 
+  /* Two kinds of blank are deliberately distinguished:
+       · the sheet HAS the column but this record has no value → muted dash, the
+         honest "not known for this vendor"
+       · the sheet has NO column for it yet ({untracked:true}) → the field is
+         omitted entirely instead of rendering as permanent dead space. It costs
+         nothing to leave declared: the day the column exists and a value flows
+         through, the field renders itself with no code change here. */
   function vdCell(label, value, opts){
     opts = opts || {};
     var empty = (value == null || String(value).trim() === '');
-    var v     = empty ? '—' : String(value);
-    var cls   = 'mv' + (opts.mono && !empty ? ' mono' : '') + (empty ? ' muted' : '');
-    var style = (opts.mono && !empty) ? ' style="font-size:12px"' : '';
-    return '<div class="meta-cell'+(opts.full?' full':'')+'"><div class="ml">'+esc(label)+'</div>'+
-           '<div class="'+cls+'"'+style+'>'+esc(v)+'</div></div>';
+    if(empty && opts.untracked) return null;             // no column in the sheet yet → omit
+    return { label:label, value: empty ? '—' : String(value),
+             empty:empty, full:!!opts.full, mono:!!opts.mono };
   }
   function vdGroup(title, cells, first){
+    var live = cells.filter(Boolean);
+    if(!live.length) return '';                          // nothing tracked → no orphan header
+    /* A half-width cell with nothing to pair with would leave a visibly empty
+       grid slot. Promote it to full width. Recomputed on every render, so the
+       grid stays gap-free as fields appear and disappear with the data. */
+    var paired = false;
+    live.forEach(function(c, i){
+      if(c.full || paired){ paired = false; return; }
+      var next = live[i+1];
+      if(!next || next.full) c.full = true;
+      else paired = true;
+    });
+    var html = live.map(function(c){
+      var cls   = 'mv' + (c.mono && !c.empty ? ' mono' : '') + (c.empty ? ' muted' : '');
+      var style = (c.mono && !c.empty) ? ' style="font-size:12px"' : '';
+      return '<div class="meta-cell'+(c.full?' full':'')+'"><div class="ml">'+esc(c.label)+'</div>'+
+             '<div class="'+cls+'"'+style+'>'+esc(c.value)+'</div></div>';
+    }).join('');
     return '<div class="vd-group'+(first?' first':'')+'">'+esc(title)+'</div>'+
-           '<div class="meta-grid">'+cells.join('')+'</div>';
+           '<div class="meta-grid">'+html+'</div>';
   }
 
   var metaH =
     vdGroup('Business', [
-      vdCell('GSTIN', e.gst, {mono:true}),
       vdCell(typeLabel+' Business Name', e.name, {full:true}),
+      vdCell('GSTIN', e.gst, {mono:true}),
       vdCell('Category', e.category),
-      vdCell('Business Vertical', 'Open Marketplace'),
       vdCell('Region', e.region),
       vdCell('State', e.state),
+      vdCell('Business Vertical', 'Open Marketplace'),
     ], true) +
     vdGroup('Classification & onboarding', [
       vdCell('Entity Type', e.entityType),
-      vdCell(typeLabel+' Type', ''),          // Baler/Trader classification not in this sheet
       vdCell('Onboarding Status', onboard),
       vdCell('Vintage with Recykal', e.vintageRaw),
+      vdCell(typeLabel+' Type', '', {untracked:true}),   // Baler/Trader — no column yet
     ]) +
     vdGroup('Credit & activity', [
-      vdCell('Credit Limit Assigned', ''),    // not in master sheet yet
-      vdCell('Credit Utilisation', ''),       // not in master sheet yet
-      vdCell('Total Transactions', ''),       // no transactions column in master sheet
-      vdCell('Eligible NBFC(s)', eligNames, {full:true}),
+      vdCell('Credit Limit Assigned', '', {untracked:true}),
+      vdCell('Credit Utilisation',    '', {untracked:true}),
+      vdCell('Total Transactions',    '', {untracked:true}),
     ]) +
     vdGroup('Relationship & contact', [
       vdCell('Relationship Manager / Account Owner', e.rh, {full:true}),
@@ -1850,8 +1938,8 @@ function openDetail(id){
       vdCell('Email Address', e.email, {mono:true, full:true}),
     ]) +
     vdGroup('Sync', [
-      vdCell('Last Document Updated On', ''), // no timestamp column in current sheet
-      vdCell('Last Synced On', LAST_SYNC ? new Date(LAST_SYNC).toLocaleString('en-IN') : ''),
+      vdCell('Last Synced On', LAST_SYNC ? new Date(LAST_SYNC).toLocaleString('en-IN') : '', {untracked:true}),
+      vdCell('Last Document Updated On', '', {untracked:true}),
     ]);
 
   /* Render only the selected NBFC's required documents, in the configured
