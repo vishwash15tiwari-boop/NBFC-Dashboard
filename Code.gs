@@ -488,12 +488,12 @@ var ROLE_PERMISSIONS = {
   operations: {
     label:'Operations', viewAllStates:false, viewAllTeams:false,
     editDocs:true, managePOC:true, configure:false, manageUsers:false, exportData:true,
-    routes:['dashboard','sellers','buyers','matrix','poc','profile']
+    routes:['dashboard','sellers','buyers','matrix','poc','nbfc','profile']
   },
   readonly: {
     label:'Read Only', viewAllStates:false, viewAllTeams:false,
     editDocs:false, managePOC:false, configure:false, manageUsers:false, exportData:false,
-    routes:['dashboard','sellers','buyers','matrix','poc','profile']
+    routes:['dashboard','sellers','buyers','matrix','poc','nbfc','profile']
   }
 };
 
