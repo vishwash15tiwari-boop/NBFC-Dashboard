@@ -140,8 +140,11 @@ var FIELD_MAP = {
   'mobileno' : ['Mobile No', 'Mobile_No', 'Mobile Number', 'Mobile', 'Phone', 'Contact No'],
   'pocnames' : ['POC Names', 'POC Name', 'Point of Contact', 'POC'],
   'dateofregistration' : [
+    'Effective Date of Registration', 'Effective_Date_Of_Registration',
     'Date of Registration', 'Date_of_Registration',
     'Registration Date', 'Reg Date', 'Incorporation Date',
+    'Onboarding Date', 'Date of Onboarding', 'Joining Date', 'Joined Date',
+    'Platform Registration Date', 'Seller Registration Date', 'Buyer Registration Date',
   ],
   'pendingdocument' : ['Pending Document', 'Pending_Document', 'Pending Documents'],
   'debtprofile'     : ['Debt Profile', 'Debt_Profile', 'Debt'],
@@ -414,6 +417,41 @@ function transformDocValue_(v) {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// VINTAGE CALCULATOR
+// Derives "XY YM" vintage string from an onboarding / registration date so that
+// Column H ("Vintage with Recykal") always reflects the duration from the
+// vendor's platform join date to today, recalculated on every sync.
+// Accepts JS Date objects, ISO strings ("2023-01-15T…"), and Excel date serials.
+// Returns "XY YM" (e.g., "0Y 6M", "2Y 3M") — format recognised by the
+// frontend's vintageYears() parser for NBFC eligibility checks.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function calcVintage_(dateVal) {
+  if (dateVal == null) return '';
+  var d;
+  if (dateVal instanceof Date) {
+    d = dateVal;
+  } else {
+    var s = String(dateVal).trim();
+    if (!s) return '';
+    d = new Date(s);
+    if (isNaN(d.getTime())) {           // try Excel serial (> 1 000 avoids false positives)
+      var n = parseFloat(s);
+      if (!isNaN(n) && n > 1000) d = new Date(Date.UTC(1899, 11, 30) + n * 864e5);
+    }
+    if (isNaN(d.getTime())) return '';
+  }
+  var now = new Date();
+  if (d > now) return '';
+  var yrs = now.getFullYear() - d.getFullYear();
+  var mos = now.getMonth()   - d.getMonth();
+  if (mos < 0) { yrs--; mos += 12; }
+  if (yrs < 0) return '';
+  return yrs + 'Y ' + mos + 'M';
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SHEET WRITER
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -544,6 +582,20 @@ function writeToSheet_(ss, tabName, result) {
     );
   }
 
+  // ── Resolve onboarding-date column for live vintage calculation ────────────
+  // Walks FIELD_MAP['dateofregistration'] aliases (which include Metabase's
+  // "Effective_Date_Of_Registration" as first candidate) against colLookup to
+  // find the 0-based index of the date column in the Metabase result set.
+  var onboardDateSrcIdx = -1;
+  var _dateAliases = FIELD_MAP['dateofregistration'] || [];
+  for (var _da = 0; _da < _dateAliases.length && onboardDateSrcIdx < 0; _da++) {
+    var _an = norm_(_dateAliases[_da]);
+    if (_an in colLookup) onboardDateSrcIdx = colLookup[_an];
+  }
+  Logger.log('  Onboarding-date col: ' + (onboardDateSrcIdx >= 0
+    ? '[' + onboardDateSrcIdx + '] "' + result.cols[onboardDateSrcIdx] + '"'
+    : '⚠ not found — "Vintage with Recykal" will use Metabase value as-is'));
+
   // ── Build output rows ──────────────────────────────────────────────────────
   var outRows = result.rows.map(function (srcRow, rowIdx) {
     return headers.map(function (h, c) {
@@ -560,6 +612,13 @@ function writeToSheet_(ss, tabName, result) {
       if (isDoc) return transformDocValue_(v);
       // "Region" — always derived from the State value via North/South/NA logic
       if (hNorm === 'region') return deriveRegion_(v);
+      // "Vintage with Recykal" — calculate from onboarding date so it stays
+      // current with today's date on every sync; fall through to Metabase value
+      // only when the date column was not found in this query's result set.
+      if (hNorm === 'vintagewithrecykal' && onboardDateSrcIdx >= 0) {
+        var calc = calcVintage_(srcRow[onboardDateSrcIdx]);
+        if (calc) return calc;
+      }
       return v == null ? '' : v;
     });
   });
