@@ -1741,12 +1741,19 @@ function viewNbfc(n){
   pool.forEach(function(e){ var m=evalNbfc(e,n); if(m.eligible) ready.push(e); else blocked.push({e:e,m:m}); });
   blocked.sort(function(a,b){ return a.m.missing.length-b.m.missing.length; });
 
-  var readyH = ready.slice(0,80).map(function(e){
+  var READY_CAP = 80;
+  var readyH = ready.slice(0,READY_CAP).map(function(e){
     return '<div class="ent-row" onclick="openDetail(\''+e.id+'\')">'+
       '<div class="ent-ava" style="background:'+n.nc+';color:#fff">'+initials(e.name)+'</div>'+
       '<div class="en">'+esc(e.name)+'<span class="mut"> · '+esc(e.type)+' · '+esc(e.city||e.state)+'</span></div>'+
       '<span class="status-pill sp-ok"><span class="d"></span>Eligible</span></div>';
   }).join('') || emptyRow('No '+typeSing+'s are fully eligible yet.');
+  /* Same disclosure the blocked list already makes — the header states
+     ready.length, so a silent truncation would leave the two disagreeing. */
+  if(ready.length > READY_CAP){
+    readyH += '<div class="nd-meta" style="padding:12px 18px;border-top:1px solid var(--line-2)">'+
+      'Showing first '+READY_CAP+' of '+ready.length+' · use the '+typeCapP+' register for the full list</div>';
+  }
 
   /* One row per entity not yet eligible for THIS NBFC. Chips are the documents
      n.req asks for and this entity has not supplied — nothing else is listed. */
@@ -1810,20 +1817,41 @@ function emptyRow(t){ return '<div style="padding:28px;text-align:center;color:v
 function wireNbfc(n){ animateKpis('nbfc:'+n.id); }
 
 /* ═══════════════ DOCUMENT MATRIX ═══════════════ */
+var MATRIX_CAP = 120;
 function viewMatrix(){
   var docs=CATALOG;
+  var pool=filteredEntities();
+  var noun=_entityFilter==='seller'?'sellers':'buyers';
+
+  if(!pool.length){
+    return '<div class="card"><div class="card-h"><h3>Document Matrix</h3>'+
+      '<span class="sub">Canonical documents × '+noun+'</span></div>'+
+      emptyRow('No '+noun+' in scope. Check the entity, NBFC and POC filters above.')+'</div>';
+  }
+
   var head='<thead><tr><th>Vendor</th>'+docs.map(function(d){return '<th title="'+esc(d.name)+'">'+esc(shortDoc(d.name))+'</th>';}).join('')+'</tr></thead>';
-  var body='<tbody>'+filteredEntities().slice(0,120).map(function(e){
+  var body='<tbody>'+pool.slice(0,MATRIX_CAP).map(function(e){
     return '<tr><th onclick="openDetail(\''+e.id+'\')" title="'+esc(e.name)+'">'+esc(e.name)+'</th>'+
       docs.map(function(d){ var s=e.docs[d.id];
         var cls=s==='received'?'ok':s==='pending'?'warn':s==='na'?'na':'none';
         return '<td title="'+esc(d.name)+': '+(statusMeta(s).label)+'"><span class="mdot '+cls+'"></span></td>';
       }).join('')+'</tr>';
   }).join('')+'</tbody>';
-  return '<div class="card"><div class="card-h"><h3>Document Matrix</h3><span class="sub">Canonical documents × '+(_entityFilter==='seller'?'sellers':'buyers')+' (first 120)</span>'+
+
+  /* Say what is actually on screen. The subtitle read "(first 120)" whether it
+     was truncating or showing all 80 buyers. */
+  var sub='Canonical documents × '+pool.length+' '+noun+
+    (pool.length>MATRIX_CAP ? ' · showing first '+MATRIX_CAP : '');
+
+  return '<div class="card"><div class="card-h"><h3>Document Matrix</h3><span class="sub">'+esc(sub)+'</span>'+
     '<div class="right" style="font-size:11.5px;color:var(--ink-3);display:flex;gap:12px">'+
       legendDot('ok','Received')+legendDot('warn','Pending')+legendDot('na','N/A')+legendDot('none','Not on record')+'</div></div>'+
-    '<div class="matrix-wrap"><table class="matrix">'+head+body+'</table></div></div>';
+    '<div class="matrix-wrap"><table class="matrix">'+head+body+'</table></div>'+
+    (pool.length>MATRIX_CAP
+      ? '<div class="nd-meta" style="padding:12px 18px;border-top:1px solid var(--line-2)">Showing first '+
+        MATRIX_CAP+' of '+pool.length+' · use the '+(_entityFilter==='seller'?'Sellers':'Buyers')+' register for the full list</div>'
+      : '')+
+  '</div>';
 }
 function legendDot(cls,label){ return '<span style="display:inline-flex;align-items:center;gap:5px"><span class="mdot '+cls+'"></span>'+label+'</span>'; }
 function shortDoc(s){ return s.length>26?s.slice(0,24)+'…':s; }
