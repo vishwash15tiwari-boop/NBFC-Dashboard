@@ -59,6 +59,14 @@
   --fill:#1A212C;
   --ok-tint:rgba(29,199,151,.15); --warn-tint:rgba(180,83,9,.20);
   --bad-tint:rgba(196,50,43,.20); --na-tint:rgba(138,147,162,.16);
+  /* Status foregrounds must be re-picked for the dark ground, not inherited.
+     The light-mode values (#049769 / #B45309 / #C4322B) land at 3.6 / 2.9 / 2.8
+     against their own tints over --surface — every status pill in the app failed
+     AA in dark mode. These keep the same hues at 5.5–7.5. */
+  --ok:#3DD9A0;   --ok-rgb:61,217,160;
+  --warn:#E9A23B; --warn-rgb:233,162,59;
+  --bad:#F2756B;  --bad-rgb:242,117,107;
+  --na:#9AA4B2;
   --shadow-xs:0 1px 2px rgba(0,0,0,.4);
   --shadow-sm:0 1px 2px rgba(0,0,0,.4);
   --shadow:0 1px 2px rgba(0,0,0,.4);
@@ -385,12 +393,21 @@ table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;mi
 .tbl thead th{position:sticky;top:0;z-index:2;background:var(--surface-2);color:var(--ink-3);
   text-align:left;font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
   padding:10px 13px;white-space:nowrap;border-bottom:1px solid var(--line)}
-.tbl tbody td{padding:11px 13px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+.tbl tbody td{padding:9px 13px;border-bottom:1px solid var(--line-2);vertical-align:middle}
 .tbl tbody tr{cursor:pointer;transition:background .1s}
 .tbl tbody tr:hover td{background:var(--fill)}
 .tbl tbody tr:last-child td{border-bottom:none}
 .cell-name{font-weight:600;letter-spacing:-.005em;line-height:1.25;max-width:250px}
 .cell-sub{font-size:11.5px;color:var(--ink-3);font-weight:400;margin-top:1px}
+/* Register name cell — one line, ellipsised, full value on the title attribute
+   and in the drawer. Vendor names ran to three wrapped lines, which made every
+   row a different height and cut the visible row count by a third. */
+/* Capped so the seven columns fit the content area without a horizontal scroll:
+   a nowrap name asks for its full natural width, which pushed the Status column
+   off-screen. Widened again once the viewport can afford it. */
+.cn-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:188px}
+@media(min-width:1320px){ .cn-t{max-width:250px} }
+.cell-name>.cn-t+.cell-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gst{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);letter-spacing:-.02em}
 .vcat{display:inline-flex;align-items:center;gap:5px;font-size:12px}
 .vcat .vd{width:7px;height:7px;border-radius:2px}
@@ -1483,8 +1500,10 @@ function viewRegister(type){
       '<span class="tbl-count" id="regCount"></span>'+
     '</div>'+
     '<div class="tbl-wrap"><table class="tbl"><thead><tr>'+
+      /* Last column carries the eligibility status pill, not a remark — the old
+         "Follow Up Remark" heading described a column that never existed. */
       '<th>'+noun.charAt(0).toUpperCase()+noun.slice(1)+'</th><th>GST</th><th>'+(type==='seller'?'Region':'State')+'</th>'+
-      '<th>Vintage</th><th>Completion</th><th>NBFC eligibility</th><th>Follow Up Remark</th>'+
+      '<th>Vintage</th><th>Completion</th><th>NBFC eligibility</th><th>Status</th>'+
     '</tr></thead><tbody id="regBody"></tbody></table></div>'+
   '</div>';
 }
@@ -1512,7 +1531,8 @@ function regRows(type){
       : cnt.none===CATALOG.length ? '<span class="mut">—</span>'
       : '<span class="status-pill sp-warn"><span class="d"></span>In progress</span>';
     return '<tr onclick="openDetail(\''+e.id+'\')">'+
-      '<td><div class="cell-name">'+esc(e.name)+'<div class="cell-sub"><span class="vcat"><span class="vd '+(e.category==='Plastic'?'plastic':'metal')+'"></span>'+esc(e.category||'—')+'</span> · '+esc(e.entityType||'—')+'</div></div></td>'+
+      '<td><div class="cell-name"><div class="cn-t" title="'+esc(e.name)+'">'+esc(e.name)+'</div>'+
+        '<div class="cell-sub"><span class="vcat"><span class="vd '+(e.category==='Plastic'?'plastic':'metal')+'"></span>'+esc(e.category||'—')+'</span> · '+esc(e.entityType||'—')+'</div></div></td>'+
       '<td><span class="gst">'+esc(e.gst||'—')+'</span></td>'+
       '<td>'+esc((type==='seller'?e.region:e.state)||'—')+'<div class="cell-sub">'+esc(e.city||'')+'</div></td>'+
       '<td class="tnum">'+esc(e.vintageRaw||'—')+'</td>'+
@@ -1520,7 +1540,18 @@ function regRows(type){
       '<td><div class="elig-chips">'+eligs+'</div></td>'+
       '<td>'+pill+'</td>'+
     '</tr>';
-  }).join('');
+  }).join('') || '<tr><td colspan="7" style="padding:32px;text-align:center;color:var(--ink-3);font-size:13px">'+
+      esc(emptyRegisterMsg(type, q))+'</td></tr>';
+}
+/* The register previously rendered an empty tbody when a filter matched nothing
+   — a blank panel with no explanation. Name the reason so the way out is obvious. */
+function emptyRegisterMsg(type, q){
+  var noun = type+'s';
+  if(q) return 'No '+noun+' match "'+q+'". Try a different name, GST or city.';
+  if(state.sellerFilter==='eligible') return 'No '+noun+' are eligible for the NBFCs in scope yet.';
+  if(state.sellerFilter==='blocked')  return 'Every '+type+' in scope is eligible for at least one NBFC.';
+  if(state.sellerFilter==='pending')  return 'No '+type+' has a document awaiting review.';
+  return 'No '+noun+' in scope. Check the entity, NBFC and POC filters above.';
 }
 function wireRegister(type){
   regRows(type);
