@@ -159,6 +159,13 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none}
   display:grid;place-items:center;font-weight:600;font-size:12.5px}
 .sb-user .nm{font-size:12.5px;font-weight:600;line-height:1.2}
 .sb-user .rl{font-size:11px;color:var(--ink-3)}
+/* ─── Entity Toggle (Seller / Buyer) in sidebar ─── */
+.sb-entity-toggle{display:flex;gap:4px;padding:10px 12px;border-bottom:1px solid var(--line);flex-shrink:0}
+.sbet{flex:1;padding:7px 8px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;
+  color:var(--ink-3);border:1px solid var(--line);background:var(--fill);transition:.14s;letter-spacing:.01em}
+.sbet:hover{background:var(--surface-2);color:var(--ink)}
+.sbet.on{background:rgba(var(--brand-rgb),.10);border-color:rgba(var(--brand-rgb),.22);color:var(--brand)}
+.sbet.buyer.on{background:rgba(29,199,151,.12);border-color:rgba(29,199,151,.30);color:var(--brand-mint)}
 
 .main{margin-left:var(--sidebar-w)}
 .topbar{position:sticky;top:0;z-index:20;height:var(--topbar-h);display:flex;align-items:center;
@@ -631,6 +638,10 @@ textarea.poc-in{resize:vertical;min-height:60px}
       <div class="mk">R</div>
       <div><b>NBFC Tracker</b><div class="mut">Open Marketplace</div></div>
     </div>
+    <div class="sb-entity-toggle">
+      <button class="sbet seller on" id="sbet-seller" onclick="setEntityFilter('seller')">Sellers</button>
+      <button class="sbet buyer"     id="sbet-buyer"  onclick="setEntityFilter('buyer')">Buyers</button>
+    </div>
     <nav class="sb-nav" id="sbNav"></nav>
     <div class="sb-foot">
       <div class="sb-user">
@@ -708,16 +719,23 @@ var CATALOG = [
 var CAT_BY_ID = {}; CATALOG.forEach(function(d){ CAT_BY_ID[d.id]=d; });
 
 /* ── 2. NBFCs + requirement mapping (→ canonical ids) ─────────────────── */
+/* Seller / Buyer classification — single source of truth. Add or reassign
+   NBFCs here; no logic changes required elsewhere. */
+var NBFC_ENTITY_MAP = {
+  seller: ['billmart', 'capitalxb', 'karncy'],
+  buyer:  ['strideone', 'credable']
+};
+
 var NBFCS = [
-  {id:'billmart',  name:'Billmart',   nc:'#005DFF', vintageYrs:1,
+  {id:'billmart',  name:'Billmart',   nc:'#005DFF', vintageYrs:1,  entityGroup:'seller',
    req:['pan_entity','gst_cert','udyam','partnership_deed','contact','promoter_pan','promoter_aadhar','bank_stmt']},
-  {id:'capitalxb', name:'Capital XB', nc:'#8460D4', vintageYrs:0.5,
+  {id:'capitalxb', name:'Capital XB', nc:'#8460D4', vintageYrs:0.5, entityGroup:'seller',
    req:['debt_profile','audited_fin','bank_stmt','gst_returns','itr','cibil','sanction','partnership_deed','pan_entity','udyam','gst_cert','promoter_pan','promoter_aadhar','address_proof','moa_aoa','shareholders']},
-  {id:'strideone', name:'Stride One', nc:'#024C8A',
+  {id:'strideone', name:'Stride One', nc:'#024C8A', entityGroup:'buyer',
    req:['gst_cert','udyam','promoter_aadhar','debtors_ageing','promoter_pan','address_proof','moa_aoa','shareholders','partnership_deed','incorp','pan_entity','audited_fin','audit_report','itr','bank_stmt','sanction','debt_profile','stock_stmt','debtor_sales','wc_limits']},
-  {id:'credable',  name:'Credable',   nc:'#1DC797',
+  {id:'credable',  name:'Credable',   nc:'#1DC797', entityGroup:'buyer',
    req:['debt_profile','audited_fin','debtors_ageing']},
-  {id:'karncy',    name:'Karncy',     nc:'#C15C2E',
+  {id:'karncy',    name:'Karncy',     nc:'#C15C2E', entityGroup:'seller',
    req:['moa_aoa','promoter_pan','gst_returns','bank_stmt','buyer_ledger','audited_fin']}
 ];
 var NBFC_BY_ID = {}; NBFCS.forEach(function(n){ NBFC_BY_ID[n.id]=n; });
@@ -939,7 +957,34 @@ function evalNbfc(e, nbfc){
 }
 function eligibleNbfcs(e){ return NBFCS.filter(function(n){ return evalNbfc(e,n).eligible; }); }
 
-/* ── 6. App state / router ─────────────────────────────────────────────── */
+/* ── 6. Entity filter + helpers ────────────────────────────────────────── */
+/* Active entity group — drives which NBFCs appear in nav, dashboard pipeline,
+   detail drawer eligibility, POC chips, and settings tabs. */
+var _entityFilter = 'seller';
+function activeNbfcs() {
+  return NBFCS.filter(function(n){ return n.entityGroup === _entityFilter; });
+}
+function setEntityFilter(e) {
+  _entityFilter = e;
+  /* If the settings NBFC mapping panel is on a hidden NBFC, reset to first visible. */
+  var mn = NBFC_BY_ID[state.mapNbfc];
+  if (mn && mn.entityGroup !== e) {
+    var anb = activeNbfcs();
+    if (anb.length) state.mapNbfc = anb[0].id;
+  }
+  /* If the POC directory is filtered to a now-hidden NBFC, reset to 'all'. */
+  var pn = NBFC_BY_ID[state.pocNbfc];
+  if (pn && pn.entityGroup !== e) state.pocNbfc = 'all';
+  /* If navigated to an NBFC page in the other group, go to dashboard. */
+  if (state.route.indexOf('nbfc:') === 0) {
+    var nid = state.route.split(':')[1];
+    var n = NBFC_BY_ID[nid];
+    if (n && n.entityGroup !== e) state.route = 'dashboard';
+  }
+  render();
+}
+
+/* ── 7. App state / router ─────────────────────────────────────────────── */
 var state = { route:'dashboard', role:'Operations', user:'Ops User', email:'ops@recykal.com',
   sellerQ:'', sellerFilter:'all', buyerQ:'', theme:'light', setPanel:'catalog', mapNbfc:'billmart',
   pocQ:'', pocNbfc:'all', pocStatus:'active',
@@ -955,11 +1000,11 @@ var NAV = [
   {id:'matrix',  label:'Document Matrix', icon:'table'},
   {id:'poc',     label:'POC Directory', icon:'contact'},
   {group:'NBFC Eligibility'},
-  {id:'nbfc:billmart',  label:'Billmart',   icon:'dot', nc:'#005DFF'},
-  {id:'nbfc:capitalxb', label:'Capital XB', icon:'dot', nc:'#8460D4'},
-  {id:'nbfc:strideone', label:'Stride One', icon:'dot', nc:'#024C8A'},
-  {id:'nbfc:credable',  label:'Credable',   icon:'dot', nc:'#1DC797'},
-  {id:'nbfc:karncy',    label:'Karncy',     icon:'dot', nc:'#C15C2E'},
+  {id:'nbfc:billmart',  label:'Billmart',   icon:'dot', nc:'#005DFF', entityGroup:'seller'},
+  {id:'nbfc:capitalxb', label:'Capital XB', icon:'dot', nc:'#8460D4', entityGroup:'seller'},
+  {id:'nbfc:strideone', label:'Stride One', icon:'dot', nc:'#024C8A', entityGroup:'buyer'},
+  {id:'nbfc:credable',  label:'Credable',   icon:'dot', nc:'#1DC797', entityGroup:'buyer'},
+  {id:'nbfc:karncy',    label:'Karncy',     icon:'dot', nc:'#C15C2E', entityGroup:'seller'},
   {group:'System'},
   {id:'settings', label:'Settings', icon:'gear'}
 ];
@@ -975,6 +1020,10 @@ var ICONS = {
 function go(route){ state.route=route; render(); window.scrollTo(0,0); }
 
 function render(){
+  /* Sync entity-toggle pill state on every render. */
+  var st=$('sbet-seller'), bt=$('sbet-buyer');
+  if(st) st.classList.toggle('on', _entityFilter==='seller');
+  if(bt) bt.classList.toggle('on', _entityFilter==='buyer');
   renderNav();
   var c=$('content'), r=state.route;
   if(r==='dashboard'){ $('tbTitle').textContent='Dashboard'; c.innerHTML=viewDashboard(); wireDashboard(); }
@@ -989,6 +1038,8 @@ function render(){
 function renderNav(){
   var h='';
   NAV.forEach(function(it){
+    /* Hide NBFC nav items that don't belong to the active entity group. */
+    if(it.entityGroup && it.entityGroup !== _entityFilter) return;
     if(it.group){ h+='<div class="sb-group">'+esc(it.group)+'</div>'; return; }
     var on = state.route===it.id;
     var ncStyle = it.nc ? ('--nc:'+it.nc+';--nc-rgb:'+hexRgb(it.nc)) : '';
@@ -1052,8 +1103,9 @@ function viewDashboard(){
       '</div></div>'+
     '<div class="pipe">'+pipeHead+sellerRow+buyerRow+'</div></div>';
 
-  // Level-3 pipeline: per-NBFC eligible vs. still-needing-docs, click into the workspace
-  var neRows=NBFCS.map(function(n){
+  // Level-3 pipeline: per-NBFC eligible vs. still-needing-docs (filtered by active entity group)
+  var anb = activeNbfcs();
+  var neRows=anb.map(function(n){
     var elig=ENTITIES.filter(function(e){return evalNbfc(e,n).eligible;}).length;
     var needs=ENTITIES.length-elig;
     var pct=Math.round(elig/ENTITIES.length*100);
@@ -1065,12 +1117,13 @@ function viewDashboard(){
     '</div>';
   }).join('');
 
-  // Level-2 attention queue: entities 1-2 documents from a new NBFC (act on these first)
+  // Level-2 attention queue: entities 1-2 documents from an active-group NBFC
   var near=[];
   ENTITIES.forEach(function(e){
-    if(eligibleNbfcs(e).length>0) return;
+    var eligA = anb.filter(function(n){ return evalNbfc(e,n).eligible; });
+    if(eligA.length>0) return;
     var best=999,bestN=null;
-    NBFCS.forEach(function(n){ var m=evalNbfc(e,n); if(m.missing.length<best){best=m.missing.length;bestN=n;} });
+    anb.forEach(function(n){ var m=evalNbfc(e,n); if(m.missing.length<best){best=m.missing.length;bestN=n;} });
     if(best>=1&&best<=2) near.push({e:e,n:bestN,miss:best,missing:evalNbfc(e,bestN).missing});
   });
   near.sort(function(a,b){return a.miss-b.miss;});
@@ -1163,7 +1216,7 @@ function regRows(type){
   $('regCount').textContent=list.length+' '+type+'s';
   $('regBody').innerHTML = list.map(function(e){
     var c=completion(e);
-    var eligs=NBFCS.map(function(n){ var m=evalNbfc(e,n); return m.eligible
+    var eligs=activeNbfcs().map(function(n){ var m=evalNbfc(e,n); return m.eligible
       ? '<div class="ec" style="background:'+n.nc+'" title="'+esc(n.name)+': eligible">'+initials(n.name)[0]+'</div>'
       : '<div class="ec blocked" title="'+esc(n.name)+': '+m.missing.length+' missing">'+initials(n.name)[0]+(m.missing.length?'<span class="n">'+m.missing.length+'</span>':'')+'</div>';
     }).join('');
@@ -1438,7 +1491,7 @@ function panelCatalog(){
   var rows='',lastCat='';
   CATALOG.forEach(function(d){
     if(d.cat!==lastCat){ rows+='<div class="dc-cat">'+esc(d.cat)+'</div>'; lastCat=d.cat; }
-    var reqBy=NBFCS.filter(function(n){return n.req.indexOf(d.id)>=0;});
+    var reqBy=activeNbfcs().filter(function(n){return n.req.indexOf(d.id)>=0;});
     rows+='<div class="doc-cat-row">'+
       '<div style="flex:1"><div class="dc-name">'+esc(d.name)+(d.expiry?' <span class="miss-tag" style="background:var(--warn-tint);color:var(--warn)">expires</span>':'')+'</div><div class="dc-alias">aka '+esc(d.aliases)+'</div></div>'+
       '<div style="display:flex;gap:3px">'+reqBy.map(function(n){return '<div class="ec" style="width:20px;height:20px;background:'+n.nc+'" title="Required by '+esc(n.name)+'">'+initials(n.name)[0]+'</div>';}).join('')+'</div>'+
@@ -1447,7 +1500,7 @@ function panelCatalog(){
   return '<div class="set-panel'+(state.setPanel==='catalog'?' on':'')+'"><div class="card"><div class="card-h"><h3>Document Catalog</h3><span class="sub">'+CATALOG.length+' canonical documents — the single taxonomy every NBFC maps onto</span><div class="right"><button class="btn btn-sm btn-primary">+ Add document</button></div></div>'+rows+'</div></div>';
 }
 function panelMapping(){
-  var tabs=NBFCS.map(function(n){ return '<button class="map-tab'+(state.mapNbfc===n.id?' on':'')+'" style="'+(state.mapNbfc===n.id?'background:'+n.nc+';border-color:'+n.nc:'')+'" onclick="setMapNbfc(\''+n.id+'\')">'+esc(n.name)+'</button>'; }).join('');
+  var tabs=activeNbfcs().map(function(n){ return '<button class="map-tab'+(state.mapNbfc===n.id?' on':'')+'" style="'+(state.mapNbfc===n.id?'background:'+n.nc+';border-color:'+n.nc:'')+'" onclick="setMapNbfc(\''+n.id+'\')">'+esc(n.name)+'</button>'; }).join('');
   var n=NBFC_BY_ID[state.mapNbfc];
   var lastCat='',items='';
   CATALOG.forEach(function(d){
@@ -1502,8 +1555,12 @@ function openDetail(id){
      rows remain. This is the ONLY behavioural change — everything else in the
      drawer is unchanged. */
   var ctxNbfc = state.route.indexOf('nbfc:')===0 ? state.route.split(':')[1] : null;
-  if(state._docEnt !== id){ state._docEnt = id; state.docNbfc = ctxNbfc || state.docNbfc || NBFCS[0].id; }
-  var docNbfc = (state.docNbfc && NBFC_BY_ID[state.docNbfc]) ? state.docNbfc : NBFCS[0].id;
+  var anb = activeNbfcs();
+  var firstAnb = anb.length ? anb[0].id : NBFCS[0].id;
+  if(state._docEnt !== id){ state._docEnt = id; state.docNbfc = ctxNbfc || state.docNbfc || firstAnb; }
+  /* If the stored docNbfc is now in the inactive entity group, fall back gracefully. */
+  var docNbfc = (state.docNbfc && NBFC_BY_ID[state.docNbfc] && NBFC_BY_ID[state.docNbfc].entityGroup === _entityFilter)
+    ? state.docNbfc : firstAnb;
   var reqIds  = (NBFC_BY_ID[docNbfc].req||[]).filter(function(rid){ return CAT_BY_ID[rid]; });
   /* Ring + count pills summarise THIS checklist (the selected NBFC's docs),
      computed inline so the global completion()/docCounts() stay untouched. */
@@ -1514,7 +1571,7 @@ function openDetail(id){
   c.pct = reqIds.length ? Math.round(c.ok/reqIds.length*100) : 0;
   var eligs=eligibleNbfcs(e);
 
-  var esCards=NBFCS.map(function(n){ var m=evalNbfc(e,n);
+  var esCards=anb.map(function(n){ var m=evalNbfc(e,n);
     var recN = n.req.filter(function(id){ return e.docs[id]==='received'; }).length;
     var pct  = n.req.length ? Math.round(recN/n.req.length*100) : 100;
     var pend = m.missing.length + (m.vintageOk?0:1);
@@ -1632,7 +1689,7 @@ function openDetail(id){
       '<div class="dr-sec-h" style="margin-top:22px;display:flex;justify-content:space-between;align-items:center;gap:10px">'+
         '<span>Document checklist</span>'+
         '<select class="doc-nbfc-sel" title="Show the checklist for a different NBFC" onchange="setDocNbfc(\''+e.id+'\',this.value)">'+
-          NBFCS.map(function(nn){ return '<option value="'+nn.id+'"'+(nn.id===docNbfc?' selected':'')+'>'+esc(nn.name)+'</option>'; }).join('')+
+          anb.map(function(nn){ return '<option value="'+nn.id+'"'+(nn.id===docNbfc?' selected':'')+'>'+esc(nn.name)+'</option>'; }).join('')+
         '</select>'+
       '</div>'+
       '<div style="font-size:11.5px;color:var(--ink-3);margin:-2px 0 12px">'+reqIds.length+' document'+(reqIds.length===1?'':'s')+' required by '+esc(NBFC_BY_ID[docNbfc].name)+(NBFC_BY_ID[docNbfc].vintageYrs?' · plus '+NBFC_BY_ID[docNbfc].vintageYrs+'-year vintage':'')+'</div>'+
@@ -1807,7 +1864,7 @@ function pocStatusPill(p){ return p.status==='Active'
 /* ── Directory page ────────────────────────────────────────────────────── */
 function viewPocDirectory(){
   var chips='<button class="chip'+(state.pocNbfc==='all'?' on':'')+'" data-nb="all">All NBFCs</button>'+
-    NBFCS.map(function(n){ return '<button class="chip'+(state.pocNbfc===n.id?' on':'')+'" data-nb="'+n.id+'">'+esc(n.name)+'</button>'; }).join('');
+    activeNbfcs().map(function(n){ return '<button class="chip'+(state.pocNbfc===n.id?' on':'')+'" data-nb="'+n.id+'">'+esc(n.name)+'</button>'; }).join('');
   return '<div class="card">'+
     '<div class="toolbar">'+
       '<div class="search-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>'+
@@ -1916,7 +1973,7 @@ function openPoc(id){
 /* ── Create / edit form (in the drawer) ────────────────────────────────── */
 function openPocForm(id, presetNbfc){
   var p = id ? pocById(id) : null;
-  var nbfcSel = NBFCS.map(function(n){ var sel=(p?p.nbfc:presetNbfc)===n.id?' selected':''; return '<option value="'+n.id+'"'+sel+'>'+esc(n.name)+'</option>'; }).join('');
+  var nbfcSel = activeNbfcs().map(function(n){ var sel=(p?p.nbfc:presetNbfc)===n.id?' selected':''; return '<option value="'+n.id+'"'+sel+'>'+esc(n.name)+'</option>'; }).join('');
   function fld(label,idf,val,full,type){ return '<div class="pf-field'+(full?' full':'')+'"><label>'+esc(label)+'</label><input class="poc-in" id="'+idf+'" type="'+(type||'text')+'" value="'+esc(val||'')+'"></div>'; }
   function sel(label,idf,opts,val){ return '<div class="pf-field"><label>'+esc(label)+'</label><select class="poc-in" id="'+idf+'">'+opts.map(function(o){return '<option'+(o===val?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></div>'; }
   $('drawer').style.setProperty('--nc', '#8460D4'); $('drawer').style.setProperty('--nc-rgb', hexRgb('#8460D4'));

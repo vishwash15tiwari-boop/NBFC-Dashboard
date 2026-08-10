@@ -24,6 +24,15 @@ var DRIVE_ROOT_ID = '1i5melXCocWrV9rR-3gM75wwSwWy7Dqit';
 var MB_SHEET_ID        = '1d57KGl00-pGWVjYKouyMu8jt0Y4UMEc2HaHWtMWPjeM';
 var MB_VERTICAL_FILTER = 'Open Marketplace';
 
+/* ── Seller / Buyer NBFC classification ─────────────────────────────────────
+   Single source of truth for which NBFCs belong to each entity type.
+   To add a new NBFC to a group, update this map and CONFIG.NBFC_TABS only —
+   no other logic changes are required.                                        */
+var NBFC_ENTITY_MAP = {
+  seller: ['billmart', 'capitalxb', 'karncy'],
+  buyer:  ['strideone', 'credable']
+};
+
 var CONFIG = {
   // Native Google Sheet ID (already confirmed native; no xlsx conversion needed).
   SOURCE_FILE_ID: '1RoHWbZyHhNKlweWXD4AMSZfB5ONdktPcVayOkpPgjpo',
@@ -34,9 +43,9 @@ var CONFIG = {
   // docStartCol / docEndCol (1-indexed) restrict which columns are treated as
   // document-status columns — L=12 through AA=27.
   NBFC_TABS: [
-    { id: 'billmart',  name: 'Billmart',   maxCol: 40, docStartCol: 12, docEndCol: 27 },
-    { id: 'capitalxb', name: 'Capital XB', maxCol: 40, docStartCol: 12, docEndCol: 27 },
-    { id: 'strideone', name: 'StrideOne',  maxCol: 40, docStartCol: 12, docEndCol: 27 },
+    { id: 'billmart',  name: 'Billmart',   maxCol: 40, docStartCol: 12, docEndCol: 27, entityGroup: 'seller' },
+    { id: 'capitalxb', name: 'Capital XB', maxCol: 40, docStartCol: 12, docEndCol: 27, entityGroup: 'seller' },
+    { id: 'strideone', name: 'StrideOne',  maxCol: 40, docStartCol: 12, docEndCol: 27, entityGroup: 'buyer' },
   ],
 
   // Funnel-stage columns (1-indexed): AG=33, AH=34, AI=35.
