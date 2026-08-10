@@ -140,7 +140,15 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none}
   background:var(--bad-tint);color:var(--bad);font-size:12.5px;line-height:1.45;
   border:1px solid rgba(var(--bad-rgb),.25)}
 .login-err.on{display:block}
+.login-ok{display:none;margin-bottom:14px;padding:10px 12px;border-radius:var(--radius-sm);
+  background:var(--ok-tint);color:var(--ok);font-size:12.5px;line-height:1.45;
+  border:1px solid rgba(var(--ok-rgb),.25)}
+.login-ok.on{display:block}
 .btn-login:disabled{opacity:.65;cursor:progress}
+.login-link{display:block;width:100%;margin-top:13px;font-size:12.5px;font-weight:500;
+  color:var(--brand);text-align:center;padding:4px}
+.login-link:hover{text-decoration:underline}
+#su-code{letter-spacing:.42em;font-family:var(--mono);text-align:center;font-size:17px}
 
 /* ── Header profile menu ─────────────────────────────────────────────────── */
 .tb-user{display:flex;align-items:center;gap:9px;padding:5px 9px 5px 5px;border-radius:999px;
@@ -772,7 +780,7 @@ textarea.poc-in{resize:vertical;min-height:60px}
 
 <!-- ═══════════════ LOGIN ═══════════════ -->
 <div id="login">
-  <div class="login-card">
+  <div class="login-card" id="loginCard">
     <div class="login-logo"><div class="mk">R</div><b>Recykal</b></div>
     <h2>Sign in</h2>
     <div class="sub">NBFC Tracker &amp; Management Dashboard</div>
@@ -789,9 +797,56 @@ textarea.poc-in{resize:vertical;min-height:60px}
       </div>
       <div class="login-err" id="loginErr" role="alert" aria-live="polite"></div>
       <button class="btn-login" id="loginBtn" type="submit">Sign in</button>
+      <button type="button" class="login-link" onclick="showSetup()">First time here, or forgotten your password?</button>
     </form>
     <!-- Role is never chosen at sign-in: it is read from the POC Directory, so
          the browser cannot ask for more access than the sheet grants. -->
+  </div>
+
+  <!-- Password setup / reset. Identity is proved by receiving the code at the
+       Official Email already held in the POC Directory, so this screen grants
+       nothing on its own. -->
+  <div class="login-card" id="setupCard" style="display:none">
+    <div class="login-logo"><div class="mk">R</div><b>Recykal</b></div>
+    <h2 id="setupTitle">Set your password</h2>
+    <div class="sub" id="setupSub">We&rsquo;ll email a 6-digit code to your official address.</div>
+
+    <!-- Outside both forms: the confirmation is raised by step 1 but has to stay
+         visible once step 1 is hidden and step 2 takes its place. -->
+    <div class="login-ok" id="setupOk" role="status" aria-live="polite"></div>
+
+    <form id="setupStep1" onsubmit="requestCode();return false;">
+      <div class="field">
+        <label for="su-email">Official email</label>
+        <div class="inp"><input id="su-email" type="email" autocomplete="username"
+          placeholder="you@recykal.com" required></div>
+      </div>
+      <div class="login-err" id="setupErr" role="alert" aria-live="polite"></div>
+      <button class="btn-login" id="setupBtn1" type="submit">Send code</button>
+    </form>
+
+    <form id="setupStep2" style="display:none" onsubmit="submitNewPassword();return false;">
+      <div class="field">
+        <label for="su-code">6-digit code</label>
+        <div class="inp"><input id="su-code" type="text" inputmode="numeric" autocomplete="one-time-code"
+          maxlength="6" placeholder="••••••" required></div>
+      </div>
+      <div class="field">
+        <label for="su-pw1">New password</label>
+        <div class="inp"><input id="su-pw1" type="password" autocomplete="new-password"
+          placeholder="At least 8 characters" required></div>
+      </div>
+      <div class="field">
+        <label for="su-pw2">Confirm new password</label>
+        <div class="inp"><input id="su-pw2" type="password" autocomplete="new-password"
+          placeholder="Re-enter it" required></div>
+      </div>
+      <div class="login-err" id="setupErr2" role="alert" aria-live="polite"></div>
+      <button class="btn-login" id="setupBtn2" type="submit">Set password &amp; sign in</button>
+      <button type="button" class="login-link" onclick="requestCode(true)">Send a new code</button>
+    </form>
+
+    <button type="button" class="login-link" onclick="showLogin()">&larr; Back to sign in</button>
   </div>
 </div>
 
@@ -2790,6 +2845,98 @@ function doLogin(){
     .authenticate(email, pw);
 }
 
+/* ── First-time password setup / reset ──────────────────────────────────────
+   Two steps: request a code (emailed to the address held in the POC Directory),
+   then redeem it with a new password. The request step deliberately reports the
+   same thing whether or not the address is in the directory — the server does
+   too — so neither can be used to find out who has an account. */
+function setCardMsg(id, msg, cls){
+  var e=$(id); if(!e) return;
+  e.textContent=msg||'';
+  if(msg) e.classList.add('on'); else e.classList.remove('on');
+  if(cls) e.className=cls+(msg?' on':'');
+}
+function clearSetupMsgs(){
+  ['setupErr','setupErr2'].forEach(function(id){ var e=$(id); if(e){ e.textContent=''; e.classList.remove('on'); } });
+  var k=$('setupOk'); if(k){ k.textContent=''; k.classList.remove('on'); }
+}
+function showSetup(){
+  clearSetupMsgs();
+  var le=$('loginErr'); if(le){ le.textContent=''; le.classList.remove('on'); }
+  $('loginCard').style.display='none';
+  $('setupCard').style.display='block';
+  $('setupStep1').style.display='block';
+  $('setupStep2').style.display='none';
+  /* Carry across whatever was already typed on the sign-in form. */
+  var typed=(($('li-email')||{}).value||'').trim();
+  if(typed) $('su-email').value=typed;
+  $('su-email').focus();
+}
+function showLogin(){
+  clearSetupMsgs();
+  $('setupCard').style.display='none';
+  $('loginCard').style.display='block';
+  $('li-email').focus();
+}
+function requestCode(resend){
+  clearSetupMsgs();
+  var email=(($('su-email')||{}).value||'').trim();
+  if(!email){ setCardMsg('setupErr','Enter your official email address.','login-err'); return; }
+  if(!LIVE){
+    setCardMsg('setupErr','Password setup needs the deployed app — there is no mail server in standalone preview.','login-err');
+    return;
+  }
+  var btn=$(resend?'setupBtn2':'setupBtn1');
+  var label=btn?btn.textContent:'';
+  if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
+  google.script.run
+    .withSuccessHandler(function(res){
+      if(btn){ btn.disabled=false; btn.textContent=label; }
+      if(!res || res.ok===false){ setCardMsg('setupErr',(res&&res.error)||'Could not send a code.','login-err'); return; }
+      setCardMsg('setupOk', res.message||'Code sent.', 'login-ok');
+      $('setupStep1').style.display='none';
+      $('setupStep2').style.display='block';
+      $('setupTitle').textContent='Enter your code';
+      $('setupSub').textContent='Check '+email+' for a 6-digit code, then choose a password.';
+      $('su-code').focus();
+    })
+    .withFailureHandler(function(err){
+      if(btn){ btn.disabled=false; btn.textContent=label; }
+      setCardMsg('setupErr','Could not reach the server: '+((err&&err.message)||err),'login-err');
+    })
+    .requestPasswordSetup(email);
+}
+function submitNewPassword(){
+  clearSetupMsgs();
+  var email=(($('su-email')||{}).value||'').trim();
+  var code =(($('su-code') ||{}).value||'').trim();
+  var pw1  =(($('su-pw1')  ||{}).value||'');
+  var pw2  =(($('su-pw2')  ||{}).value||'');
+  if(pw1!==pw2){ setCardMsg('setupErr2','The two passwords do not match.','login-err'); return; }
+  if(pw1.length<8 || !/[A-Za-z]/.test(pw1) || !/[0-9]/.test(pw1)){
+    setCardMsg('setupErr2','Password must be at least 8 characters and contain a letter and a number.','login-err');
+    return;
+  }
+  var btn=$('setupBtn2');
+  if(btn){ btn.disabled=true; btn.textContent='Setting…'; }
+  google.script.run
+    .withSuccessHandler(function(res){
+      if(btn){ btn.disabled=false; btn.textContent='Set password & sign in'; }
+      if(!res || !res.ok){ setCardMsg('setupErr2',(res&&res.error)||'Could not set the password.','login-err'); return; }
+      /* Mailbox control proved and the secret chosen — sign straight in. */
+      SESSION.token=res.token; SESSION.profile=res.profile;
+      ['su-code','su-pw1','su-pw2'].forEach(function(id){ var e=$(id); if(e) e.value=''; });
+      $('setupCard').style.display='none';
+      $('loginCard').style.display='block';
+      enterApp();
+    })
+    .withFailureHandler(function(err){
+      if(btn){ btn.disabled=false; btn.textContent='Set password & sign in'; }
+      setCardMsg('setupErr2','Could not reach the server: '+((err&&err.message)||err),'login-err');
+    })
+    .completePasswordSetup(email, code, pw1);
+}
+
 /** Post-login boot: paint identity, pull the caller's scoped data, land home. */
 function enterApp(){
   var pr=SESSION.profile||{};
@@ -2811,6 +2958,11 @@ function forceLogout(msg){
   closeDrawer(); closePm();
   $('app').style.display='none';
   $('login').style.display='grid';
+  /* Always return to the sign-in panel — a session can be lost while the setup
+     card is the one on screen. */
+  var sc=$('setupCard'), lc=$('loginCard');
+  if(sc) sc.style.display='none';
+  if(lc) lc.style.display='block';
   if(msg) showLoginError(msg);
 }
 /** Returns true (and bounces to login) when a response reports a dead session,

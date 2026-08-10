@@ -741,6 +741,139 @@ function adminSetUserPassword(token, targetEmail, newPassword) {
   } catch (e) { return { ok:false, error:String(e && e.message || e) }; }
 }
 
+/* ═══════════ FIRST-TIME PASSWORD SETUP / RESET ═══════════
+   Lets a user in the directory create their own password without an admin
+   running a script for each person.
+
+   What stops anyone claiming someone else's account: the one-time code is
+   emailed to the Official Email already recorded in the POC Directory. Control
+   of that corporate mailbox is the proof of identity — the request endpoint
+   itself grants nothing. Everything else follows from that:
+     · the response is identical whether or not the email exists, so this cannot
+       be used to discover who is in the directory
+     · inactive accounts never receive a code
+     · the code is stored hashed with a short expiry, dies after 5 wrong
+       attempts, and is consumed on success
+     · the new password still has to pass the normal policy
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var SETUP_CODE_TTL_SEC   = 900;   // 15 minutes
+var SETUP_MAX_ATTEMPTS   = 5;     // wrong codes before the code is destroyed
+var SETUP_MAX_REQUESTS   = 5;     // codes requested per email per hour
+var SETUP_REQUEST_WINDOW = 3600;
+
+function setupCacheKey_(email) { return 'pwsetup_' + String(email || '').trim().toLowerCase(); }
+function setupReqKey_(email)   { return 'pwsetupreq_' + String(email || '').trim().toLowerCase(); }
+
+/** 6 digits, generated from a cryptographic-ish source and never logged. */
+function newSetupCode_() {
+  var n = Math.floor(Math.random() * 1000000);
+  return ('00000' + n).slice(-6);
+}
+
+/**
+ * Step 1 — ask for a code. Always reports the same thing so the caller cannot
+ * tell whether the address is in the directory, active, or already set up.
+ */
+function requestPasswordSetup(email) {
+  var GENERIC = { ok:true, message:'If that address belongs to an active user, a 6-digit code is on its way. It expires in 15 minutes.' };
+  try {
+    var key = String(email || '').trim().toLowerCase();
+    if (!key) return { ok:false, error:'Enter your official email address.' };
+
+    var c = CacheService.getScriptCache();
+    var reqs = parseInt(c.get(setupReqKey_(key)) || '0', 10);
+    if (reqs >= SETUP_MAX_REQUESTS) {
+      return { ok:false, error:'Too many requests for this address. Try again in an hour.' };
+    }
+    c.put(setupReqKey_(key), String(reqs + 1), SETUP_REQUEST_WINDOW);
+
+    var u = findDirectoryUser_(key);
+    if (!u || !isActiveFlag_(u.activeRaw)) return GENERIC;   // silent no-op, same response
+
+    var code = newSetupCode_();
+    var salt = newSalt_();
+    c.put(setupCacheKey_(key), JSON.stringify({
+      h: hashPassword_(code, salt), s: salt, tries: 0, reset: !!u.pwHash
+    }), SETUP_CODE_TTL_SEC);
+
+    var isReset = !!u.pwHash;
+    MailApp.sendEmail({
+      to: u.email,
+      subject: (isReset ? 'Reset your NBFC Tracker password' : 'Set up your NBFC Tracker password'),
+      body: [
+        'Hi ' + (u.name || '') + ',',
+        '',
+        'Your one-time code is: ' + code,
+        '',
+        'Enter it on the ' + (isReset ? 'reset' : 'set-up') + ' screen to choose a password.',
+        'The code expires in 15 minutes and can only be used once.',
+        '',
+        'If you did not request this, you can ignore this email — nothing has changed on your account.',
+        '',
+        'Recykal NBFC Tracker'
+      ].join('\n')
+    });
+    return GENERIC;
+  } catch (e) {
+    /* A mail failure must not reveal that the address exists either, but the
+       admin needs to see it — log server-side, respond generically. */
+    Logger.log('requestPasswordSetup failed for ' + email + ': ' + (e && e.message || e));
+    return GENERIC;
+  }
+}
+
+/**
+ * Step 2 — redeem the code and set the password. On success the user is signed
+ * straight in: they have just proved mailbox control and chosen the secret.
+ */
+function completePasswordSetup(email, code, newPassword) {
+  try {
+    var key = String(email || '').trim().toLowerCase();
+    var c   = CacheService.getScriptCache();
+    var raw = c.get(setupCacheKey_(key));
+    var BAD = { ok:false, error:'That code is not valid or has expired. Request a new one.' };
+    if (!raw) return BAD;
+
+    var rec;
+    try { rec = JSON.parse(raw); } catch (e) { return BAD; }
+
+    if (rec.tries >= SETUP_MAX_ATTEMPTS) { c.remove(setupCacheKey_(key)); return BAD; }
+
+    if (!safeEqual_(hashPassword_(String(code || '').trim(), rec.s), rec.h)) {
+      rec.tries++;
+      /* Keep the remaining TTL roughly intact; the attempt counter is what
+         matters, and the code dies on the next read once it is exhausted. */
+      c.put(setupCacheKey_(key), JSON.stringify(rec), SETUP_CODE_TTL_SEC);
+      var left = SETUP_MAX_ATTEMPTS - rec.tries;
+      return { ok:false, error:'Incorrect code.' + (left > 0 ? ' ' + left + ' attempt' + (left === 1 ? '' : 's') + ' left.' : ' Request a new one.') };
+    }
+
+    var policy = passwordPolicyError_(newPassword);
+    if (policy) return { ok:false, error:policy };
+
+    /* Re-check the account at redemption time — it may have been deactivated
+       in the fifteen minutes since the code was issued. */
+    var u = findDirectoryUser_(key);
+    if (!u || !isActiveFlag_(u.activeRaw)) {
+      c.remove(setupCacheKey_(key));
+      return { ok:false, error:'This account is not active. Contact your administrator.' };
+    }
+
+    writeCredential_(u.rowIndex, newPassword);
+    c.remove(setupCacheKey_(key));       // single use
+    c.remove(setupReqKey_(key));
+    clearFailures_(key);                 // a successful setup clears any lockout
+
+    var fresh   = findDirectoryUser_(key);
+    var profile = publicProfile_(fresh);
+    stampLastLogin_(fresh);
+    return { ok:true, token:newSession_(profile), profile:scrubClientPayload_(profile) };
+  } catch (e) {
+    return { ok:false, error:'Could not set the password: ' + String(e && e.message || e) };
+  }
+}
+
 /* ── One-time provisioning ────────────────────────────────────────────────────
    Run these from the Apps Script editor (Run ▸ function). They are deliberately
    not exposed to the web app: the first one creates the tab that the login
