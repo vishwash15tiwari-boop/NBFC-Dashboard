@@ -666,18 +666,11 @@ function writeToSheet_(ss, tabName, result, gstinDateMap) {
       // "No." column — always auto-filled with a sequential 1-based serial number
       if (hNorm === 'no') return rowIdx + 1;
 
-      if (mapping[c] < 0) {
-        return isDoc ? 'NA' : '';   // doc columns absent from query → NA
-      }
-      var v = srcRow[mapping[c]];
-      if (isDoc) return transformDocValue_(v);
-      // "Region" — always derived from the State value via North/South/NA logic
-      if (hNorm === 'region') return deriveRegion_(v);
-      // "Vintage with Recykal" — priority order:
-      //   1. Earliest date across ALL verticals (from gstinDateMap, keyed by GSTIN)
-      //      — captures vendors who joined Recykal in a different vertical first
-      //   2. Date from this specific filtered row (per-row fallback)
-      //   3. Fall through to Metabase's own value
+      // "Vintage with Recykal" — MUST come before the mapping[c] < 0 guard because
+      // Metabase does not return this column; mapping[c] will be -1 and the guard
+      // would return '' before any calculation runs.
+      // Priority: (1) earliest date across all verticals from gstinDateMap,
+      //           (2) date in this filtered row, (3) Metabase's own value, (4) ''.
       if (hNorm === 'vintagewithrecykal') {
         if (gstinSrcIdx >= 0 && gstinDateMap) {
           var _g = String(srcRow[gstinSrcIdx] == null ? '' : srcRow[gstinSrcIdx]).trim().toUpperCase();
@@ -690,7 +683,17 @@ function writeToSheet_(ss, tabName, result, gstinDateMap) {
           var _vf = calcVintage_(srcRow[onboardDateSrcIdx]);
           if (_vf) return _vf;
         }
+        if (mapping[c] >= 0) { var _vm = srcRow[mapping[c]]; return _vm == null ? '' : _vm; }
+        return '';
       }
+
+      if (mapping[c] < 0) {
+        return isDoc ? 'NA' : '';   // doc columns absent from query → NA
+      }
+      var v = srcRow[mapping[c]];
+      if (isDoc) return transformDocValue_(v);
+      // "Region" — always derived from the State value via North/South/NA logic
+      if (hNorm === 'region') return deriveRegion_(v);
       return v == null ? '' : v;
     });
   });
