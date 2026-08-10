@@ -46,6 +46,19 @@ var CFG = {
   AUTO_DEDUPE: true,
   AUTO_BACKFILL_NAMES: true,
 
+  /* The sync appends, so the filter alone only governs what is ADDED — rows
+     written before a rule existed (or while it was silently inert) would stay
+     forever. AUTO_PRUNE reconciles instead: a row whose GSTIN is absent from the
+     current filtered fetch is removed, so the tab converges on exactly what the
+     rules admit rather than accumulating.
+
+     PRUNE_MAX_FRACTION caps how much one run may delete. Losing most of a tab is
+     far more likely to mean a degraded fetch than a real change, so crossing the
+     ceiling abandons the prune and logs instead of deleting. Raise it only for a
+     one-off clean-up you have previewed. */
+  AUTO_PRUNE: true,
+  PRUNE_MAX_FRACTION: 0.5,
+
   /* A record must satisfy EVERY rule below to be synced.
      `aliases` locate the column in the Metabase output; `values` are the
      accepted cell values, compared case- and punctuation-insensitively — so
@@ -247,7 +260,7 @@ function syncMetabaseToSheet() {
   try {
     var token = getSessionToken_();
     var ss    = SpreadsheetApp.openById(CFG.SHEET_ID);
-    var total = { added: 0, existing: 0, blank: 0 };
+    var total = { added: 0, existing: 0, blank: 0, pruned: 0, pruneAborted: false };
 
     CFG.QUERIES.forEach(function (q) {
       Logger.log('━━━ Query ' + q.id + ' → "' + q.tab + '" ━━━');
@@ -271,6 +284,8 @@ function syncMetabaseToSheet() {
         total.added    += r.added;
         total.existing += r.existing;
         total.blank    += r.blank;
+        total.pruned   += (r.pruned || 0);
+        if (r.pruneAborted) total.pruneAborted = true;
       } catch (e) {
         // One failing card must not stop the other from syncing.
         Logger.log('✗ "' + q.tab + '" failed: ' + (e && e.message || e));
@@ -279,7 +294,12 @@ function syncMetabaseToSheet() {
 
     Logger.log('══ Sync complete in ' + (Math.round((Date.now() - t0) / 100) / 10) + 's — ' +
                total.added + ' added, ' + total.existing + ' already present, ' +
+               total.pruned + ' removed (no longer admitted by the filter), ' +
                total.blank + ' skipped (no GSTIN) ══');
+    if (total.pruneAborted) {
+      Logger.log('⚠ A prune was abandoned this run — see the PRUNE ABORTED line above. '
+        + 'The tab still holds rows the filter would exclude.');
+    }
   } finally {
     try { lock.releaseLock(); } catch (e) {}
   }
@@ -449,7 +469,7 @@ function mbGstinKey_(v) { return String(v == null ? '' : v).trim().toUpperCase()
  * @return {{added:number, existing:number, blank:number, removed:number, named:number}}
  */
 function appendNewEntities_(ss, q, result) {
-  var out = { added: 0, existing: 0, blank: 0, removed: 0, named: 0 };
+  var out = { added: 0, existing: 0, blank: 0, removed: 0, named: 0, pruned: 0, pruneAborted: false };
 
   // ── Locate GSTIN + Name in the Metabase output ───────────────────────────
   var gIdx = mbFindIdx_(result.cols, FIELD_MAP[q.gstinKey] || []);
@@ -514,6 +534,21 @@ function appendNewEntities_(ss, q, result) {
 
   // ── 1. Remove duplicate GSTIN rows already in the tab ────────────────────
   if (CFG.AUTO_DEDUPE) out.removed = mbDedupeSheet_(sh, cGstin, headerRow, false);
+
+  // ── 1b. Drop rows the filter no longer admits ────────────────────────────
+  // Runs before the append so the tab is reconciled, not just extended. The
+  // allowed set is built from the FILTERED fetch, so anything the rules exclude
+  // is removed even if an earlier run had already written it.
+  if (CFG.AUTO_PRUNE) {
+    var allowedKeys = {};
+    result.rows.forEach(function (row) {
+      var k = mbGstinKey_(row[gIdx]);
+      if (k) allowedKeys[k] = true;
+    });
+    var pr = mbPruneToFilter_(sh, cGstin, headerRow, allowedKeys, false);
+    out.pruned = pr.removed;
+    out.pruneAborted = pr.aborted;
+  }
 
   // ── Existing GSTIN → row number, from one read of the key column ─────────
   var firstDataRow = headerRow + 1;
@@ -608,6 +643,76 @@ function mbDedupeSheet_(sh, cGstin, headerRow, dryRun) {
              ' duplicate row(s)' + (dup.length <= 40 ? ': ' + dup.join(', ') : ''));
   if (!dryRun) for (var d = dup.length - 1; d >= 0; d--) sh.deleteRow(dup[d]);
   return dup.length;
+}
+
+/**
+ * Remove rows the filter would no longer admit.
+ *
+ * The sync appends, so the filter only ever governed what was ADDED. Rows
+ * written by earlier runs — including everything synced while the Onboarded
+ * Status rule was silently inert — stayed in the tab forever, which is why the
+ * sheet still showed sellers of every onboarding status after the rule was
+ * fixed. Filtering the inflow does not clean up the backlog; this does.
+ *
+ * `allowed` is the GSTIN key set of the CURRENT filtered fetch, so a row is
+ * removed when the vendor is no longer returned by Metabase under the active
+ * rules. Rows with no GSTIN are never touched: they cannot be matched, and are
+ * more likely hand-entered than stale.
+ *
+ * Guarded by CFG.PRUNE_MAX_FRACTION. Removing most of a tab in one run is far
+ * more likely to mean a degraded fetch than a genuine change, so the prune is
+ * abandoned (nothing deleted) and reported instead.
+ */
+function mbPruneToFilter_(sh, cGstin, headerRow, allowed, dryRun) {
+  var out = { removed: 0, kept: 0, blanks: 0, aborted: false, names: [] };
+  var firstDataRow = headerRow + 1;
+  var n = sh.getLastRow() - headerRow;
+  if (n < 1) return out;
+
+  var allowedCount = 0;
+  for (var a in allowed) if (allowed.hasOwnProperty(a)) allowedCount++;
+  if (!allowedCount) {                       // nothing admitted → never treat as "delete everything"
+    Logger.log('  ⚠ Prune skipped — the filtered fetch is empty, so every row would look stale.');
+    out.aborted = true;
+    return out;
+  }
+
+  var cName = (CFG.COLUMNS.name || 0) - 1;
+  var vals  = sh.getRange(firstDataRow, cGstin + 1, n, 1).getValues();
+  var names = (cName >= 0) ? sh.getRange(firstDataRow, cName + 1, n, 1).getValues() : null;
+
+  var stale = [];
+  for (var i = 0; i < n; i++) {
+    var k = mbGstinKey_(vals[i][0]);
+    if (!k) { out.blanks++; continue; }       // no key to judge by — leave alone
+    if (allowed[k]) { out.kept++; continue; }
+    stale.push({ row: firstDataRow + i, gstin: k, name: names ? String(names[i][0] || '') : '' });
+  }
+  if (!stale.length) return out;
+
+  var judged = out.kept + stale.length;
+  var frac   = judged ? (stale.length / judged) : 0;
+  if (frac > CFG.PRUNE_MAX_FRACTION) {
+    Logger.log('  ✗ Prune ABORTED — ' + stale.length + ' of ' + judged + ' rows ('
+      + Math.round(frac * 100) + '%) are absent from the filtered fetch, over the '
+      + Math.round(CFG.PRUNE_MAX_FRACTION * 100) + '% ceiling.\n'
+      + '    That usually means the fetch is degraded rather than the sheet stale. Nothing was deleted.\n'
+      + '    Run previewFilter() to check the fetch, then raise CFG.PRUNE_MAX_FRACTION if the removal is genuinely correct.');
+    out.aborted = true;
+    return out;
+  }
+
+  Logger.log('  ' + (dryRun ? 'Would remove ' : 'Removing ') + stale.length
+    + ' row(s) no longer admitted by the filter:');
+  stale.slice(0, 25).forEach(function (s) {
+    Logger.log('    ✗ ' + (s.name || '(no name)') + '  [' + s.gstin + ']  row ' + s.row);
+  });
+  if (stale.length > 25) Logger.log('    … and ' + (stale.length - 25) + ' more');
+
+  if (!dryRun) for (var d = stale.length - 1; d >= 0; d--) sh.deleteRow(stale[d].row);
+  out.removed = stale.length;
+  out.names   = stale.map(function (s) { return s.name || s.gstin; });
+  return out;
 }
 
 /**
@@ -802,6 +907,58 @@ function previewFilter() {
 
   Logger.log('');
   Logger.log('════ nothing was written — run syncMetabaseToSheet() to apply ════');
+}
+
+/**
+ * Dry run of the prune: lists the rows currently in each tab that the filter no
+ * longer admits, and deletes nothing. Run this before the first sync after
+ * enabling AUTO_PRUNE, so the backlog being cleared is seen rather than assumed.
+ */
+function previewPrune() {
+  var token = getSessionToken_();
+  var ss    = SpreadsheetApp.openById(CFG.SHEET_ID);
+  Logger.log('════ PRUNE PREVIEW — nothing will be deleted ════');
+
+  CFG.QUERIES.forEach(function (q) {
+    Logger.log('');
+    Logger.log('──── card ' + q.id + ' → "' + q.tab + '" ────');
+    try {
+      var raw = fetchCardData_(token, q.id);
+      var res = applyFilter_(raw);
+      if (res.filterError) {
+        Logger.log('  ✗ Filter could not be applied — ' + res.filterError);
+        Logger.log('    No prune would run; the sync would skip this tab entirely.');
+        return;
+      }
+
+      var gIdx = mbFindIdx_(raw.cols, FIELD_MAP[q.gstinKey] || []);
+      if (gIdx < 0) for (var i = 0; i < raw.cols.length; i++) {
+        if (MB_FUZZY.gstin(norm_(raw.cols[i]))) { gIdx = i; break; }
+      }
+      if (gIdx < 0) { Logger.log('  ✗ No GSTIN column in the query output.'); return; }
+
+      var allowed = {};
+      res.rows.forEach(function (row) { var k = mbGstinKey_(row[gIdx]); if (k) allowed[k] = true; });
+
+      var sh = mbResolveTab_(ss, q);
+      if (!sh) { Logger.log('  ⚠ No matching tab yet — nothing to prune.'); return; }
+
+      var headerRow = mbFindHeaderRow_(sh);
+      var cGstin    = (CFG.COLUMNS.gstin || 0) - 1;
+      Logger.log('  Filter admits ' + res.rows.length + ' vendor(s); tab holds '
+        + Math.max(0, sh.getLastRow() - headerRow) + ' row(s).');
+
+      var pr = mbPruneToFilter_(sh, cGstin, headerRow, allowed, true);
+      Logger.log('  WOULD KEEP   : ' + pr.kept);
+      Logger.log('  WOULD REMOVE : ' + pr.removed + (pr.aborted ? '  (prune would be ABANDONED — see above)' : ''));
+      if (pr.blanks) Logger.log('  Left alone   : ' + pr.blanks + ' row(s) with no GSTIN');
+    } catch (e) {
+      Logger.log('  ✗ ' + (e && e.message || e));
+    }
+  });
+
+  Logger.log('');
+  Logger.log('════ nothing was deleted — run syncMetabaseToSheet() to apply ════');
 }
 
 /** Report duplicate GSTIN rows without changing anything. */
