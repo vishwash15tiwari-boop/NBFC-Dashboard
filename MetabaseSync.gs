@@ -46,13 +46,32 @@ var CFG = {
   AUTO_DEDUPE: true,
   AUTO_BACKFILL_NAMES: true,
 
-  /* Only Open Marketplace records are synced. ONBOARDING_STATUS is disabled
-     (empty string) so vertical is the sole filter; set it back to 'Completed'
-     to also require a finished onboarding. */
+  /* A record must satisfy EVERY rule below to be synced.
+     `aliases` locate the column in the Metabase output; `values` are the
+     accepted cell values, compared case- and punctuation-insensitively — so
+     "Complete" and "Completed" both pass without editing logic.
+     Set `values: []` to switch a rule off. */
   FILTER: {
-    VERTICAL         : 'Open Marketplace',
-    ONBOARDING_STATUS: '',
+    vertical: {
+      label:   'Business Vertical',
+      aliases: ['Vertical', 'Business Vertical', 'BusinessVertical', 'business_vertical',
+                'Biz Vertical', 'Vertical Name'],
+      values:  ['Open Marketplace'],
+    },
+    onboarding: {
+      label:   'Onboarded Status',
+      aliases: ['Onboarded Status', 'Onboarding Status', 'Onboard Status', 'Onboarding State',
+                'Onboarded', 'OnboardingStatus', 'OnboardedStatus', 'Onboarding_Status',
+                'Onboarded_Status', 'Seller Status', 'Buyer Status', 'Status'],
+      values:  ['Complete', 'Completed'],
+    },
   },
+
+  /* When a filter is configured but its column is absent from the query output,
+     abort that tab instead of syncing unfiltered. Appending records that should
+     have been excluded is worse than appending none, and the log names the
+     columns that were available so the alias list can be corrected. */
+  STRICT_FILTER: true,
 
   /* Header aliases used to locate the three columns this sync touches in the
      destination tab. Nothing is written outside these columns. */
@@ -238,9 +257,14 @@ function syncMetabaseToSheet() {
         Logger.log('Metabase columns: ' + raw.cols.join(' | '));
 
         var filtered = applyFilter_(raw);
-        Logger.log('After Open Marketplace filter: ' + filtered.rows.length + ' rows');
+        if (filtered.filterError) {
+          // Nothing is written when a configured filter could not be applied.
+          Logger.log('✗ "' + q.tab + '" skipped — ' + filtered.filterError);
+          return;
+        }
+        Logger.log('After filters: ' + filtered.rows.length + ' of ' + raw.rows.length + ' rows');
         if (filtered.rows.length === 0) {
-          Logger.log('⚠ Zero rows after filter — run debugColumns() and check CFG.FILTER');
+          Logger.log('⚠ Zero rows after filter — run debugSheetColumns() and check CFG.FILTER values');
         }
 
         var r = appendNewEntities_(ss, q, filtered);
@@ -684,7 +708,9 @@ function debugSheetColumns() {
       Logger.log('  → Name alias: ' + (nA >= 0 ? '"' + raw.cols[nA] + '"' : 'no match'));
       Logger.log('  → Name fuzzy: ' + (nF >= 0 ? '"' + raw.cols[nF] + '"' : 'no match'));
       Logger.log('  → Name guess: ' + (nG >= 0 ? '"' + raw.cols[nG] + '"' : 'no match'));
-      Logger.log('  After Open Marketplace filter: ' + applyFilter_(raw).rows.length + ' rows');
+      var f = applyFilter_(raw);
+      Logger.log('  After filters: ' + f.rows.length + ' of ' + raw.rows.length + ' rows' +
+                 (f.filterError ? '  ✗ ' + f.filterError : ''));
     } catch (e) { Logger.log('  ✗ ' + (e && e.message || e)); }
   });
   Logger.log('\n════ end ════');
@@ -987,39 +1013,80 @@ function fetchCardData_(token, cardId) {
 // ROW FILTER
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Keep only rows satisfying every rule in CFG.FILTER.
+ *
+ * Each rule locates its column by alias and accepts any of its listed values,
+ * compared through norm_() so casing, spacing and punctuation differences do not
+ * matter ("Complete" and "Completed" are both configured explicitly).
+ *
+ * A rule whose column is missing is a hard failure under STRICT_FILTER: the
+ * result is emptied and `filterError` is set, so the caller skips the tab rather
+ * than appending records that should have been filtered out.
+ *
+ * @return {{cols:Array, rows:Array, filterError:(string|null)}}
+ */
 function applyFilter_(result) {
   var cols = result.cols;
 
   function findIdx(candidates) {
-    for (var i = 0; i < cols.length; i++) {
-      var n = norm_(cols[i]);
-      for (var j = 0; j < candidates.length; j++) {
-        if (n === norm_(candidates[j])) return i;
-      }
+    for (var j = 0; j < candidates.length; j++) {        // alias priority
+      var want = norm_(candidates[j]);
+      for (var i = 0; i < cols.length; i++) if (norm_(cols[i]) === want) return i;
     }
     return -1;
   }
 
-  var vIdx = findIdx(['Vertical', 'Business Vertical', 'BusinessVertical',
-                      'business_vertical', 'Biz Vertical']);
-  var oIdx = findIdx(['Onboarding Status', 'OnboardingStatus', 'Onboarding_Status',
-                      'onboarding_status', 'Status', 'Seller Status']);
+  var active = [], missing = [];
+  Object.keys(CFG.FILTER).forEach(function (key) {
+    var rule = CFG.FILTER[key];
+    if (!rule || !rule.values || !rule.values.length) {
+      Logger.log('  Filter "' + (rule && rule.label || key) + '": off');
+      return;
+    }
+    var idx = findIdx(rule.aliases || []);
+    if (idx < 0) { missing.push(rule.label || key); return; }
 
-  var wV = String(CFG.FILTER.VERTICAL || '').toLowerCase().trim();
-  var wO = String(CFG.FILTER.ONBOARDING_STATUS || '').toLowerCase().trim();
-
-  Logger.log('  Filter — Vertical col idx: ' + vIdx + (wO ? ', Onboarding col idx: ' + oIdx : ', Onboarding filter: off'));
-  if (wV && vIdx < 0) Logger.log('  ⚠ Vertical column not found — run debugColumns() to see exact names');
-  if (wO && oIdx < 0) Logger.log('  ⚠ Onboarding Status column not found — run debugColumns() to see exact names');
-
-  var filtered = result.rows.filter(function (row) {
-    // An empty CFG value disables that filter entirely.
-    var vOk = !wV || vIdx < 0 || String(row[vIdx] == null ? '' : row[vIdx]).toLowerCase().trim() === wV;
-    var oOk = !wO || oIdx < 0 || String(row[oIdx] == null ? '' : row[oIdx]).toLowerCase().trim() === wO;
-    return vOk && oOk;
+    var accepted = {};
+    rule.values.forEach(function (v) { accepted[norm_(v)] = true; });
+    active.push({ idx: idx, accepted: accepted, label: rule.label || key });
+    Logger.log('  Filter "' + (rule.label || key) + '" → column "' + cols[idx] +
+               '" must be one of: ' + rule.values.join(' / '));
   });
 
-  return { cols: cols, rows: filtered };
+  if (missing.length) {
+    var msg = 'Filter column(s) not found: ' + missing.join(', ') +
+              '. Columns available: ' + cols.join(' | ');
+    Logger.log('  ✗ ' + msg);
+    if (CFG.STRICT_FILTER) {
+      Logger.log('  ✗ STRICT_FILTER is on — skipping this tab rather than syncing unfiltered.');
+      return { cols: cols, rows: [], filterError: msg };
+    }
+    Logger.log('  ⚠ STRICT_FILTER is off — continuing without that rule.');
+  }
+
+  var rejected = {};
+  var rows = result.rows.filter(function (row) {
+    for (var i = 0; i < active.length; i++) {
+      var raw = row[active[i].idx];
+      if (!active[i].accepted[norm_(raw)]) {
+        var seen = String(raw == null ? '' : raw).trim() || '(blank)';
+        var k = active[i].label + ' = ' + seen;
+        rejected[k] = (rejected[k] || 0) + 1;
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Naming the rejected values makes a value mismatch obvious immediately.
+  var reasons = Object.keys(rejected).sort(function (a, b) { return rejected[b] - rejected[a]; });
+  if (reasons.length) {
+    Logger.log('  Excluded ' + (result.rows.length - rows.length) + ' row(s): ' +
+      reasons.slice(0, 6).map(function (r) { return r + ' ×' + rejected[r]; }).join(', ') +
+      (reasons.length > 6 ? ', …' : ''));
+  }
+  return { cols: cols, rows: rows, filterError: null };
 }
 
 
