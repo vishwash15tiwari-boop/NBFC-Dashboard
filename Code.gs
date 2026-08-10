@@ -237,15 +237,15 @@ function savePlatformDoc(payload) {
    ═══════════════════════════════════════════════════════════════════════════ */
 var PLATFORM_POC_TAB   = 'POC Directory';
 var PLATFORM_POCFU_TAB = 'POC Followups';
-var POC_HEADERS   = ['POC ID','NBFC','Name','Designation','Department','Organization','Role','Primary',
-                     'Channel','Mobile','Alt Mobile','Email','Alt Email','Remarks','Status',
-                     'Last Contact','Next Followup','Updated At'];
+var POC_HEADERS   = ['POC ID','NBFC','Entity Type','Name','Designation','Department','Organization','Role',
+                     'Primary','Channel','Mobile','Alt Mobile','Email','Alt Email',
+                     'Relationship Owner','Remarks','Status','Last Contact','Next Followup','Updated At'];
 var POCFU_HEADERS = ['Followup ID','POC ID','NBFC','Date','Mode','Summary','Next Action','Next Date','By','Created At'];
 
 function pocRowFrom_(p) {
-  return [p.id||'', p.nbfc||'', p.name||'', p.designation||'', p.department||'', p.org||'', p.role||'',
+  return [p.id||'', p.nbfc||'', p.entityType||'', p.name||'', p.designation||'', p.department||'', p.org||'', p.role||'',
           p.primary ? 'Yes' : 'No', p.channel||'', p.mobile||'', p.altMobile||'', p.email||'', p.altEmail||'',
-          p.remarks||'', p.status||'Active', p.lastContact||'', p.nextFollowup||'', new Date()];
+          p.relOwner||'', p.remarks||'', p.status||'Active', p.lastContact||'', p.nextFollowup||'', new Date()];
 }
 
 /** Read POC Directory + Followups → { pocs:[…], followups:{ pocId:[…] } }. */
@@ -259,17 +259,30 @@ function getPOCData() {
       var v = sh.getDataRange().getValues();
       if (v.length >= 2) {
         var H = {}; v[0].forEach(function (h, i) { H[String(h).trim().toLowerCase()] = i; });
-        function c(row, name) { var i = H[name.toLowerCase()]; return i == null ? '' : String(row[i] == null ? '' : row[i]).trim(); }
+        function ca(row, aliases) { for(var _i=0;_i<aliases.length;_i++){var _x=H[aliases[_i].toLowerCase()];if(_x!=null)return String(row[_x]==null?'':row[_x]).trim();}return ''; }
         for (var r = 1; r < v.length; r++) {
-          var id = c(v[r], 'poc id');
+          var id = ca(v[r], ['poc id','id']);
           if (!id) continue;
           pocs.push({
-            id: id, nbfc: c(v[r], 'nbfc'), name: c(v[r], 'name'), designation: c(v[r], 'designation'),
-            department: c(v[r], 'department'), org: c(v[r], 'organization'), role: c(v[r], 'role'),
-            primary: /^(yes|true|1|primary)$/i.test(c(v[r], 'primary')), channel: c(v[r], 'channel'),
-            mobile: c(v[r], 'mobile'), altMobile: c(v[r], 'alt mobile'), email: c(v[r], 'email'),
-            altEmail: c(v[r], 'alt email'), remarks: c(v[r], 'remarks'), status: c(v[r], 'status') || 'Active',
-            lastContact: c(v[r], 'last contact'), nextFollowup: c(v[r], 'next followup')
+            id:           id,
+            nbfc:         ca(v[r], ['nbfc']),
+            name:         ca(v[r], ['poc name','name','contact name']),
+            designation:  ca(v[r], ['designation']),
+            department:   ca(v[r], ['department']),
+            org:          ca(v[r], ['organization','org']),
+            role:         ca(v[r], ['role']),
+            primary:      /^(yes|true|1|primary)$/i.test(ca(v[r], ['primary','primary/secondary'])),
+            channel:      ca(v[r], ['channel','preferred channel','preferred communication channel']),
+            mobile:       ca(v[r], ['mobile','mobile number']),
+            altMobile:    ca(v[r], ['alt mobile','alternate mobile','alternate mobile number','alt mobile number']),
+            email:        ca(v[r], ['email','email address']),
+            altEmail:     ca(v[r], ['alt email','alternate email','alternate email address']),
+            remarks:      ca(v[r], ['remarks','remarks/notes','notes']),
+            status:       ca(v[r], ['status']) || 'Active',
+            lastContact:  ca(v[r], ['last contact','last interaction','last contact date','last interaction date']),
+            nextFollowup: ca(v[r], ['next followup','next follow-up','next follow up','next followup date']),
+            entityType:   ca(v[r], ['seller/buyer','entity type','entitytype','type','entity']),
+            relOwner:     ca(v[r], ['relationship owner','relationship manager','rel owner'])
           });
         }
       }
@@ -298,7 +311,9 @@ function getPOCData() {
   }
 }
 
-/** Upsert one contact (keyed by POC ID). Creates the tab on first write. */
+/** Upsert one contact (keyed by POC ID). Creates the tab on first write.
+    Detects the sheet's actual column order via header lookup so an existing
+    POC Directory tab with any column structure is preserved. */
 function savePOC(poc) {
   try {
     poc = poc || {};
@@ -306,18 +321,65 @@ function savePOC(poc) {
     if (!id) return { ok: false, error: 'POC ID is required' };
     var ss = SpreadsheetApp.openById(PLATFORM_SHEET_ID);
     var sh = ss.getSheetByName(PLATFORM_POC_TAB);
-    if (!sh) { sh = ss.insertSheet(PLATFORM_POC_TAB); sh.getRange(1, 1, 1, POC_HEADERS.length).setValues([POC_HEADERS]); sh.setFrozenRows(1); }
-    var vals = sh.getDataRange().getValues(), rowNum = -1;
-    for (var r = 1; r < vals.length; r++) { if (String(vals[r][0]).trim() === id) { rowNum = r + 1; break; } }
-    var row = pocRowFrom_(poc);
-    if (rowNum > 0) sh.getRange(rowNum, 1, 1, row.length).setValues([row]);
-    else            sh.appendRow(row);
-    // Enforce one primary per NBFC: demote other rows of the same NBFC.
-    if (poc.primary) {
+    if (!sh) {
+      sh = ss.insertSheet(PLATFORM_POC_TAB);
+      sh.getRange(1, 1, 1, POC_HEADERS.length).setValues([POC_HEADERS]);
+      sh.setFrozenRows(1);
+    }
+    var vals = sh.getDataRange().getValues();
+    var headers = vals.length > 0 ? vals[0] : [];
+    var H = {}; headers.forEach(function(h,i){ H[String(h).trim().toLowerCase()] = i; });
+    var ALIASES = [
+      {k:'id',           a:['poc id','id']},
+      {k:'nbfc',         a:['nbfc']},
+      {k:'entityType',   a:['seller/buyer','entity type','entitytype','type','entity']},
+      {k:'name',         a:['poc name','name','contact name']},
+      {k:'designation',  a:['designation']},
+      {k:'department',   a:['department']},
+      {k:'org',          a:['organization','org']},
+      {k:'role',         a:['role']},
+      {k:'primary',      a:['primary','primary/secondary']},
+      {k:'channel',      a:['channel','preferred channel','preferred communication channel']},
+      {k:'mobile',       a:['mobile','mobile number']},
+      {k:'altMobile',    a:['alt mobile','alternate mobile','alternate mobile number','alt mobile number']},
+      {k:'email',        a:['email','email address']},
+      {k:'altEmail',     a:['alt email','alternate email','alternate email address']},
+      {k:'relOwner',     a:['relationship owner','relationship manager','rel owner']},
+      {k:'remarks',      a:['remarks','remarks/notes','notes']},
+      {k:'status',       a:['status']},
+      {k:'lastContact',  a:['last contact','last interaction','last contact date','last interaction date']},
+      {k:'nextFollowup', a:['next followup','next follow-up','next follow up','next followup date']},
+      {k:'updatedAt',    a:['updated at','updated']}
+    ];
+    var CI = {};
+    ALIASES.forEach(function(e){ for(var i=0;i<e.a.length;i++){ if(H[e.a[i]]!=null){CI[e.k]=H[e.a[i]];break;} } });
+    var fv = {
+      id: poc.id||'', nbfc: poc.nbfc||'', entityType: poc.entityType||'',
+      name: poc.name||'', designation: poc.designation||'', department: poc.department||'',
+      org: poc.org||'', role: poc.role||'', primary: poc.primary ? 'Yes' : 'No',
+      channel: poc.channel||'', mobile: poc.mobile||'', altMobile: poc.altMobile||'',
+      email: poc.email||'', altEmail: poc.altEmail||'', relOwner: poc.relOwner||'',
+      remarks: poc.remarks||'', status: poc.status||'Active',
+      lastContact: poc.lastContact||'', nextFollowup: poc.nextFollowup||'', updatedAt: new Date()
+    };
+    var rowNum = -1;
+    if (CI.id != null) {
+      for (var r = 1; r < vals.length; r++) { if (String(vals[r][CI.id]).trim() === id) { rowNum = r+1; break; } }
+    }
+    if (rowNum > 0) {
+      ALIASES.forEach(function(e){ if(CI[e.k]!=null && fv[e.k]!==undefined) sh.getRange(rowNum, CI[e.k]+1).setValue(fv[e.k]); });
+    } else {
+      var newRow = headers.length > 0 ? new Array(headers.length).fill('') : pocRowFrom_(poc);
+      if (headers.length > 0) ALIASES.forEach(function(e){ if(CI[e.k]!=null && fv[e.k]!==undefined) newRow[CI[e.k]]=fv[e.k]; });
+      sh.appendRow(newRow);
+    }
+    // Enforce one primary per NBFC.
+    if (poc.primary && CI.primary!=null && CI.nbfc!=null && CI.id!=null) {
       var v2 = sh.getDataRange().getValues();
       for (var k = 1; k < v2.length; k++) {
-        if (String(v2[k][1]).trim() === String(poc.nbfc).trim() && String(v2[k][0]).trim() !== id && /^(yes|true|1|primary)$/i.test(String(v2[k][7]))) {
-          sh.getRange(k + 1, 8).setValue('No');
+        if (String(v2[k][CI.nbfc]).trim()===String(poc.nbfc).trim() && String(v2[k][CI.id]).trim()!==id &&
+            /^(yes|true|1|primary)$/i.test(String(v2[k][CI.primary]))) {
+          sh.getRange(k+1, CI.primary+1).setValue('No');
         }
       }
     }

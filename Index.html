@@ -1733,7 +1733,8 @@ function seedPOCData(){
     return { id:'P-'+pre+'-'+String(seq[pre]).padStart(2,'0'), nbfc:r[0], name:r[1], designation:r[2],
       department:r[3], org:(NBFC_BY_ID[r[0]]?NBFC_BY_ID[r[0]].name:''), role:r[4], primary:!!r[5],
       channel:r[6], mobile:r[7], altMobile:r[8], email:r[9], altEmail:r[10], remarks:r[11],
-      status:r[12], lastContact:r[13], nextFollowup:r[14] };
+      status:r[12], lastContact:r[13], nextFollowup:r[14],
+      entityType:r[15]||'', relOwner:r[16]||'' };
   });
   var fu={
     'P-BM-1':[
@@ -1817,7 +1818,7 @@ function viewPocDirectory(){
       '<button class="btn btn-sm btn-primary" onclick="openPocForm(null,\''+(state.pocNbfc!=='all'?state.pocNbfc:'')+'\')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="vertical-align:-2px;margin-right:3px"><path d="M12 5v14M5 12h14"/></svg>Add POC</button>'+
     '</div>'+
     '<div class="tbl-wrap"><table class="tbl"><thead><tr>'+
-      '<th>Contact</th><th>NBFC</th><th>Role</th><th>Department</th><th>Reach</th><th>Priority</th><th>Status</th><th>Next follow-up</th>'+
+      '<th>Contact</th><th>NBFC</th><th>Entity</th><th>Role</th><th>Department</th><th>Reach</th><th>Priority</th><th>Status</th><th>Next follow-up</th>'+
     '</tr></thead><tbody id="pocBody"></tbody></table></div>'+
   '</div>';
 }
@@ -1837,6 +1838,7 @@ function pocRows(){
     return '<tr class="'+(p.status!=='Active'?'poc-inactive':'')+'" onclick="openPoc(\''+p.id+'\')">'+
       '<td><div class="cell-name">'+esc(p.name)+'<div class="cell-sub">'+esc(p.designation||'—')+'</div></div></td>'+
       '<td>'+nbfcChip(p.nbfc)+'</td>'+
+      '<td>'+(p.entityType?esc(p.entityType):'<span class="mut">—</span>')+'</td>'+
       '<td>'+esc(p.role||'—')+'</td>'+
       '<td>'+esc(p.department||'—')+'</td>'+
       '<td>'+pocQuickBtns(p)+'</td>'+
@@ -1844,7 +1846,7 @@ function pocRows(){
       '<td>'+pocStatusPill(p)+'</td>'+
       '<td class="tnum">'+(p.nextFollowup?esc(fmtDate(p.nextFollowup)):'<span class="mut">—</span>')+'</td>'+
     '</tr>';
-  }).join('') || '<tr><td colspan="8" style="padding:28px;text-align:center;color:var(--ink-3)">No contacts match these filters.</td></tr>';
+  }).join('') || '<tr><td colspan="9" style="padding:28px;text-align:center;color:var(--ink-3)">No contacts match these filters.</td></tr>';
 }
 function wirePocDirectory(){
   pocRows();
@@ -1864,6 +1866,7 @@ function openPoc(id){
 
   var meta=[
     ['Designation',p.designation],['Department',p.department],['Organization',p.org],['Role / Purpose',p.role],
+    ['Entity type',p.entityType],['Relationship owner',p.relOwner],
     ['Preferred channel',p.channel],['Priority',p.primary?'Primary':'Secondary'],
     ['Mobile',p.mobile,'mono'],['Alternate mobile',p.altMobile,'mono'],
     ['Official email',p.email,'mono'],['Alternate email',p.altEmail,'mono'],
@@ -1924,6 +1927,8 @@ function openPocForm(id, presetNbfc){
     '<div class="dr-body"><div class="pf-grid">'+
       '<div class="pf-field"><label>NBFC</label><select class="poc-in" id="pf_nbfc">'+nbfcSel+'</select></div>'+
       sel('Priority','pf_primary',['Primary','Secondary'],p?(p.primary?'Primary':'Secondary'):'Secondary')+
+      sel('Entity type','pf_entitytype',['','Seller','Buyer'],p?(p.entityType||''):'')+
+      fld('Relationship owner','pf_relowner',p?p.relOwner:'',true)+
       fld('Full name','pf_name',p?p.name:'',true)+
       fld('Designation','pf_desig',p?p.designation:'')+
       fld('Department','pf_dept',p?p.department:'')+
@@ -1951,10 +1956,11 @@ function savePocRecord(id){
   var rec={
     nbfc:nbfc, name:name, designation:($('pf_desig').value||'').trim(), department:($('pf_dept').value||'').trim(),
     role:$('pf_role').value, org:($('pf_org').value||'').trim(), channel:$('pf_channel').value,
-    primary:$('pf_primary').value==='Primary',
+    primary:$('pf_primary').value==='Primary', entityType:$('pf_entitytype').value||'',
     mobile:($('pf_mobile').value||'').trim(), altMobile:($('pf_altmobile').value||'').trim(),
     email:($('pf_email').value||'').trim(), altEmail:($('pf_altemail').value||'').trim(),
-    lastContact:$('pf_last').value||'', nextFollowup:$('pf_next').value||'', remarks:($('pf_remarks').value||'').trim()
+    lastContact:$('pf_last').value||'', nextFollowup:$('pf_next').value||'',
+    relOwner:($('pf_relowner').value||'').trim(), remarks:($('pf_remarks').value||'').trim()
   };
   var p;
   if(id){ p=pocById(id); if(!p){ toast('Contact not found'); return; } Object.keys(rec).forEach(function(k){ p[k]=rec[k]; }); }
