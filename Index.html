@@ -964,6 +964,19 @@ var _entityFilter = 'seller';
 function activeNbfcs() {
   return NBFCS.filter(function(n){ return n.entityGroup === _entityFilter; });
 }
+/* Entities of the active type. In seller mode → sellers only; buyer mode → buyers
+   only. e.type is 'seller'|'buyer', matching _entityFilter directly. Every view
+   scopes its data through this, so no cross-entity data ever leaks. */
+function activeEntities() {
+  return ENTITIES.filter(function(e){ return e.type === _entityFilter; });
+}
+/* Eligibility limited to the active NBFC group — a seller is only ever evaluated
+   against seller NBFCs, a buyer only against buyer NBFCs. */
+function eligibleActiveNbfcs(e){
+  return activeNbfcs().filter(function(n){ return evalNbfc(e,n).eligible; });
+}
+/* The register route for the active entity — 'sellers' or 'buyers'. */
+function activeRegisterRoute(){ return _entityFilter === 'seller' ? 'sellers' : 'buyers'; }
 function setEntityFilter(e) {
   _entityFilter = e;
   /* If the settings NBFC mapping panel is on a hidden NBFC, reset to first visible. */
@@ -981,6 +994,11 @@ function setEntityFilter(e) {
     var n = NBFC_BY_ID[nid];
     if (n && n.entityGroup !== e) state.route = 'dashboard';
   }
+  /* Switch the entity register to match the active mode (Sellers ↔ Buyers). */
+  if (state.route === 'sellers' || state.route === 'buyers') {
+    state.route = activeRegisterRoute();
+  }
+  closeDrawer();          // any open seller/buyer/POC drawer belongs to the old mode
   render();
 }
 
@@ -995,8 +1013,8 @@ var state = { route:'dashboard', role:'Operations', user:'Ops User', email:'ops@
 var NAV = [
   {id:'dashboard', label:'Dashboard', icon:'grid'},
   {group:'Registers'},
-  {id:'sellers', label:'Sellers', icon:'store'},
-  {id:'buyers',  label:'Buyers',  icon:'cart'},
+  {id:'sellers', label:'Sellers', icon:'store', entityGroup:'seller'},
+  {id:'buyers',  label:'Buyers',  icon:'cart',  entityGroup:'buyer'},
   {id:'matrix',  label:'Document Matrix', icon:'table'},
   {id:'poc',     label:'POC Directory', icon:'contact'},
   {group:'NBFC Eligibility'},
@@ -1049,7 +1067,7 @@ function renderNav(){
     var badge='';
     if(it.id==='sellers') badge='<span class="badge">'+ENTITIES.filter(function(e){return e.type==='seller';}).length+'</span>';
     if(it.id==='buyers') badge='<span class="badge">'+ENTITIES.filter(function(e){return e.type==='buyer';}).length+'</span>';
-    if(it.id&&it.id.indexOf('nbfc:')===0){ var nid=it.id.split(':')[1]; var cnt=ENTITIES.filter(function(e){return evalNbfc(e,NBFC_BY_ID[nid]).eligible;}).length; badge='<span class="badge">'+cnt+'</span>'; }
+    if(it.id&&it.id.indexOf('nbfc:')===0){ var nid=it.id.split(':')[1]; var cnt=activeEntities().filter(function(e){return evalNbfc(e,NBFC_BY_ID[nid]).eligible;}).length; badge='<span class="badge">'+cnt+'</span>'; }
     h+='<div class="sb-item'+(on?' on':'')+'" style="'+ncStyle+'" onclick="go(\''+it.id+'\')">'+
        (it.icon==='dot'?'':icon)+(it.icon==='dot'?'<span class="dot" style="width:8px;height:8px;border-radius:50%;background:'+it.nc+';margin-left:0"></span>':'')+
        '<span>'+esc(it.label)+'</span>'+badge+'</div>';
@@ -1059,24 +1077,21 @@ function renderNav(){
 function hexRgb(h){ h=h.replace('#',''); return [parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)].join(','); }
 
 /* ═══════════════ DASHBOARD ═══════════════ */
+/* The dashboard is scoped to the active entity group. In Seller mode it reflects
+   ONLY sellers + seller NBFCs; in Buyer mode ONLY buyers + buyer NBFCs. Every
+   count, pipeline row, attention item and NBFC bar is derived from activeEntities()
+   and activeNbfcs(), so no cross-entity data ever appears. */
 function viewDashboard(){
-  var sellers=ENTITIES.filter(function(e){return e.type==='seller';});
+  var pool   = activeEntities();
+  var anb    = activeNbfcs();
+  var isS    = _entityFilter==='seller';
+  var noun   = isS?'seller':'buyer';
+  var nounC  = isS?'Sellers':'Buyers';
+  var accent = isS?'var(--brand)':'var(--brand-mint)';
+  var accent2= isS?'var(--brand-purple)':'var(--brand-green)';
 
-  /* Seller onboarding funnel. Total / First Check / Pending are derived from the
-     synced master sheet. Logged In and Credit Limit Assigned have no column in
-     that sheet, so they stay blank rather than showing an invented number. */
-  var buyers        = ENTITIES.filter(function(e){return e.type==='buyer';});
-  var firstCheckSet = sellers.filter(function(e){ return eligibleNbfcs(e).length>0; });
-  var pendingSellers= sellers.filter(function(e){ return docCounts(e).pending>0; }).length;
-
-  /* Level-1 hero: the onboarding pipeline across BOTH populations — sellers and
-     buyers — over the same journey stages (Total → First Check → Logged In →
-     Credit). Buyers run the identical eligibility engine, so they get their own
-     row rather than a header stat. Every value is computed the same way; Logged
-     In / Credit have no master-sheet column and stay honestly blank. Cells drill
-     into the matching filtered register the old KPI cards did. */
-  var buyerFirst = buyers.filter(function(e){ return eligibleNbfcs(e).length>0; }).length;
-  var pendingAll = ENTITIES.filter(function(e){ return docCounts(e).pending>0; }).length;
+  var firstCheck = pool.filter(function(e){ return eligibleActiveNbfcs(e).length>0; });
+  var pendingAll = pool.filter(function(e){ return docCounts(e).pending>0; }).length;
 
   function pipeCell(n, total, color, click){
     if(n==null) return '<div class="pipe-cell mut"><div class="pc-n">—</div><div class="pc-sub">Not in master sheet</div></div>';
@@ -1088,43 +1103,37 @@ function viewDashboard(){
   var pipeHead='<div class="pipe-row pipe-head"><div class="pipe-rl">Population</div>'+
     '<div class="pipe-cell">Total</div><div class="pipe-cell">First Check</div>'+
     '<div class="pipe-cell">Logged In</div><div class="pipe-cell">Credit Assigned</div></div>';
-  var sellerRow='<div class="pipe-row"><div class="pipe-rl"><span class="fn-dot" style="background:var(--brand)"></span>Sellers</div>'+
-    pipeCell(sellers.length, sellers.length, 'var(--brand)', "kpiGo('all')")+
-    pipeCell(firstCheckSet.length, sellers.length, 'var(--brand-purple)', "kpiGo('eligible')")+
-    pipeCell(null)+pipeCell(null)+'</div>';
-  var buyerRow='<div class="pipe-row"><div class="pipe-rl"><span class="fn-dot" style="background:var(--brand-mint)"></span>Buyers</div>'+
-    pipeCell(buyers.length, buyers.length, 'var(--brand-mint)', "state.sellerFilter='all';go('buyers')")+
-    pipeCell(buyerFirst, buyers.length, 'var(--brand-green)', "state.sellerFilter='eligible';go('buyers')")+
+  var popRow='<div class="pipe-row"><div class="pipe-rl"><span class="fn-dot" style="background:'+accent+'"></span>'+nounC+'</div>'+
+    pipeCell(pool.length, pool.length, accent, "kpiGo('all')")+
+    pipeCell(firstCheck.length, pool.length, accent2, "kpiGo('eligible')")+
     pipeCell(null)+pipeCell(null)+'</div>';
   var funnelCard='<div class="card" style="margin-bottom:18px">'+
-    '<div class="card-h"><h3>Onboarding pipeline</h3><span class="sub">Open Marketplace → credit-eligible</span>'+
+    '<div class="card-h"><h3>Onboarding pipeline</h3><span class="sub">Open Marketplace → credit-eligible · '+nounC+'</span>'+
       '<div class="head-stats">'+
         '<button class="head-stat amber" onclick="kpiGo(\'pending\')"><b>'+pendingAll+'</b> awaiting docs</button>'+
       '</div></div>'+
-    '<div class="pipe">'+pipeHead+sellerRow+buyerRow+'</div></div>';
+    '<div class="pipe">'+pipeHead+popRow+'</div></div>';
 
-  // Level-3 pipeline: per-NBFC eligible vs. still-needing-docs (filtered by active entity group)
-  var anb = activeNbfcs();
+  // Level-3 pipeline: per-NBFC eligible vs. still-needing-docs (active group + active entities only)
   var neRows=anb.map(function(n){
-    var elig=ENTITIES.filter(function(e){return evalNbfc(e,n).eligible;}).length;
-    var needs=ENTITIES.length-elig;
-    var pct=Math.round(elig/ENTITIES.length*100);
+    var elig=pool.filter(function(e){return evalNbfc(e,n).eligible;}).length;
+    var needs=pool.length-elig;
+    var pct=pool.length?Math.round(elig/pool.length*100):0;
     return '<div class="nbfc-elig clk" onclick="go(\'nbfc:'+n.id+'\')">'+
       '<div class="ne-badge" style="background:'+n.nc+'">'+initials(n.name)+'</div>'+
       '<div class="ne-name">'+esc(n.name)+'<span class="mut">'+n.req.length+' docs required</span></div>'+
       '<div class="ne-track"><div class="ne-fill" style="width:'+pct+'%;background:'+n.nc+'"></div></div>'+
       '<div class="ne-count">'+elig+' eligible <span class="mut">/ '+needs+' need docs</span></div>'+
     '</div>';
-  }).join('');
+  }).join('') || '<div style="padding:24px;text-align:center;color:var(--ink-3)">No '+noun+' NBFCs configured.</div>';
 
-  // Level-2 attention queue: entities 1-2 documents from an active-group NBFC
+  // Level-2 attention queue: active-entity records 1-2 documents from an active-group NBFC
   var near=[];
-  ENTITIES.forEach(function(e){
-    var eligA = anb.filter(function(n){ return evalNbfc(e,n).eligible; });
-    if(eligA.length>0) return;
+  pool.forEach(function(e){
+    if(eligibleActiveNbfcs(e).length>0) return;
     var best=999,bestN=null;
     anb.forEach(function(n){ var m=evalNbfc(e,n); if(m.missing.length<best){best=m.missing.length;bestN=n;} });
-    if(best>=1&&best<=2) near.push({e:e,n:bestN,miss:best,missing:evalNbfc(e,bestN).missing});
+    if(bestN && best>=1&&best<=2) near.push({e:e,n:bestN,miss:best,missing:evalNbfc(e,bestN).missing});
   });
   near.sort(function(a,b){return a.miss-b.miss;});
   var nearRows=near.slice(0,7).map(function(x){
@@ -1133,12 +1142,12 @@ function viewDashboard(){
       '<div class="en">'+esc(x.e.name)+'<span class="mut"> · '+esc(x.e.type)+' · '+x.miss+' doc'+(x.miss>1?'s':'')+' from '+esc(x.n.name)+'</span></div>'+
       '<div class="miss-tags">'+x.missing.map(function(id){return '<span class="miss-tag">'+esc(CAT_BY_ID[id].name)+'</span>';}).join('')+'</div>'+
     '</div>';
-  }).join('') || '<div style="padding:24px;text-align:center;color:var(--ink-3)">No one within 2 documents of a new NBFC — nothing needs attention right now.</div>';
+  }).join('') || '<div style="padding:24px;text-align:center;color:var(--ink-3)">No '+noun+' is within 2 documents of a new NBFC — nothing needs attention right now.</div>';
 
   /* Level-1 state line — the 10-second read, derived from the same values. */
   var summary='<div class="cmd-summary">'+
-    '<b>'+sellers.length+'</b> sellers <span class="sep"></span> <b>'+buyers.length+'</b> buyers in the Open Marketplace pipeline'+
-    ' <span class="sep"></span> <b>'+(firstCheckSet.length+buyerFirst)+'</b> ready for first check'+
+    '<b>'+pool.length+'</b> '+noun+'s in the Open Marketplace pipeline'+
+    ' <span class="sep"></span> <b>'+firstCheck.length+'</b> ready for first check'+
     ' <span class="sep"></span> <b>'+pendingAll+'</b> awaiting documents'+
     (near.length?'<span class="attn-count">'+near.length+' need attention</span>':'')+
   '</div>';
@@ -1159,7 +1168,7 @@ function kpiHero(label,num,sub,cls,onclick){
     '<div class="k-sub">'+esc(sub)+' <span class="arw">→</span></div>'+
   '</div>';
 }
-function kpiGo(filter){ state.sellerFilter=filter; go('sellers'); }
+function kpiGo(filter){ state.sellerFilter=filter; go(activeRegisterRoute()); }
 /* Purely presentational: count KPI integers up once per page (per session),
    respecting reduced-motion, and always settling on the exact rendered value.
    Reads the number the existing logic produced — never changes it. */
@@ -1207,8 +1216,8 @@ function regRows(type){
   var q=(type==='seller'?state.sellerQ:state.buyerQ).toLowerCase().trim();
   var list=ENTITIES.filter(function(e){return e.type===type;});
   list=list.filter(function(e){
-    if(state.sellerFilter==='eligible'&&eligibleNbfcs(e).length===0) return false;
-    if(state.sellerFilter==='blocked'&&eligibleNbfcs(e).length>0) return false;
+    if(state.sellerFilter==='eligible'&&eligibleActiveNbfcs(e).length===0) return false;
+    if(state.sellerFilter==='blocked'&&eligibleActiveNbfcs(e).length>0) return false;
     if(state.sellerFilter==='pending'&&docCounts(e).pending===0) return false;
     if(q){ var hay=(e.name+' '+e.gst+' '+e.city+' '+e.state+' '+e.region).toLowerCase(); if(hay.indexOf(q)===-1) return false; }
     return true;
@@ -1221,7 +1230,8 @@ function regRows(type){
       : '<div class="ec blocked" title="'+esc(n.name)+': '+m.missing.length+' missing">'+initials(n.name)[0]+(m.missing.length?'<span class="n">'+m.missing.length+'</span>':'')+'</div>';
     }).join('');
     var cnt=docCounts(e);
-    var pill = eligibleNbfcs(e).length>0 ? '<span class="status-pill sp-ok"><span class="d"></span>'+eligibleNbfcs(e).length+' NBFC'+(eligibleNbfcs(e).length>1?'s':'')+'</span>'
+    var eligN = eligibleActiveNbfcs(e).length;
+    var pill = eligN>0 ? '<span class="status-pill sp-ok"><span class="d"></span>'+eligN+' NBFC'+(eligN>1?'s':'')+'</span>'
       : cnt.none===CATALOG.length ? '<span class="mut">—</span>'
       : '<span class="status-pill sp-warn"><span class="d"></span>In progress</span>';
     return '<tr onclick="openDetail(\''+e.id+'\')">'+
@@ -1314,33 +1324,38 @@ function buildCommonDocCard(pool, typeSing) {
 
 /* ═══════════════ NBFC DASHBOARD PAGE ═══════════════ */
 function viewNbfc(n){
-  var sellers = ENTITIES.filter(function(e){ return e.type==='seller'; });
-  var buyers  = ENTITIES.filter(function(e){ return e.type==='buyer';  });
-  var total   = ENTITIES.length;
+  /* An NBFC belongs to exactly one entity group (n.entityGroup). Its page is
+     therefore inherently single-population: a seller NBFC shows only sellers,
+     a buyer NBFC only buyers. No manual toggle — the NBFC's own classification
+     decides, keeping seller and buyer data strictly separated. */
+  var nbfcET   = n.entityGroup || 'seller';
+  var typeSing = nbfcET === 'seller' ? 'seller' : 'buyer';
+  var typeCapP = nbfcET === 'seller' ? 'Sellers' : 'Buyers';
+  var pool     = ENTITIES.filter(function(e){ return e.type === nbfcET; });
+  var total    = pool.length;
 
   /* ── Eligibility ──────────────────────────────────────────────── */
-  var eligS = sellers.filter(function(e){ return evalNbfc(e,n).eligible; });
-  var eligB = buyers.filter(function(e){  return evalNbfc(e,n).eligible; });
+  var eligPool = pool.filter(function(e){ return evalNbfc(e,n).eligible; });
 
   /* Logged In, Credit Limit Assigned, Credit Utilisation and Transactions have
      no column in the synced master sheet, so they render blank. Wire each to a
      real column before giving it a number. */
 
-  /* ── 7 KPI cards ───────────────────────────────────────────────── */
+  /* ── 7 KPI cards (scoped to this NBFC's entity population) ──────── */
   var kpis =
-    kpiHero('Total Sellers',         sellers.length,            'Open Marketplace · Completed',                     '', "go('sellers')") +
-    kpiHero('Total Buyers',          buyers.length,             'Open Marketplace · Completed',                     '', "go('buyers')") +
-    kpiHero('Eligible',              eligS.length+eligB.length, eligS.length+' sellers · '+eligB.length+' buyers',  '', "kpiGo('eligible')") +
-    kpiHero('Logged In',             NODATA,                    'Not in master sheet',                              '', '') +
-    kpiHero('Credit Limit Assigned', NODATA,                    'Not in master sheet',                              '', '') +
-    kpiHero('Credit Utilisation',    NODATA,                    'Not in master sheet',                              '', '') +
-    kpiHero('Transactions',          NODATA,                    'Not in master sheet',                              '', '');
+    kpiHero('Total '+typeCapP,       pool.length,     'Open Marketplace · Completed',                    '', "kpiGo('all')") +
+    kpiHero('Eligible',              eligPool.length, eligPool.length+' of '+pool.length+' '+typeSing+'s','', "kpiGo('eligible')") +
+    kpiHero('Needs Documents',       pool.length-eligPool.length, 'Not yet eligible for '+esc(n.name),   '', "kpiGo('blocked')") +
+    kpiHero('Logged In',             NODATA,          'Not in master sheet',                             '', '') +
+    kpiHero('Credit Limit Assigned', NODATA,          'Not in master sheet',                             '', '') +
+    kpiHero('Credit Utilisation',    NODATA,          'Not in master sheet',                             '', '') +
+    kpiHero('Transactions',          NODATA,          'Not in master sheet',                             '', '');
 
-  /* ── Document requirements table ───────────────────────────────── */
+  /* ── Document requirements table (across this NBFC's population) ── */
   var docRows = n.req.map(function(docId){
     var cat = CAT_BY_ID[docId]; if(!cat) return '';
     var rcv=0, pe=0, na=0, nr=0;
-    ENTITIES.forEach(function(e){
+    pool.forEach(function(e){
       var s = e.docs[docId];
       if(s==='received') rcv++; else if(s==='pending') pe++;
       else if(s==='na') na++; else nr++;
@@ -1362,7 +1377,7 @@ function viewNbfc(n){
 
   /* Legend only earns its space once at least one document has a status. */
   var anyTracked = n.req.some(function(docId){
-    return ENTITIES.some(function(e){ return !!e.docs[docId]; });
+    return pool.some(function(e){ return !!e.docs[docId]; });
   });
   var keyH = anyTracked
     ? '<div class="drq-key">'+
@@ -1373,16 +1388,11 @@ function viewNbfc(n){
     : '';
   var docCard = '<div class="card" style="margin-bottom:18px">'+
     '<div class="card-h"><h3>'+esc(n.name)+' — Document Requirements</h3>'+
-    '<span class="sub">'+n.req.length+' mandatory documents'+(n.vintageYrs?' · '+n.vintageYrs+'-year Recykal vintage required':'')+' — across all '+total+' entities</span>'+
+    '<span class="sub">'+n.req.length+' mandatory documents'+(n.vintageYrs?' · '+n.vintageYrs+'-year Recykal vintage required':'')+' — across all '+total+' '+typeSing+'s</span>'+
     keyH+'</div>'+
     '<div class="drq-grid">'+docRows+'</div></div>';
 
-  /* ── Entity lists: eligible | blocked (filtered by entity type) ── */
-  var nbfcET   = state.nbfcEntityType || 'seller';
-  var typeSing = nbfcET === 'seller' ? 'seller' : 'buyer';
-  var typeCapP = nbfcET === 'seller' ? 'Sellers' : 'Buyers';
-  var pool     = ENTITIES.filter(function(e){ return e.type === nbfcET; });
-
+  /* ── Entity lists: eligible | blocked (this NBFC's population) ── */
   var ready=[], blocked=[];
   pool.forEach(function(e){ var m=evalNbfc(e,n); if(m.eligible) ready.push(e); else blocked.push({e:e,m:m}); });
   blocked.sort(function(a,b){ return a.m.missing.length-b.m.missing.length; });
@@ -1439,17 +1449,9 @@ function viewNbfc(n){
       'Showing first 120 of '+blocked.length+' · use the '+typeCapP+' register for the full list</div>';
   }
 
-  var typeToggle =
-    '<div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">'+
-      '<span style="font-size:12px;font-weight:500;color:var(--ink-3)">View eligibility for:</span>'+
-      '<button class="chip'+(nbfcET==='seller'?' on':'')+'" onclick="setNbfcEntityType(\'seller\')">Sellers</button>'+
-      '<button class="chip'+(nbfcET==='buyer'?' on':'')+'" onclick="setNbfcEntityType(\'buyer\')">Buyers</button>'+
-    '</div>';
-
   return '<div class="kpi-row kpi-row-7">'+kpis+'</div>'+
     pocStrip(n)+
     docCard+
-    typeToggle+
     buildCommonDocCard(pool, typeSing)+
     '<div class="split-cols">'+
       '<div class="card"><div class="card-h"><h3>Eligible</h3><span class="sub">'+ready.length+' '+typeSing+'s</span></div>'+readyH+'</div>'+
@@ -1465,14 +1467,14 @@ function wireNbfc(n){ animateKpis('nbfc:'+n.id); }
 function viewMatrix(){
   var docs=CATALOG;
   var head='<thead><tr><th>Vendor</th>'+docs.map(function(d){return '<th title="'+esc(d.name)+'">'+esc(shortDoc(d.name))+'</th>';}).join('')+'</tr></thead>';
-  var body='<tbody>'+ENTITIES.slice(0,120).map(function(e){
+  var body='<tbody>'+activeEntities().slice(0,120).map(function(e){
     return '<tr><th onclick="openDetail(\''+e.id+'\')" title="'+esc(e.name)+'">'+esc(e.name)+'</th>'+
       docs.map(function(d){ var s=e.docs[d.id];
         var cls=s==='received'?'ok':s==='pending'?'warn':s==='na'?'na':'none';
         return '<td title="'+esc(d.name)+': '+(statusMeta(s).label)+'"><span class="mdot '+cls+'"></span></td>';
       }).join('')+'</tr>';
   }).join('')+'</tbody>';
-  return '<div class="card"><div class="card-h"><h3>Document Matrix</h3><span class="sub">Canonical documents × vendors (first 120)</span>'+
+  return '<div class="card"><div class="card-h"><h3>Document Matrix</h3><span class="sub">Canonical documents × '+(_entityFilter==='seller'?'sellers':'buyers')+' (first 120)</span>'+
     '<div class="right" style="font-size:11.5px;color:var(--ink-3);display:flex;gap:12px">'+
       legendDot('ok','Received')+legendDot('warn','Pending')+legendDot('na','N/A')+legendDot('none','Not on record')+'</div></div>'+
     '<div class="matrix-wrap"><table class="matrix">'+head+body+'</table></div></div>';
@@ -1532,7 +1534,6 @@ function panelUsers(){
 }
 function wireSettings(){}
 function setPanel(p){ state.setPanel=p; render(); }
-function setNbfcEntityType(t){ state.nbfcEntityType=t; render(); }
 function setMapNbfc(id){ state.mapNbfc=id; render(); }
 function toggleReq(docId){ var n=NBFC_BY_ID[state.mapNbfc]; var i=n.req.indexOf(docId); if(i>=0)n.req.splice(i,1); else n.req.push(docId); persistNbfcConfig(n.id); render(); }
 function fakeSync(){
@@ -1569,7 +1570,7 @@ function openDetail(id){
     if(s==='received'){ c.ok++; cnt.received++; } else if(s==='pending') cnt.pending++;
     else if(s==='na') cnt.na++; else cnt.none++; });
   c.pct = reqIds.length ? Math.round(c.ok/reqIds.length*100) : 0;
-  var eligs=eligibleNbfcs(e);
+  var eligs=eligibleActiveNbfcs(e);
 
   var esCards=anb.map(function(n){ var m=evalNbfc(e,n);
     var recN = n.req.filter(function(id){ return e.docs[id]==='received'; }).length;
@@ -1767,6 +1768,9 @@ var FOLLOWUPS = {};       // pocId → [ interactions ]
 var POC_CHANNELS = ['Call','Email','WhatsApp'];
 var POC_ROLES    = ['Relationship Manager','Sales','Operations','Credit','Legal','Collections','Technical','Other'];
 var FU_MODES     = ['Call','Email','WhatsApp','Meeting','SMS'];
+var FU_STATUSES  = ['','Pending','In Progress','Completed','Overdue'];
+/* Entity group of an NBFC id (frontend mirror of the backend map). */
+function nbfcGroup(id){ var n=NBFC_BY_ID[id]; return n?n.entityGroup:''; }
 
 /* Sample directory — replace with real contacts. Emails use the reserved
    .example domain and numbers are placeholders, so nothing here is real PII. */
@@ -1831,7 +1835,8 @@ function waHref(n){ return 'https://wa.me/'+String(n||'').replace(/[^\d]/g,''); 
 function pocCopy(id){
   var p=pocById(id); if(!p) return;
   var lines=[p.name+(p.designation?' · '+p.designation:''), (NBFC_BY_ID[p.nbfc]?NBFC_BY_ID[p.nbfc].name:'')+(p.role?' · '+p.role:''),
-    p.mobile?('Mobile: '+p.mobile):'', p.altMobile?('Alt: '+p.altMobile):'', p.email?('Email: '+p.email):'', p.altEmail?('Alt: '+p.altEmail):''].filter(Boolean);
+    p.mobile?('Mobile: '+p.mobile):'', p.altMobile?('Alt: '+p.altMobile):'', p.whatsapp?('WhatsApp: '+p.whatsapp):'',
+    p.email?('Email: '+p.email):'', p.altEmail?('Alt: '+p.altEmail):''].filter(Boolean);
   var txt=lines.join('\n');
   if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(function(){ toast('Contact details copied'); },function(){ toast('Copy failed'); }); }
   else { try{ var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('Contact details copied'); }catch(e){ toast('Copy failed'); } }
@@ -1850,9 +1855,10 @@ var PIC={
 };
 function pocQuickBtns(p){
   var h='';
+  var wa = p.whatsapp || p.mobile;        // prefer a dedicated WhatsApp number
   if(p.mobile){ h+=qbtn('Call '+p.mobile, PIC.phone, "location.href='"+telHref(p.mobile)+"'"); }
   if(p.email){ h+=qbtn('Email '+p.email, PIC.mail, "location.href='mailto:"+esc(p.email)+"'"); }
-  if(p.mobile){ h+=qbtn('WhatsApp', PIC.wa, "window.open('"+waHref(p.mobile)+"','_blank')"); }
+  if(wa){ h+=qbtn('WhatsApp'+(p.whatsapp?' '+p.whatsapp:''), PIC.wa, "window.open('"+waHref(wa)+"','_blank')"); }
   h+=qbtn('Copy contact details', PIC.copy, "pocCopy('"+p.id+"')");
   return '<span class="qbtns">'+h+'</span>';
 }
@@ -1879,12 +1885,23 @@ function viewPocDirectory(){
     '</tr></thead><tbody id="pocBody"></tbody></table></div>'+
   '</div>';
 }
+/* A POC belongs to the active entity group when its NBFC is in that group.
+   Falls back to the stored entityType if the NBFC id is unknown, so records
+   for future NBFCs still classify correctly. */
+function pocInActiveGroup(p){
+  var n = NBFC_BY_ID[p.nbfc];
+  if(n && n.entityGroup) return n.entityGroup === _entityFilter;
+  return String(p.entityType||'').toLowerCase() === _entityFilter;
+}
 function pocRows(){
   var q=(state.pocQ||'').toLowerCase().trim();
   var list=POCS.filter(function(p){
+    if(!pocInActiveGroup(p)) return false;                       // strict seller/buyer separation
     if(state.pocNbfc!=='all' && p.nbfc!==state.pocNbfc) return false;
     if(state.pocStatus!=='all' && p.status!=='Active') return false;
-    if(q){ var hay=(p.name+' '+p.designation+' '+p.department+' '+p.role+' '+p.org+' '+p.email+' '+(NBFC_BY_ID[p.nbfc]?NBFC_BY_ID[p.nbfc].name:'')).toLowerCase(); if(hay.indexOf(q)===-1) return false; }
+    if(q){ var hay=(p.name+' '+p.designation+' '+p.department+' '+p.role+' '+p.org+' '+p.email+' '+p.mobile+' '+
+      (p.entityType||'')+' '+(p.relOwner||'')+' '+(p.linkedSeller||'')+' '+(p.linkedBuyer||'')+' '+
+      (NBFC_BY_ID[p.nbfc]?NBFC_BY_ID[p.nbfc].name:'')).toLowerCase(); if(hay.indexOf(q)===-1) return false; }
     return true;
   });
   // primary first, then name
@@ -1921,18 +1938,28 @@ function openPoc(id){
   $('drawer').style.setProperty('--nc', nc);
   $('drawer').style.setProperty('--nc-rgb', hexRgb(nc));
 
+  var linkedLabel = (p.entityType||'').toLowerCase()==='buyer' ? 'Linked Buyer' : 'Linked Seller';
+  var linkedVal   = p.linkedSeller || p.linkedBuyer || '';
   var meta=[
-    ['Designation',p.designation],['Department',p.department],['Organization',p.org],['Role / Purpose',p.role],
-    ['Entity type',p.entityType],['Relationship owner',p.relOwner],
-    ['Preferred channel',p.channel],['Priority',p.primary?'Primary':'Secondary'],
-    ['Mobile',p.mobile,'mono'],['Alternate mobile',p.altMobile,'mono'],
+    ['POC ID',p.id,'mono'],
+    ['Designation',p.designation],['Department',p.department],
+    ['Company name',p.org],['Role / Purpose',p.role],
+    ['Entity type',p.entityType],[linkedLabel,linkedVal],
+    ['Relationship owner',p.relOwner],['Preferred channel',p.channel],
+    ['Priority',p.primary?'Primary':'Secondary'],['Follow-up status',p.followupStatus],
+    ['Mobile',p.mobile,'mono'],['Alternate mobile',p.altMobile,'mono'],['WhatsApp',p.whatsapp,'mono'],
     ['Official email',p.email,'mono'],['Alternate email',p.altEmail,'mono'],
-    ['Last contact',fmtDate(p.lastContact)],['Next follow-up',fmtDate(p.nextFollowup)]
+    ['Last interaction',fmtDate(p.lastContact)],['Next follow-up',fmtDate(p.nextFollowup)]
   ];
+  /* Audit trail — surfaced so no change is silent (Created / Last modified). */
+  var auditBits=[];
+  if(p.createdBy||p.createdOn) auditBits.push('Created by '+(p.createdBy||'—')+(p.createdOn?' on '+fmtDate(p.createdOn):''));
+  if(p.modifiedBy||p.modifiedOn) auditBits.push('Last modified by '+(p.modifiedBy||'—')+(p.modifiedOn?' on '+fmtDate(p.modifiedOn):''));
+  var auditH = auditBits.length ? '<div class="meta-cell full"><div class="ml">Audit trail</div><div class="mv" style="font-size:11.5px;color:var(--ink-3)">'+esc(auditBits.join(' · '))+'</div></div>' : '';
   var metaH=meta.map(function(m){
     var empty=(m[1]==null||String(m[1]).trim()===''); var v=empty?'—':String(m[1]);
     return '<div class="meta-cell"><div class="ml">'+esc(m[0])+'</div><div class="mv'+(m[2]&&!empty?' mono':'')+(empty?' muted':'')+'"'+(m[2]&&!empty?' style="font-size:12px"':'')+'>'+esc(v)+'</div></div>';
-  }).join('') + '<div class="meta-cell full"><div class="ml">Remarks / Notes</div><div class="mv'+(p.remarks?'':' muted')+'">'+esc(p.remarks||'—')+'</div></div>';
+  }).join('') + '<div class="meta-cell full"><div class="ml">Remarks / Notes</div><div class="mv'+(p.remarks?'':' muted')+'">'+esc(p.remarks||'—')+'</div></div>' + auditH;
 
   var fus=(FOLLOWUPS[id]||[]).slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
   var fuH=fus.length ? '<div class="fu-list">'+fus.map(function(f){
@@ -1973,31 +2000,42 @@ function openPoc(id){
 /* ── Create / edit form (in the drawer) ────────────────────────────────── */
 function openPocForm(id, presetNbfc){
   var p = id ? pocById(id) : null;
+  /* The form only offers NBFCs of the active entity group, so Entity Type is
+     fully determined by the chosen NBFC — shown read-only, never a free choice.
+     This makes an invalid Seller↔Buyer mapping impossible from the UI. */
+  var isBuyerMode = _entityFilter==='buyer';
+  var entityLabel = isBuyerMode?'Buyer':'Seller';
   var nbfcSel = activeNbfcs().map(function(n){ var sel=(p?p.nbfc:presetNbfc)===n.id?' selected':''; return '<option value="'+n.id+'"'+sel+'>'+esc(n.name)+'</option>'; }).join('');
+  var linkedVal = p ? (p.linkedSeller||p.linkedBuyer||'') : '';
+  var linkedOpts = '<option value=""></option>'+activeEntities().slice().sort(function(a,b){return a.name.localeCompare(b.name);})
+    .map(function(e){ return '<option'+(e.name===linkedVal?' selected':'')+'>'+esc(e.name)+'</option>'; }).join('');
   function fld(label,idf,val,full,type){ return '<div class="pf-field'+(full?' full':'')+'"><label>'+esc(label)+'</label><input class="poc-in" id="'+idf+'" type="'+(type||'text')+'" value="'+esc(val||'')+'"></div>'; }
   function sel(label,idf,opts,val){ return '<div class="pf-field"><label>'+esc(label)+'</label><select class="poc-in" id="'+idf+'">'+opts.map(function(o){return '<option'+(o===val?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></div>'; }
   $('drawer').style.setProperty('--nc', '#8460D4'); $('drawer').style.setProperty('--nc-rgb', hexRgb('#8460D4'));
   $('drawer').innerHTML=
     '<div class="dr-head"><div class="dr-ava"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:22px;height:22px"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg></div>'+
-      '<div style="flex:1;min-width:0"><h2>'+(p?'Edit contact':'Add contact')+'</h2><div class="dh-sub">'+(p?esc(p.name):'New point of contact')+'</div></div>'+
+      '<div style="flex:1;min-width:0"><h2>'+(p?'Edit contact':'Add contact')+'</h2><div class="dh-sub">'+(p?esc(p.name):'New '+entityLabel.toLowerCase()+' point of contact')+'</div></div>'+
       '<button class="dr-x" onclick="'+(p?'openPoc(\''+id+'\')':'closeDrawer()')+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>'+
     '<div class="dr-body"><div class="pf-grid">'+
-      '<div class="pf-field"><label>NBFC</label><select class="poc-in" id="pf_nbfc">'+nbfcSel+'</select></div>'+
+      '<div class="pf-field"><label>NBFC ('+entityLabel+')</label><select class="poc-in" id="pf_nbfc">'+nbfcSel+'</select></div>'+
+      '<div class="pf-field"><label>Entity type</label><input class="poc-in" id="pf_entitytype_disp" value="'+entityLabel+'" disabled style="opacity:.7"></div>'+
+      '<div class="pf-field full"><label>Linked '+entityLabel+'</label><select class="poc-in" id="pf_linked">'+linkedOpts+'</select></div>'+
       sel('Priority','pf_primary',['Primary','Secondary'],p?(p.primary?'Primary':'Secondary'):'Secondary')+
-      sel('Entity type','pf_entitytype',['','Seller','Buyer'],p?(p.entityType||''):'')+
-      fld('Relationship owner','pf_relowner',p?p.relOwner:'',true)+
+      fld('Relationship owner','pf_relowner',p?p.relOwner:'')+
       fld('Full name','pf_name',p?p.name:'',true)+
       fld('Designation','pf_desig',p?p.designation:'')+
       fld('Department','pf_dept',p?p.department:'')+
       sel('Role / Purpose','pf_role',POC_ROLES,p?p.role:'Relationship Manager')+
-      fld('Organization','pf_org',p?p.org:'')+
+      fld('Company name','pf_org',p?p.org:'')+
       sel('Preferred channel','pf_channel',POC_CHANNELS,p?p.channel:'Email')+
       fld('Mobile number','pf_mobile',p?p.mobile:'')+
       fld('Alternate mobile','pf_altmobile',p?p.altMobile:'')+
+      fld('WhatsApp number','pf_whatsapp',p?p.whatsapp:'')+
       fld('Official email','pf_email',p?p.email:'','',' email'.trim())+
       fld('Alternate email','pf_altemail',p?p.altEmail:'')+
-      fld('Last contact date','pf_last',p?p.lastContact:'',false,'date')+
+      fld('Last interaction date','pf_last',p?p.lastContact:'',false,'date')+
       fld('Next follow-up date','pf_next',p?p.nextFollowup:'',false,'date')+
+      sel('Follow-up status','pf_fustatus',FU_STATUSES,p?(p.followupStatus||''):'')+
       '<div class="pf-field full"><label>Remarks / Notes</label><textarea class="poc-in" id="pf_remarks" placeholder="Context, escalation notes…">'+esc(p?p.remarks:'')+'</textarea></div>'+
     '</div>'+
       '<div class="poc-actions">'+
@@ -2009,15 +2047,29 @@ function openPocForm(id, presetNbfc){
 }
 function savePocRecord(id){
   var nbfc=$('pf_nbfc').value, name=($('pf_name').value||'').trim();
+  /* ── Validation ── name required; email + phone format-checked when present. */
   if(!name){ toast('Name is required'); return; }
+  var email=($('pf_email').value||'').trim();
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Enter a valid email address'); return; }
+  var mobile=($('pf_mobile').value||'').trim();
+  if(mobile && mobile.replace(/[^\d]/g,'').length<7){ toast('Enter a valid mobile number'); return; }
+  /* Entity type is derived from the NBFC's group — never a manual choice, so the
+     Seller↔Buyer mapping can never be invalid. Linked entity goes to the matching
+     side (Linked Seller for seller NBFCs, Linked Buyer for buyer NBFCs). */
+  var grp = nbfcGroup(nbfc) || _entityFilter;
+  var entityType = grp==='buyer'?'Buyer':'Seller';
+  var linked = ($('pf_linked')?$('pf_linked').value:'')||'';
   var rec={
     nbfc:nbfc, name:name, designation:($('pf_desig').value||'').trim(), department:($('pf_dept').value||'').trim(),
     role:$('pf_role').value, org:($('pf_org').value||'').trim(), channel:$('pf_channel').value,
-    primary:$('pf_primary').value==='Primary', entityType:$('pf_entitytype').value||'',
-    mobile:($('pf_mobile').value||'').trim(), altMobile:($('pf_altmobile').value||'').trim(),
-    email:($('pf_email').value||'').trim(), altEmail:($('pf_altemail').value||'').trim(),
+    primary:$('pf_primary').value==='Primary', entityType:entityType,
+    linkedSeller: grp==='seller'?linked:'', linkedBuyer: grp==='buyer'?linked:'',
+    mobile:mobile, altMobile:($('pf_altmobile').value||'').trim(), whatsapp:($('pf_whatsapp').value||'').trim(),
+    email:email, altEmail:($('pf_altemail').value||'').trim(),
     lastContact:$('pf_last').value||'', nextFollowup:$('pf_next').value||'',
-    relOwner:($('pf_relowner').value||'').trim(), remarks:($('pf_remarks').value||'').trim()
+    followupStatus:$('pf_fustatus').value||'',
+    relOwner:($('pf_relowner').value||'').trim(), remarks:($('pf_remarks').value||'').trim(),
+    modifiedBy:(state.user||'')
   };
   var p;
   if(id){ p=pocById(id); if(!p){ toast('Contact not found'); return; } Object.keys(rec).forEach(function(k){ p[k]=rec[k]; }); }
@@ -2025,7 +2077,7 @@ function savePocRecord(id){
     var pre=({billmart:'BM',capitalxb:'CX',strideone:'SO',credable:'CR',karncy:'KY'})[nbfc]||'XX';
     var nums=POCS.filter(function(x){return x.nbfc===nbfc;}).map(function(x){ var m=String(x.id).match(/-(\d+)$/); return m?+m[1]:0; });
     var nextN=(nums.length?Math.max.apply(null,nums):0)+1;
-    p={ id:'P-'+pre+'-'+String(nextN).padStart(2,'0'), status:'Active' };
+    p={ id:'P-'+pre+'-'+String(nextN).padStart(2,'0'), status:'Active', createdBy:(state.user||'') };
     Object.keys(rec).forEach(function(k){ p[k]=rec[k]; }); POCS.push(p);
   }
   /* One primary per NBFC: demote the others if this one is primary. */
@@ -2037,6 +2089,7 @@ function togglePocStatus(id){
   var p=pocById(id); if(!p) return;
   p.status = p.status==='Active' ? 'Inactive' : 'Active';
   if(p.status==='Inactive') p.primary=false;       // an inactive contact can't be the primary
+  p.modifiedBy = state.user||'';
   persistPOCs(); savePocLive(p); toast(p.status==='Active'?'Contact reactivated':'Contact deactivated (history kept)');
   openPoc(id); if(state.route==='poc') pocRows();
 }
@@ -2048,6 +2101,8 @@ function addFollowup(pocId){
     mode:$('fu_mode').value, summary:summary, nextAction:($('fu_next').value||'').trim(), nextDate:$('fu_nextdate').value||'', by:state.user||'User' };
   (FOLLOWUPS[pocId]=FOLLOWUPS[pocId]||[]).push(fu);
   p.lastContact=fu.date; if(fu.nextDate) p.nextFollowup=fu.nextDate;   // keep the POC's dates in sync
+  p.followupStatus = fu.nextDate ? 'Pending' : 'Completed';            // derive from whether a next action is set
+  p.modifiedBy = state.user||'';
   persistPOCs(); savePocLive(p); saveFollowupLive(fu); toast('Interaction logged'); openPoc(pocId);
 }
 
@@ -2090,6 +2145,7 @@ function refreshPOCs(){
 function savePocLive(p){
   if(!LIVE) return;
   google.script.run
+    .withSuccessHandler(function(res){ if(res && res.ok===false){ toast('Sheet rejected the save: '+(res.error||'unknown reason')); } })
     .withFailureHandler(function(err){ toast('Sheet save failed: '+((err&&err.message)||err)); })
     .savePOC(p);
 }
@@ -2126,7 +2182,11 @@ document.addEventListener('DOMContentLoaded',function(){
   });
   $('globalSearch') && ($('globalSearch').oninput=function(e){
     var v=e.target.value; if(!v) return;
-    if(state.route!=='sellers'&&state.route!=='buyers'){ state.sellerQ=v; go('sellers'); setTimeout(function(){var q=$('regQ'); if(q){q.value=v;q.focus();}},50); }
+    if(state.route!=='sellers'&&state.route!=='buyers'){
+      /* Route global search into the active entity's register. */
+      if(_entityFilter==='seller') state.sellerQ=v; else state.buyerQ=v;
+      go(activeRegisterRoute()); setTimeout(function(){var q=$('regQ'); if(q){q.value=v;q.focus();}},50);
+    }
   });
   document.addEventListener('keydown',function(ev){ if(ev.key==='Escape') closeDrawer(); });
 });
