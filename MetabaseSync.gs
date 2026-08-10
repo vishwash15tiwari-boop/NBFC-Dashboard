@@ -183,6 +183,7 @@ function syncMetabaseToSheet() {
     }
 
     writeToSheet_(ss, q.tab, filtered, gstinDateMap);
+    postProcessVintage_(ss, q.tab, filtered.rows.length, gstinDateMap);
     formatSheet_(ss, q.tab, filtered.rows.length);
     Logger.log('✓ "' + q.tab + '" done');
   });
@@ -502,6 +503,78 @@ function buildEarliestDateMap_(result) {
 
   Logger.log('  buildEarliestDateMap_: ' + Object.keys(map).length + ' GSTINs indexed across all verticals');
   return map;
+}
+
+/** After writeToSheet_() has written everything else, read the sheet's own
+ *  headers to locate the Vintage and date columns, then calculate and write
+ *  vintage values directly. This is reliable regardless of Metabase column
+ *  names because we read the date from the sheet (already written by sync). */
+function postProcessVintage_(ss, tabName, numRows, gstinDateMap) {
+  if (numRows <= 0) return;
+  var sh = ss.getSheetByName(tabName);
+  if (!sh) return;
+
+  var lastCol = sh.getLastColumn();
+  if (lastCol <= 0) return;
+
+  var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0]
+    .map(function(h) { return String(h).trim(); });
+
+  var vintageCol = -1;   // 1-based sheet column numbers
+  var gstinCol   = -1;
+  var dateCol    = -1;
+
+  var gstinAliases = (FIELD_MAP['sellergstin'] || [])
+    .concat(FIELD_MAP['buyergstin'] || [])
+    .concat(['GSTIN', 'GST']);
+  var dateAliases = FIELD_MAP['dateofregistration'] || [];
+
+  headers.forEach(function(h, i) {
+    var hn = norm_(h);
+    if (vintageCol < 0 && hn === 'vintagewithrecykal')  vintageCol = i + 1;
+    if (gstinCol < 0) {
+      for (var g = 0; g < gstinAliases.length; g++) {
+        if (norm_(gstinAliases[g]) === hn) { gstinCol = i + 1; break; }
+      }
+    }
+    if (dateCol < 0) {
+      for (var d = 0; d < dateAliases.length; d++) {
+        if (norm_(dateAliases[d]) === hn) { dateCol = i + 1; break; }
+      }
+    }
+  });
+
+  if (vintageCol < 0) {
+    Logger.log('  ⚠ postProcessVintage_: "Vintage with Recykal" header not found in "' + tabName + '" — all sheet headers: ' + headers.join(' | '));
+    return;
+  }
+
+  Logger.log('  postProcessVintage_: vintage=col' + vintageCol
+    + '  gstin=col' + (gstinCol > 0 ? gstinCol + ' "' + headers[gstinCol-1] + '"' : '-1 (not found)')
+    + '  date=col'  + (dateCol  > 0 ? dateCol  + ' "' + headers[dateCol -1] + '"' : '-1 (not found)')
+    + '  gstinMap=' + Object.keys(gstinDateMap || {}).length + ' entries');
+
+  var data = sh.getRange(2, 1, numRows, lastCol).getValues();
+
+  var vintageVals = data.map(function(row) {
+    // 1. Earliest cross-vertical date from GSTIN map (built before vertical filter)
+    if (gstinCol > 0 && gstinDateMap) {
+      var gstin = String(row[gstinCol - 1] == null ? '' : row[gstinCol - 1]).trim().toUpperCase();
+      if (gstin && gstinDateMap[gstin]) {
+        var v1 = calcVintage_(gstinDateMap[gstin]);
+        if (v1) return [v1];
+      }
+    }
+    // 2. Date already written to the sheet's own date column
+    if (dateCol > 0) {
+      var v2 = calcVintage_(row[dateCol - 1]);
+      if (v2) return [v2];
+    }
+    return [''];
+  });
+
+  sh.getRange(2, vintageCol, numRows, 1).setValues(vintageVals);
+  Logger.log('  postProcessVintage_: ✓ wrote ' + numRows + ' vintage values to col ' + vintageCol + ' ("' + headers[vintageCol-1] + '")');
 }
 
 
